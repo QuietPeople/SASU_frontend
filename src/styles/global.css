@@ -1,0 +1,24 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  background: var(--color-background);
+  font-family: var(--font-family-base);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
