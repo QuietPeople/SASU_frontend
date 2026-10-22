@@ -1,0 +1,1049 @@
+/* SASU 화면 스타일(순수 CSS)
+   - 두 페이지(관리자 콘텐츠 목록, 학습자 피드)가 함께 씀
+   - 클래스 이름은 모두 sasu- 로 시작해 팀의 다른 스타일과 겹치지 않게 함
+   - 색은 아래 변수로 모아 둠. 회색·흰색으로 바꾸려면 .sasu-page 블록의 값만 교체하면 됨 */
+
+.sasu-page {
+  /* 하늘색·흰색 */
+  --sasu-bg: #f3f8fd;
+  --sasu-surface: #ffffff;
+  --sasu-soft: #f1f6fb;
+  --sasu-ink: #15283a;
+  --sasu-muted: #5f7386;
+  --sasu-line: #dce7f1;
+  --sasu-line-strong: #c3d5e6;
+  --sasu-primary: #1c76c4;
+  --sasu-primary-ink: #145a98;
+  --sasu-primary-soft: #e7f3fd;
+  --sasu-primary-line: #c9e2f6;
+  --sasu-warn-bg: #fff6e5;
+  --sasu-warn-ink: #925106;
+  --sasu-danger: #c2412d;
+  --sasu-danger-bg: #fdeeea;
+  --sasu-ok: #16794f;
+  --sasu-ok-bg: #e7f6ef;
+  --sasu-video-1: #4f86b4;
+  --sasu-video-2: #24496d;
+  --sasu-video-3: #0f2338;
+  --sasu-shadow: 0 10px 28px rgba(21, 60, 100, 0.07);
+  --sasu-font: 'Pretendard', 'Pretendard Variable', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+
+  /* 회색·흰색으로 바꾸려면 위 값을 아래로 교체
+  --sasu-bg: #f5f6f8; --sasu-surface: #ffffff; --sasu-soft: #f2f3f5;
+  --sasu-ink: #1f2328; --sasu-muted: #5d6570; --sasu-line: #e1e4e8; --sasu-line-strong: #ccd1d7;
+  --sasu-primary: #3f4a57; --sasu-primary-ink: #2f3842; --sasu-primary-soft: #eef0f2; --sasu-primary-line: #d8dce1;
+  --sasu-video-1: #6b7480; --sasu-video-2: #39414b; --sasu-video-3: #1d2228; */
+
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 28px 32px 56px;
+  background: var(--sasu-bg);
+  color: var(--sasu-ink);
+  font-family: var(--sasu-font);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sasu-page *,
+.sasu-page *::before,
+.sasu-page *::after {
+  box-sizing: border-box;
+}
+
+.sasu-page p,
+.sasu-page h1,
+.sasu-page h2,
+.sasu-page dl,
+.sasu-page dd,
+.sasu-page ul,
+.sasu-page ol {
+  margin: 0;
+}
+
+.sasu-page ul,
+.sasu-page ol {
+  padding: 0;
+  list-style: none;
+}
+
+.sasu-page :focus-visible {
+  outline: 2px solid var(--sasu-primary);
+  outline-offset: 2px;
+}
+
+.sasu-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 공통 조각 ---------- */
+.sasu-eyebrow {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--sasu-primary);
+}
+
+.sasu-title {
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--sasu-ink);
+}
+
+.sasu-title--sm {
+  font-size: 22px;
+}
+
+.sasu-sub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--sasu-muted);
+}
+
+.sasu-help {
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+
+.sasu-muted {
+  color: var(--sasu-muted);
+}
+
+.sasu-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sasu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 18px;
+  background: var(--sasu-surface);
+  box-shadow: var(--sasu-shadow);
+}
+
+.sasu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 10px;
+  background: var(--sasu-surface);
+  color: var(--sasu-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sasu-btn:hover:not(:disabled) {
+  border-color: var(--sasu-primary);
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sasu-btn--sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.sasu-btn--primary {
+  border-color: var(--sasu-primary);
+  background: var(--sasu-primary);
+  color: #fff;
+}
+
+.sasu-btn--primary:hover:not(:disabled) {
+  background: var(--sasu-primary-ink);
+  color: #fff;
+}
+
+.sasu-btn--light {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-btn--ghost-light {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  color: #fff;
+}
+
+.sasu-btn--ghost-light:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.sasu-input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 10px;
+  background: var(--sasu-surface);
+  color: var(--sasu-ink);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.sasu-input:disabled {
+  background: var(--sasu-soft);
+  color: var(--sasu-muted);
+}
+
+.sasu-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 999px;
+  background: var(--sasu-surface);
+  color: var(--sasu-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sasu-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 999px;
+  color: var(--sasu-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sasu-badge--on {
+  border-color: var(--sasu-primary-line);
+  background: var(--sasu-primary-soft);
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 44px 24px;
+  border: 1px dashed var(--sasu-line-strong);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.sasu-empty__title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sasu-empty__text {
+  font-size: 13px;
+  color: var(--sasu-muted);
+}
+
+.sasu-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--sasu-primary-line);
+  border-top-color: var(--sasu-primary);
+  border-radius: 50%;
+  animation: sasu-spin 0.8s linear infinite;
+}
+
+.sasu-spinner--light {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+@keyframes sasu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sasu-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 60;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--sasu-primary-ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  box-shadow: 0 12px 30px rgba(21, 60, 100, 0.25);
+}
+
+/* ---------- 관리자 콘텐츠 목록 ---------- */
+.sasu-cl {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.sasu-cl__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sasu-cl__counts {
+  display: flex;
+  gap: 10px;
+}
+
+.sasu-cl__counts li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 12px;
+  background: var(--sasu-surface);
+  font-size: 13px;
+  color: var(--sasu-muted);
+}
+
+.sasu-cl__counts strong {
+  font-size: 18px;
+  color: var(--sasu-ink);
+}
+
+.sasu-cl__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sasu-cl__search {
+  flex: 1 1 240px;
+}
+
+.sasu-cl__select {
+  flex: 0 0 150px;
+}
+
+.sasu-table-wrap {
+  overflow-x: auto;
+}
+
+.sasu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.sasu-table th,
+.sasu-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--sasu-line);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.sasu-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+}
+
+.sasu-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sasu-table tbody tr:hover {
+  background: var(--sasu-soft);
+}
+
+.sasu-table__right {
+  text-align: right;
+}
+
+.sasu-table__title {
+  font-weight: 700;
+  white-space: normal;
+}
+
+.sasu-table__tags {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+
+.sasu-table__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ---------- 학습자 피드 ---------- */
+.sasu-feed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.sasu-feed__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sasu-feed__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sasu-feed__head {
+  display: flex;
+  flex-direction: column;
+}
+
+.sasu-feed__stage {
+  display: flex;
+  justify-content: center;
+}
+
+.sasu-feed__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(420px, 100%);
+  margin: 0 auto;
+}
+
+.sasu-feed__msg {
+  width: min(420px, 100%);
+  margin: 0 auto;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--sasu-primary-soft);
+  color: var(--sasu-primary-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sasu-feed .sasu-help {
+  width: min(420px, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.sasu-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 999px;
+  background: var(--sasu-surface);
+  color: var(--sasu-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sasu-react:hover:not(:disabled) {
+  border-color: var(--sasu-primary);
+}
+
+.sasu-react.is-on {
+  border-color: var(--sasu-primary);
+  background: var(--sasu-primary-soft);
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-react:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* 플레이어 */
+.sasu-player {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, 100%);
+  outline: none;
+}
+
+.sasu-player:focus-visible .sasu-player__screen {
+  outline: 3px solid var(--sasu-primary);
+  outline-offset: 3px;
+}
+
+.sasu-player__screen {
+  position: relative;
+  width: min(100%, calc(70vh * 9 / 16));
+  margin: 0 auto;
+  aspect-ratio: 9 / 16;
+  border-radius: 22px;
+  overflow: hidden;
+  background: radial-gradient(120% 80% at 30% 15%, var(--sasu-video-1) 0%, var(--sasu-video-2) 45%, var(--sasu-video-3) 100%);
+  color: #fff;
+}
+
+.sasu-player__screen.is-failed {
+  background: var(--sasu-video-3);
+}
+
+.sasu-player__top {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sasu-player__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sasu-player__art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 28px;
+}
+
+.sasu-player__word {
+  font-size: clamp(26px, 6vw, 38px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.sasu-player__line {
+  width: 60%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.sasu-player__line--short {
+  width: 38%;
+}
+
+.sasu-player__center {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.sasu-player__end {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.sasu-player__big {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--sasu-primary-ink);
+  font-size: 26px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.sasu-player__fail {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
+.sasu-player__fail-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.sasu-player__fail-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.sasu-player__fail-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sasu-player__fail-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sasu-player__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 14px;
+  background: var(--sasu-surface);
+}
+
+.sasu-ctl {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--sasu-primary-soft);
+  color: var(--sasu-primary-ink);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sasu-ctl:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sasu-ctl__time {
+  margin-right: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sasu-ctl__bar {
+  position: relative;
+  order: -1;
+  flex: 1 1 100%;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sasu-ctl__bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sasu-primary-line);
+}
+
+.sasu-ctl__fill {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sasu-primary);
+}
+
+.sasu-ctl__volume {
+  width: 70px;
+  accent-color: var(--sasu-primary);
+}
+
+.sasu-ctl__speed select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 8px;
+  background: var(--sasu-surface);
+  color: var(--sasu-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* 학습 패널 */
+.sasu-lp {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sasu-line);
+  border-radius: 18px;
+  background: var(--sasu-surface);
+  box-shadow: var(--sasu-shadow);
+  overflow: hidden;
+}
+
+.sasu-lp__head {
+  padding: 18px 20px 12px;
+}
+
+.sasu-lp__title {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.sasu-lp__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--sasu-line);
+}
+
+.sasu-lp__tab {
+  position: relative;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--sasu-muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sasu-lp__tab.is-active {
+  border-bottom-color: var(--sasu-primary);
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-lp__dot {
+  position: absolute;
+  top: 9px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sasu-danger);
+}
+
+.sasu-lp__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+
+.sasu-lp__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-lp__oneline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--sasu-primary-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sasu-lp__points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.sasu-lp__points li {
+  display: flex;
+  gap: 8px;
+}
+
+.sasu-lp__no {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--sasu-soft);
+  color: var(--sasu-primary-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sasu-lp__caution {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--sasu-warn-bg);
+  color: var(--sasu-warn-ink);
+  font-size: 13px;
+}
+
+.sasu-lp__caution-title {
+  font-weight: 800;
+}
+
+.sasu-lp__dl {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+.sasu-lp__dl dt {
+  font-weight: 700;
+  color: var(--sasu-muted);
+}
+
+/* 퀴즈 */
+.sasu-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sasu-quiz__q {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.sasu-quiz__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sasu-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--sasu-line-strong);
+  border-radius: 12px;
+  background: var(--sasu-surface);
+  color: var(--sasu-ink);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sasu-choice:hover:not(:disabled) {
+  border-color: var(--sasu-primary);
+}
+
+.sasu-choice:disabled {
+  cursor: default;
+}
+
+.sasu-choice.is-picked {
+  border-color: var(--sasu-primary);
+  background: var(--sasu-primary-soft);
+}
+
+.sasu-choice.is-answer {
+  border-color: var(--sasu-ok);
+  background: var(--sasu-ok-bg);
+}
+
+.sasu-choice.is-wrong {
+  border-color: var(--sasu-danger);
+  background: var(--sasu-danger-bg);
+}
+
+.sasu-choice__letter {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--sasu-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sasu-choice__mark {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sasu-ok);
+  white-space: nowrap;
+}
+
+.sasu-choice__mark.is-wrong {
+  color: var(--sasu-danger);
+}
+
+.sasu-quiz__error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--sasu-danger-bg);
+  color: var(--sasu-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sasu-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--sasu-soft);
+  font-size: 13px;
+}
+
+.sasu-result.is-correct {
+  background: var(--sasu-ok-bg);
+}
+
+.sasu-result.is-wrong {
+  background: var(--sasu-danger-bg);
+}
+
+.sasu-result__title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.sasu-result__dl {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 4px 10px;
+}
+
+.sasu-result__dl dt {
+  font-weight: 700;
+  color: var(--sasu-muted);
+}
+
+/* ---------- 좁은 화면(960px 미만, 화면 설계서 1-2 제안값) ---------- */
+@media (max-width: 959px) {
+  .sasu-page {
+    padding: 20px 16px 48px;
+  }
+
+  .sasu-feed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sasu-lp {
+    position: static;
+  }
+
+  .sasu-player__screen {
+    width: min(100%, calc(62vh * 9 / 16));
+  }
+
+  .sasu-cl__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 560px) {
+  .sasu-title {
+    font-size: 22px;
+  }
+
+  .sasu-cl__counts {
+    flex-wrap: wrap;
+  }
+
+  .sasu-cl__select {
+    flex: 1 1 100%;
+  }
+
+  .sasu-ctl__volume {
+    display: none;
+  }
+}
