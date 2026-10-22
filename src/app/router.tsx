@@ -1,27 +1,17 @@
-import { Link, Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router'
 
+import { HomePage } from '../pages/HomePage'
 import { ContentListPage } from '../pages/admin/ContentListPage'
 import { FeedPage } from '../pages/learner/FeedPage'
-import styles from './App.module.css'
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <main className={styles.placeholder}>
-            <h1>SASU</h1>
-            <p>
-              <Link to="/learner/feed">학습자 피드</Link>
-            </p>
-            <p>
-              <Link to="/admin/contents">관리자 콘텐츠 목록</Link>
-            </p>
-          </main>
-        }
-      />
+      {/* 모드 선택(로컬 시연용) */}
+      <Route path="/" element={<HomePage />} />
+      {/* 학습자 피드(화면 설계서 L02) */}
       <Route path="/learner/feed" element={<FeedPage />} />
+      {/* 관리자 콘텐츠 목록(화면 설계서 A01) */}
       <Route path="/admin/contents" element={<ContentListPage />} />
     </Routes>
   )

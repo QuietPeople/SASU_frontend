@@ -1006,6 +1006,169 @@
   color: var(--sasu-muted);
 }
 
+/* ---------- 모드 선택 화면 ---------- */
+.sasu-home {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--sasu-primary-soft) 0%, var(--sasu-bg) 55%);
+}
+
+.sasu-home__head {
+  max-width: 760px;
+  text-align: center;
+}
+
+.sasu-home__title {
+  margin-top: 6px;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--sasu-ink);
+}
+
+.sasu-home__sub {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--sasu-muted);
+}
+
+.sasu-home__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: min(880px, 100%);
+}
+
+.sasu-home__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 20px;
+  background: var(--sasu-surface);
+  box-shadow: var(--sasu-shadow);
+  color: var(--sasu-ink);
+  text-decoration: none;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.sasu-home__card:hover,
+.sasu-home__card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--sasu-primary);
+  box-shadow: 0 16px 36px rgba(21, 60, 100, 0.12);
+}
+
+.sasu-home__badge {
+  align-self: flex-start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--sasu-primary-soft);
+  color: var(--sasu-primary-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sasu-home__cover {
+  display: grid;
+  place-items: center;
+  height: 132px;
+  border-radius: 14px;
+  background: radial-gradient(120% 90% at 30% 15%, var(--sasu-video-1) 0%, var(--sasu-video-2) 50%, var(--sasu-video-3) 100%);
+  color: #fff;
+}
+
+.sasu-home__cover--admin {
+  background: linear-gradient(140deg, var(--sasu-primary) 0%, var(--sasu-primary-ink) 100%);
+}
+
+.sasu-home__play {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--sasu-primary-ink);
+  font-size: 20px;
+}
+
+.sasu-home__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 58%;
+}
+
+.sasu-home__rows span {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sasu-home__rows span:nth-child(2) {
+  width: 78%;
+}
+
+.sasu-home__rows span:nth-child(3) {
+  width: 55%;
+}
+
+.sasu-home__name {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.sasu-home__desc {
+  font-size: 14px;
+  color: var(--sasu-muted);
+}
+
+.sasu-home__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sasu-home__list li {
+  padding: 5px 10px;
+  border: 1px solid var(--sasu-line);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+
+.sasu-home__go {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--sasu-primary-ink);
+}
+
+.sasu-home__note {
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .sasu-home__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sasu-home__title {
+    font-size: 24px;
+  }
+
+  .sasu-home__cover {
+    height: 104px;
+  }
+}
+
 /* ---------- 좁은 화면(960px 미만, 화면 설계서 1-2 제안값) ---------- */
 @media (max-width: 959px) {
   .sasu-page {
