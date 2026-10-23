@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Content, QuizResult } from '../../types/sasu';
-import { categoryName, quizOf, request, sampleCategories, sampleContents } from '../../state/sasuSample';
-import '../../styles/sasu-pages.css';
+import { categoryName, quizOf, request, sampleSeries } from '../../state/sasuSample';
+import { publicContents, useStore } from '../../state/store';
+import { reviewCandidates } from '../../state/review';
+import { readSession, writeSession, type ReviewSession } from '../../state/reviewSession';
+import { QuizView } from '../../shared/QuizView';
+import { Button, StateBlock } from '../../shared/ui';
 
 /**
- * 학습자 피드·영상 시청(화면 설계서 L02)
- * - 공개 콘텐츠만 세로로 넘겨 보기: 다음·이전 버튼, ↑↓ 키, 마우스 휠
- * - 재생 조작: 재생·일시정지, 재생바, 음량. 플레이어에 초점이 있으면 Space
- * - 조회: 실제 재생 3초, 사용자·콘텐츠당 최초 1회(최종 공통기준 14·15)
- * - 시청 완료: 실제로 본 서로 다른 구간 90% 이상(16). 영상 끝 도달과는 별개
- * - 영상 끝: 퀴즈가 있으면 학습 패널에 문제를 띄움(02). 없으면 다음 행동만 보여 줌
- * - 재생 실패: 다시 시도·다른 영상. 실패한 시도는 조회수와 시청 완료에 넣지 않음(C03)
- * - 학습 패널: 한 줄 정리·핵심 정리·실무 용어 해석 주의·출처·검토일
- * - 좋아요·저장은 성공 응답을 받은 뒤에만 화면에 반영함
+ * L02 피드·공통 영상 시청 + C02 피드 사이 복기 카드.
+ * - mode 'feed' : 추천 피드. 다음으로 넘길 때 복기 조건을 평가함(C02)
+ * - mode 'watch': 검색·보관함·시리즈·복습 원본에서 연 영상. 들어온 경로로 돌아가는 링크를 둠
+ * - 조회: 실제 재생 합계 3초·최초 1회(공통기준 14·15)
+ * - 시청 완료: 실제 본 고유 구간 90% 이상(공통기준 16). 영상 끝 도달과는 별개
+ * - 영상 끝: 퀴즈가 있으면 학습 패널을 C01로 전환. 없으면 종료 상태와 다음 행동
+ * - 재생 실패: C03. 실패한 시도는 조회·완료에 넣지 않음
  *
- * 실제 영상 파일이 아직 없어 재생 시간만 흉내 냄. 영상을 붙일 때는 화면 안쪽을 <video>로 바꾸고
- * 아래 판정(3초·90%·끝)을 timeupdate 이벤트에서 그대로 쓰면 됨. 시연 배속은 확인을 빠르게 하려는 기능임.
+ * 실제 영상 파일이 아직 없어 재생 시간만 흉내 냄. <video>를 붙일 때 아래 판정(3초·90%·끝)을
+ * timeupdate에서 그대로 쓰면 된다. 시연 배속은 확인을 빠르게 하려는 기능임.
  */
 
 type LoadState = 'loading' | 'ready' | 'failed' | 'retrying';
@@ -24,17 +27,77 @@ type PanelTab = 'core' | 'quiz' | 'source';
 
 const SPEEDS = [1, 4, 10];
 const WHEEL_LOCK_MS = 700;
-const LETTERS = ['A', 'B', 'C', 'D'];
 
 const fmt = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 const sentences = (text: string) => text.split(/(?<=[.!?])\s+/).filter(Boolean);
 
-export function FeedPage() {
-  const list = useMemo<Content[]>(() => sampleContents.filter((c) => c.status === 'PUBLISHED').sort((a, b) => b.id - a.id), []);
-  const [idx, setIdx] = useState(0);
+// from 값에 따른 복귀 링크(화면 설계서 L02-05)
+const BACK: Record<string, { label: string; to: (q: URLSearchParams) => string }> = {
+  search: { label: '← 검색으로', to: () => '/learner/search' },
+  saved: { label: '← 보관함으로', to: () => '/learner/library?tab=saved' },
+  wrong: { label: '← 오답 복습으로', to: (q) => `/learner/review/${q.get('back') ?? ''}` },
+  card: { label: '← 플래시카드로', to: (q) => `/learner/cards?i=${q.get('back') ?? 0}` },
+  series: { label: '← 시리즈로', to: (q) => `/learner/series/${q.get('series') ?? ''}` },
+};
+
+export function FeedPage({ mode }: { mode: 'feed' | 'watch' }) {
+  const { state, dispatch } = useStore();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [query] = useSearchParams();
+
+  const records = state.records;
+
+  // 추천 피드 순서: 관심 분야 → 미시청 우선 → 최신 등록순(공통기준 12·13)
+  const feedList = useMemo<Content[]>(() => {
+    const pub = publicContents(state);
+    const { interests, stats } = records;
+    return [...pub].sort((a, b) => {
+      const ai = interests.includes(a.categoryId) ? 0 : 1;
+      const bi = interests.includes(b.categoryId) ? 0 : 1;
+      if (ai !== bi) return ai - bi;
+      const av = stats[a.id]?.viewed ? 1 : 0;
+      const bv = stats[b.id]?.viewed ? 1 : 0;
+      if (av !== bv) return av - bv;
+      return b.id - a.id;
+    });
+    // interests/stats가 바뀌어도 피드 순서를 흔들지 않도록 콘텐츠 목록만 의존성에 둠
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.contents]);
+
+  // watch 모드: list 쿼리(쉼표로 이은 id들)가 있으면 그 목록, 없으면 현재 콘텐츠 하나
+  const watchList = useMemo<Content[]>(() => {
+    const byId = (id: number) => state.contents.find((c) => c.id === id && c.status === 'PUBLISHED');
+    const listParam = query.get('list');
+    if (listParam) {
+      const ids = listParam.split(',').map(Number).filter((id) => byId(id));
+      if (ids.length) return ids.map((id) => byId(id)!);
+    }
+    const one = byId(Number(params.contentId));
+    return one ? [one] : [];
+  }, [state.contents, params.contentId, query]);
+
+  const list = mode === 'feed' ? feedList : watchList;
+  const startIdx = useMemo(() => {
+    if (mode === 'watch') {
+      const i = list.findIndex((c) => c.id === Number(params.contentId));
+      return i >= 0 ? i : 0;
+    }
+    return 0;
+  }, [mode, list, params.contentId]);
+
+  const [idx, setIdx] = useState(startIdx);
+  useEffect(() => setIdx(startIdx), [startIdx]);
   const current = list[idx];
 
-  // 영상별 상태
+  // 복기 세션(창 단위, sessionStorage). feed 모드에서만 사용
+  const [session, setSession] = useState<ReviewSession>(() => readSession());
+  useEffect(() => {
+    if (mode === 'feed') writeSession(session);
+  }, [session, mode]);
+  const [reviewing, setReviewing] = useState<number | null>(null); // 지금 띄운 복기 대상 콘텐츠 id
+
+  // 영상별 로컬 상태
   const [load, setLoad] = useState<LoadState>('loading');
   const [tries, setTries] = useState(0);
   const [t, setT] = useState(0);
@@ -44,31 +107,21 @@ export function FeedPage() {
   const [volume, setVolume] = useState(80);
   const [speed, setSpeed] = useState(1);
   const [tab, setTab] = useState<PanelTab>('core');
-
-  // 기록
-  const [views, setViews] = useState<Record<number, boolean>>({});
-  const [completed, setCompleted] = useState<Record<number, boolean>>({});
-  const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [saved, setSaved] = useState<Record<number, boolean>>({});
   const [busy, setBusy] = useState<'like' | 'save' | null>(null);
   const [message, setMessage] = useState('');
 
-  // 퀴즈
-  const [picked, setPicked] = useState<number | null>(null);
-  const [result, setResult] = useState<QuizResult | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [quizError, setQuizError] = useState('');
-
   const tRef = useRef(0);
-  const playedRef = useRef(0); // 실제 재생 시간 합계(조회 판정용)
-  const watchedRef = useRef<Set<number>>(new Set()); // 실제로 본 구간(시청 완료 판정용)
+  const playedRef = useRef(0); // 실제 재생 합계(조회 판정)
+  const watchedRef = useRef<Set<number>>(new Set()); // 본 고유 구간(완료 판정)
   const wheelAt = useRef(0);
-  const autoPlayRef = useRef(false); // 사용자가 한 번 재생을 누른 뒤에는 다음 영상부터 바로 재생
+  const autoPlayRef = useRef(false);
 
   const duration = current?.durationSec ?? 30;
   const quiz = current ? quizOf(current.id) : undefined;
+  const seriesId = query.get('series');
+  const series = seriesId ? sampleSeries.find((s) => String(s.id) === seriesId) : undefined;
 
-  // 영상이 바뀌면 처음부터 불러옴
+  // 콘텐츠가 바뀌면 처음부터
   useEffect(() => {
     if (!current) return undefined;
     let alive = true;
@@ -81,25 +134,21 @@ export function FeedPage() {
     setPlaying(false);
     setEnded(false);
     setTab('core');
-    setPicked(null);
-    setResult(null);
-    setQuizError('');
     setMessage('');
-    request('play', null, 350)
+    dispatch({ type: 'setLast', contentId: current.id });
+    request('play', null, 300)
       .then(() => {
         if (!alive) return;
         setLoad('ready');
         if (autoPlayRef.current) setPlaying(true);
       })
-      .catch(() => {
-        if (alive) setLoad('failed');
-      });
+      .catch(() => alive && setLoad('failed'));
     return () => {
       alive = false;
     };
-  }, [current]);
+  }, [current, dispatch]);
 
-  // 재생 중일 때만 시간이 흐름
+  // 재생 중에만 시간이 흐름. 조회(3초)·완료(90%)·끝 판정을 여기서 함
   useEffect(() => {
     if (!playing || load !== 'ready' || !current) return undefined;
     const timer = window.setInterval(() => {
@@ -109,12 +158,9 @@ export function FeedPage() {
       playedRef.current += to - from;
       tRef.current = to;
       setT(to);
-
-      if (playedRef.current >= 3) {
-        setViews((v) => (v[current.id] ? v : { ...v, [current.id]: true }));
-      }
+      if (playedRef.current >= 3) dispatch({ type: 'view', contentId: current.id });
       if (watchedRef.current.size >= Math.ceil(duration * 0.9)) {
-        setCompleted((c) => (c[current.id] ? c : { ...c, [current.id]: true }));
+        dispatch({ type: 'complete', contentId: current.id, at: new Date().toISOString() });
       }
       if (to >= duration) {
         setPlaying(false);
@@ -123,7 +169,7 @@ export function FeedPage() {
       }
     }, 250);
     return () => window.clearInterval(timer);
-  }, [playing, load, speed, duration, current]);
+  }, [playing, load, speed, duration, current, dispatch]);
 
   const toggle = useCallback(() => {
     if (load !== 'ready') return;
@@ -138,41 +184,67 @@ export function FeedPage() {
     setPlaying((p) => !p);
   }, [load, ended]);
 
-  const move = useCallback(
-    (step: number) => {
-      setIdx((i) => {
-        const next = i + step;
-        if (next < 0) return list.length - 1;
-        if (next >= list.length) return 0;
-        return next;
-      });
-    },
-    [list.length],
-  );
+  // 피드에서 다음으로 넘길 때 복기 조건을 평가(C02)
+  const goNext = useCallback(() => {
+    if (mode === 'feed') {
+      if (reviewing !== null) {
+        // 복기 카드를 본 뒤 다음 일반 영상으로
+        setReviewing(null);
+        setIdx((i) => (i + 1) % list.length);
+        return;
+      }
+      // 시청 완료한 서로 다른 영상만 카운트(공통기준 20·21)
+      let next = session;
+      if (current && records.stats[current.id]?.completed && !session.countedIds.includes(current.id)) {
+        next = { ...session, counter: session.counter + 1, countedIds: [...session.countedIds, current.id] };
+      }
+      if (next.counter >= records.reviewInterval) {
+        const cands = reviewCandidates(state, next);
+        if (cands.length) {
+          const pick = cands[0];
+          setSession({ ...next, counter: 0, shownQuizIds: [...new Set([...next.shownQuizIds, pick])], retryQuizIds: next.retryQuizIds.filter((id) => id !== pick) });
+          setReviewing(pick);
+          dispatch({ type: 'exposeReview' });
+          return;
+        }
+        // 대상 없으면 카운터만 비우고 일반 영상 계속(공통기준 C02 상태·예외)
+        next = { ...next, counter: 0 };
+      }
+      setSession(next);
+      setIdx((i) => (i + 1) % list.length);
+      return;
+    }
+    setIdx((i) => (i + 1 >= list.length ? i : i + 1));
+  }, [mode, reviewing, session, current, records, state, list.length, dispatch]);
 
-  // ↑↓ 키로 영상 이동. 입력창·학습 패널을 조작할 때는 가로채지 않음(화면 설계서 1-2)
+  const goPrev = useCallback(() => {
+    if (reviewing !== null) return;
+    setIdx((i) => (mode === 'feed' ? (i - 1 + list.length) % list.length : Math.max(0, i - 1)));
+  }, [mode, reviewing, list.length]);
+
+  // ↑↓ 키 이동. 입력창·학습 패널 조작 중에는 가로채지 않음(화면 설계서 1-2)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el?.closest('input, textarea, select, .sasu-lp, [role="radiogroup"]')) return;
+      if (el?.closest('input, textarea, select, button, .sasu-lp')) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        move(1);
+        goNext();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        move(-1);
+        goPrev();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [move]);
+  }, [goNext, goPrev]);
 
-  // 기기마다 휠 이벤트 양이 달라 한 번 넘긴 뒤 잠깐 잠금
   const onWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
     const now = Date.now();
     if (now - wheelAt.current < WHEEL_LOCK_MS || Math.abs(e.deltaY) < 20) return;
     wheelAt.current = now;
-    move(e.deltaY > 0 ? 1 : -1);
+    if (e.deltaY > 0) goNext();
+    else goPrev();
   };
 
   const onPlayerKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -193,10 +265,10 @@ export function FeedPage() {
   };
 
   const retry = async () => {
-    if (load === 'retrying') return; // 중복 클릭 방지
+    if (load === 'retrying') return;
     setLoad('retrying');
     try {
-      await request('play', null, 800);
+      await request('play', null, 700);
       setLoad('ready');
       setPlaying(true);
     } catch {
@@ -205,15 +277,14 @@ export function FeedPage() {
     }
   };
 
-  // 좋아요·저장: 성공 응답 뒤에만 반영하고, 실패하면 이전 상태를 유지함
+  // 좋아요·저장: 성공 응답 뒤에만 반영, 실패하면 이전 상태 유지(공통기준 SF03)
   const toggleReaction = async (kind: 'like' | 'save') => {
     if (!current || busy) return;
     setBusy(kind);
-    const on = kind === 'like' ? !liked[current.id] : !saved[current.id];
+    const on = kind === 'like' ? !records.liked.includes(current.id) : !records.saved.includes(current.id);
     try {
-      await request(kind === 'like' ? 'like' : 'bookmark', null, 400);
-      if (kind === 'like') setLiked((m) => ({ ...m, [current.id]: on }));
-      else setSaved((m) => ({ ...m, [current.id]: on }));
+      await request(kind === 'like' ? 'like' : 'bookmark', null, 350);
+      dispatch({ type: kind, contentId: current.id, on });
       setMessage(kind === 'like' ? (on ? '좋아요를 눌렀어요.' : '좋아요를 취소했어요.') : on ? '보관함에 저장했어요.' : '보관함에서 뺐어요.');
     } catch {
       setMessage(`${kind === 'like' ? '좋아요' : '저장'}를 반영하지 못했어요. 다시 시도해 주세요.`);
@@ -222,41 +293,85 @@ export function FeedPage() {
     }
   };
 
-  const submitQuiz = async () => {
-    if (picked === null || submitting || !quiz) return;
-    setSubmitting(true);
-    setQuizError('');
-    try {
-      await request('quizAnswer', null, 600);
-      setResult(picked === quiz.answer ? 'CORRECT' : 'WRONG');
-    } catch {
-      // 서버 확인 없이 정답 처리하지 않음. 고른 답은 그대로 둠
-      setQuizError('답을 저장하지 못했어요. 고른 답은 그대로 있으니 다시 확인을 눌러 주세요.');
-    } finally {
-      setSubmitting(false);
-    }
+  const recordAnswer = (contentId: number, path: 'END' | 'REVIEW', picked: number | null, result: QuizResult) => {
+    dispatch({ type: 'answer', contentId, path, picked, result, at: new Date().toISOString() });
   };
 
-  if (!current) {
+  if (!current && reviewing === null) {
     return (
       <div className="sasu-page">
-        <div className="sasu-empty">
-          <p className="sasu-empty__title">등록된 콘텐츠가 없어요.</p>
-          <p className="sasu-empty__text">관리자 화면에서 콘텐츠를 공개하면 피드에 나와요.</p>
-        </div>
+        <StateBlock
+          title="등록된 콘텐츠가 없어요."
+          text="관리자 화면에서 콘텐츠를 공개하면 피드에 나와요."
+          action={
+            <>
+              <Button onClick={() => navigate('/learner/search')}>검색</Button>
+              <Button variant="primary" onClick={() => navigate('/admin/contents')}>
+                관리자 화면
+              </Button>
+            </>
+          }
+        />
       </div>
     );
   }
 
   const failed = load === 'failed' || load === 'retrying';
+  const from = query.get('from') ?? '';
+  const back = mode === 'watch' && BACK[from] ? BACK[from] : null;
+
+  // C02 복기 카드 표시(피드 중앙을 복기로 전환)
+  if (mode === 'feed' && reviewing !== null) {
+    const rc = state.contents.find((c) => c.id === reviewing);
+    const rq = quizOf(reviewing);
+    return (
+      <div className="sasu-page sasu-feed sasu-feed--review">
+        <div className="sasu-feed__main">
+          <div className="sasu-feed__bar">
+            <span className="sasu-eyebrow">피드 복기</span>
+          </div>
+          <div className="sasu-review-card">
+            <p className="sasu-review-card__lead">이전에 본 내용을 확인해 보세요.</p>
+            <p className="sasu-review-card__src">{rc?.title}</p>
+            {rq ? (
+              <QuizView
+                quiz={rq}
+                onSubmit={(picked, result) => {
+                  recordAnswer(reviewing, 'REVIEW', picked, result);
+                  // 복기에서 틀린 문제만 이후 복기에서 다시 낼 수 있음(공통기준 23)
+                  if (result === 'WRONG') setSession((s) => ({ ...s, retryQuizIds: [...new Set([...s.retryQuizIds, reviewing])] }));
+                }}
+                onSkip={() => undefined}
+                footer={() => (
+                  <Button variant="primary" onClick={goNext}>
+                    다음 일반 영상 →
+                  </Button>
+                )}
+              />
+            ) : null}
+          </div>
+          <p className="sasu-help">복기는 창을 닫으면 처음부터예요. 학습 기록은 그대로 남아요.</p>
+        </div>
+      </div>
+    );
+  }
+
   const points = sentences(current.summary).slice(0, 3);
-  const letters = quiz?.format === 'OX' ? ['O', 'X'] : LETTERS;
+  const liked = records.liked.includes(current.id);
+  const saved = records.saved.includes(current.id);
+  const stat = records.stats[current.id];
 
   return (
     <div className="sasu-page sasu-feed">
       <div className="sasu-feed__main">
         <div className="sasu-feed__bar">
-          <span className="sasu-eyebrow">추천 피드</span>
+          {back ? (
+            <button type="button" className="sasu-link" onClick={() => navigate(back.to(query))}>
+              {back.label}
+            </button>
+          ) : (
+            <span className="sasu-eyebrow">{series ? `시리즈 · ${series.name}` : '추천 피드'}</span>
+          )}
           <span className="sasu-chip">
             {idx + 1} / {list.length}
           </span>
@@ -265,8 +380,8 @@ export function FeedPage() {
         <div className="sasu-feed__head">
           <h1 className="sasu-title sasu-title--sm">{current.title}</h1>
           <p className="sasu-sub">
-            {categoryName(sampleCategories, current.categoryId)}
-            {current.tags.length ? ` · ${current.tags.map((t2) => `#${t2}`).join(' ')}` : ''}
+            {categoryName(current.categoryId)}
+            {current.tags.length ? ` · ${current.tags.map((tag) => `#${tag}`).join(' ')}` : ''}
           </p>
         </div>
 
@@ -274,7 +389,7 @@ export function FeedPage() {
           <div className="sasu-player" tabIndex={0} onKeyDown={onPlayerKeyDown} aria-label={`${current.title} 영상. 초점이 있을 때 Space로 재생과 일시정지`}>
             <div className={`sasu-player__screen ${failed ? 'is-failed' : ''}`}>
               <div className="sasu-player__top">
-                <span className="sasu-player__pill">{categoryName(sampleCategories, current.categoryId)}</span>
+                <span className="sasu-player__pill">{categoryName(current.categoryId)}</span>
                 <span className="sasu-player__pill">{fmt(duration)}</span>
               </div>
 
@@ -302,9 +417,9 @@ export function FeedPage() {
               {load === 'ready' && ended ? (
                 <div className="sasu-player__center">
                   <p className="sasu-player__end">영상이 끝났어요</p>
-                  <button type="button" className="sasu-btn sasu-btn--light sasu-btn--sm" onClick={toggle}>
+                  <Button variant="light" size="sm" onClick={toggle}>
                     다시 보기
-                  </button>
+                  </Button>
                 </div>
               ) : null}
 
@@ -313,18 +428,18 @@ export function FeedPage() {
                   <span className="sasu-player__fail-icon" aria-hidden="true">
                     !
                   </span>
-                  <p className="sasu-player__fail-title">영상을 재생할 수 없어요</p>
+                  <p className="sasu-player__fail-title">영상을 재생하지 못했어요</p>
                   <p className="sasu-player__fail-text">
-                    {tries ? `다시 시도했지만 재생하지 못했어요(${tries}회). ` : ''}
+                    {tries ? `다시 시도했지만 재생하지 못했어요(${tries}회). ` : '다시 시도하거나 다른 영상을 선택해 주세요. '}
                     실패한 시도는 조회수와 시청 완료에 넣지 않아요.
                   </p>
                   <div className="sasu-player__fail-btns">
-                    <button type="button" className="sasu-btn sasu-btn--light sasu-btn--sm" onClick={() => void retry()} disabled={load === 'retrying'}>
-                      {load === 'retrying' ? '다시 불러오는 중' : '다시 시도'}
-                    </button>
-                    <button type="button" className="sasu-btn sasu-btn--ghost-light sasu-btn--sm" onClick={() => move(1)}>
-                      다른 영상
-                    </button>
+                    <Button variant="light" size="sm" onClick={() => void retry()} disabled={load === 'retrying'} loading={load === 'retrying'}>
+                      {load === 'retrying' ? '다시 불러오는 중' : '재시도'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={goNext}>
+                      다른 영상 선택
+                    </Button>
                   </div>
                 </div>
               ) : null}
@@ -371,24 +486,24 @@ export function FeedPage() {
 
         <div className="sasu-feed__actions">
           <div className="sasu-row">
-            <button type="button" className={`sasu-react ${liked[current.id] ? 'is-on' : ''}`} aria-pressed={Boolean(liked[current.id])} onClick={() => void toggleReaction('like')} disabled={busy !== null}>
-              <span aria-hidden="true">{liked[current.id] ? '♥' : '♡'}</span> 좋아요
+            <button type="button" className={`sasu-react ${liked ? 'is-on' : ''}`} aria-pressed={liked} onClick={() => void toggleReaction('like')} disabled={busy !== null}>
+              <span aria-hidden="true">{liked ? '♥' : '♡'}</span> 좋아요
             </button>
-            <button type="button" className={`sasu-react ${saved[current.id] ? 'is-on' : ''}`} aria-pressed={Boolean(saved[current.id])} onClick={() => void toggleReaction('save')} disabled={busy !== null}>
-              <span aria-hidden="true">{saved[current.id] ? '★' : '☆'}</span> {saved[current.id] ? '저장됨' : '저장'}
+            <button type="button" className={`sasu-react ${saved ? 'is-on' : ''}`} aria-pressed={saved} onClick={() => void toggleReaction('save')} disabled={busy !== null}>
+              <span aria-hidden="true">{saved ? '★' : '☆'}</span> {saved ? '저장됨' : '저장'}
             </button>
             <span className="sasu-muted">
-              조회 {views[current.id] ? 1 : 0}
-              {completed[current.id] ? ' · 시청 완료' : ''}
+              조회 {stat?.viewed ? 1 : 0}
+              {stat?.completed ? ' · 시청 완료' : ''}
             </span>
           </div>
           <div className="sasu-row">
-            <button type="button" className="sasu-btn sasu-btn--sm" onClick={() => move(-1)}>
+            <Button size="sm" onClick={goPrev} title="이전 영상(제안)">
               ↑ 이전
-            </button>
-            <button type="button" className="sasu-btn sasu-btn--sm sasu-btn--primary" onClick={() => move(1)}>
+            </Button>
+            <Button size="sm" variant="primary" onClick={goNext}>
               다음 ↓
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -397,7 +512,7 @@ export function FeedPage() {
             {message}
           </p>
         ) : null}
-        <p className="sasu-help">휠이나 ↑↓ 키로도 넘길 수 있어요. 플레이어를 누른 뒤 Space로 재생과 일시정지를 해요.</p>
+        <p className="sasu-help">휠이나 ↑↓ 키로도 넘길 수 있어요. 이전 영상 이동은 제안이에요(P16).</p>
       </div>
 
       <aside className="sasu-lp" aria-label="학습 패널">
@@ -405,6 +520,25 @@ export function FeedPage() {
           <p className="sasu-eyebrow">학습 패널</p>
           <h2 className="sasu-lp__title">{current.title}</h2>
         </div>
+
+        {series ? (
+          <div className="sasu-lp__series">
+            <p className="sasu-lp__label">시리즈 단계</p>
+            <ol className="sasu-lp__steps">
+              {series.stepContentIds.map((id, i) => {
+                const st = records.stats[id];
+                const done = st?.completed && records.responses.some((r) => r.contentId === id && r.result === 'CORRECT');
+                return (
+                  <li key={id} className={id === current.id ? 'is-current' : ''}>
+                    <span className="sasu-lp__no">{i + 1}</span>
+                    <span>{state.contents.find((c) => c.id === id)?.title ?? '—'}</span>
+                    {done ? <span className="sasu-lp__ok">완료</span> : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        ) : null}
 
         <div className="sasu-lp__tabs" role="tablist" aria-label="학습 자료">
           {([
@@ -423,7 +557,7 @@ export function FeedPage() {
               onClick={() => setTab(item.id)}
             >
               {item.label}
-              {item.id === 'quiz' && quiz && ended && result === null ? <span className="sasu-lp__dot" aria-label="풀 수 있는 퀴즈 있음" /> : null}
+              {item.id === 'quiz' && quiz && ended ? <span className="sasu-lp__dot" aria-label="풀 수 있는 퀴즈 있음" /> : null}
             </button>
           ))}
         </div>
@@ -448,88 +582,36 @@ export function FeedPage() {
                   </ol>
                 </>
               ) : null}
+              {current.related ? (
+                <>
+                  <span className="sasu-lp__label">관련 학습 정보</span>
+                  <p className="sasu-lp__related">{current.related}</p>
+                </>
+              ) : null}
               {current.cautionEnabled ? (
                 <div className="sasu-lp__caution" role="note">
                   <p className="sasu-lp__caution-title">⚠ 실무 용어 해석 주의</p>
                   <p>회사·업계에 따라 의미가 다를 수 있어요. 일반적 의미를 기준으로 설명합니다.</p>
                 </div>
               ) : null}
+              {records.interests.includes(current.categoryId) ? <p className="sasu-lp__reason">관심 분야에 맞는 영상이에요.</p> : null}
             </>
           ) : null}
 
           {tab === 'quiz' ? (
             !quiz ? (
-              <p className="sasu-muted">이 콘텐츠에는 등록된 퀴즈가 없어요.</p>
+              <p className="sasu-muted">이 콘텐츠에는 등록된 퀴즈가 없어요. 영상 시청만으로 넘어갈 수 있어요.</p>
             ) : !ended ? (
-              <p className="sasu-muted">영상을 끝까지 보면 퀴즈가 열려요.</p>
+              <p className="sasu-muted">영상을 끝까지 보면 퀴즈가 열려요. 끝 도달과 90% 시청 완료는 별개예요.</p>
             ) : (
-              <div className="sasu-quiz">
-                <p className="sasu-quiz__q">{quiz.question}</p>
-                <ul className="sasu-quiz__choices" role="radiogroup" aria-label="보기">
-                  {quiz.choices.map((choice, i) => {
-                    const isPicked = picked === i;
-                    const isAnswer = result !== null && i === quiz.answer;
-                    const isWrongPick = result === 'WRONG' && isPicked;
-                    return (
-                      <li key={choice}>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={isPicked}
-                          disabled={result !== null}
-                          className={`sasu-choice ${isPicked ? 'is-picked' : ''} ${isAnswer ? 'is-answer' : ''} ${isWrongPick ? 'is-wrong' : ''}`}
-                          onClick={() => setPicked(i)}
-                        >
-                          <span className="sasu-choice__letter" aria-hidden="true">
-                            {letters[i]}
-                          </span>
-                          <span>{choice}</span>
-                          {isAnswer ? <span className="sasu-choice__mark">✓ 정답</span> : null}
-                          {isWrongPick ? <span className="sasu-choice__mark is-wrong">✕ 내 답</span> : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-
-                {quizError ? (
-                  <p className="sasu-quiz__error" role="alert">
-                    {quizError}
-                  </p>
-                ) : null}
-
-                {result === null ? (
-                  <div className="sasu-row">
-                    <button type="button" className="sasu-btn" onClick={() => setResult('SKIPPED')} disabled={submitting}>
-                      건너뛰기
-                    </button>
-                    <button type="button" className="sasu-btn sasu-btn--primary" onClick={() => void submitQuiz()} disabled={picked === null || submitting}>
-                      {submitting ? '확인 중' : '답 확인'}
-                    </button>
-                  </div>
-                ) : result === 'SKIPPED' ? (
-                  <div className="sasu-result" role="status">
-                    <p className="sasu-result__title">건너뛰었어요</p>
-                    <p>오답이나 복습 대기에는 넣지 않아요.</p>
-                  </div>
-                ) : (
-                  <div className={`sasu-result ${result === 'CORRECT' ? 'is-correct' : 'is-wrong'}`} role="status">
-                    <p className="sasu-result__title">
-                      <span aria-hidden="true">{result === 'CORRECT' ? '✓' : '✕'}</span> {result === 'CORRECT' ? '정답이에요' : '다시 확인해 보세요'}
-                    </p>
-                    <dl className="sasu-result__dl">
-                      <dt>내 답</dt>
-                      <dd>{picked !== null ? quiz.choices[picked] : '—'}</dd>
-                      <dt>정답</dt>
-                      <dd>{quiz.choices[quiz.answer]}</dd>
-                    </dl>
-                    <p>
-                      <strong>해설</strong> {quiz.explanation}
-                    </p>
-                    {result === 'WRONG' ? <p className="sasu-muted">보관함의 오답 복습에서 다시 풀 수 있어요.</p> : null}
-                  </div>
-                )}
-              </div>
+              <QuizView
+                quiz={quiz}
+                onSubmit={(picked, result) => recordAnswer(current.id, 'END', picked, result)}
+                onSkip={() => undefined}
+                footer={(result) =>
+                  result === 'WRONG' ? <span className="sasu-muted">보관함의 오답 복습에서 다시 풀 수 있어요.</span> : <Button size="sm" variant="primary" onClick={goNext}>다음 영상 →</Button>
+                }
+              />
             )
           ) : null}
 

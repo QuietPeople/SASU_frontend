@@ -1,7 +1,7 @@
-import type { Category, Content, Quiz } from '../types/sasu';
+import type { Category, Content, Quiz, Series } from '../types/sasu';
 
 // 화면 확인용 예시 데이터와 가짜 요청 함수. 실제 API가 준비되면 request 대신 fetch로 바꿈.
-// 제목·카테고리·커리큘럼명은 기획서 예상 화면과 본문에 나온 것을 사용함.
+// 분야 A/B/C는 예시이며 관리자의 추가·이름 수정이 확정 기능임(화면 설계서 P19).
 
 export const sampleCategories: Category[] = [
   { id: 1, name: '실무 용어' },
@@ -14,25 +14,26 @@ export const sampleCategories: Category[] = [
 ];
 
 const base = {
+  related: '',
   source: '제작자 작성 · 예시 출처',
   reviewedAt: '2026-10-01',
+  hasVideo: true,
   cautionEnabled: false,
-  cautionText: '',
 };
 
 export const sampleContents: Content[] = [
-  { ...base, id: 1, title: 'AI 답변, 그대로 쓰기 전에 확인할 3가지', categoryId: 4, tags: ['AI 검증', '출처'], summary: 'AI가 만든 결과를 업무에 사용하기 전 최소 검증 항목을 구분한다. 사실과 수치는 원문 출처를 다시 확인하고, 민감정보 포함 여부와 숨은 가정을 확인한다.', status: 'PUBLISHED', durationSec: 68 },
-  { ...base, id: 2, title: '일정 지연 보고, 늦기 전에 말하는 구조', categoryId: 5, tags: ['보고', '일정'], summary: '지연 사실과 영향, 대응안, 필요한 결정을 빠짐없이 보고한다. 현재 상태를 수치나 완료 기준으로 말한다.', status: 'PUBLISHED', durationSec: 40 },
-  { ...base, id: 3, title: '결론부터 쓰는 업무 이메일 첫 세 줄', categoryId: 6, tags: ['이메일', '보고'], summary: '보고 이메일은 결론과 요청을 첫 문장에 둔다. 배경 설명은 그다음에 짧게 붙인다.', status: 'PUBLISHED', durationSec: 38 },
-  { ...base, id: 4, title: 'XLOOKUP이 안 될 때 먼저 볼 조건', categoryId: 2, tags: ['XLOOKUP', '함수'], summary: '찾는 값과 범위의 형식이 같은지 먼저 확인한다. 공백과 숫자 형식 차이가 흔한 원인이다.', status: 'PUBLISHED', durationSec: 40 },
-  { ...base, id: 5, title: '미팅 어레인지', categoryId: 1, tags: ['회의', '외래어'], summary: '미팅 어레인지는 회의 준비와 조율을 뜻한다. 일정, 장소, 참석자를 맞추는 일까지 포함한다.', status: 'PUBLISHED', durationSec: 15, cautionEnabled: true, cautionText: '회사에 따라 의미가 다를 수 있음' },
+  { ...base, id: 1, title: 'AI 답변, 그대로 쓰기 전에 확인할 3가지', categoryId: 4, tags: ['AI 검증', '출처'], summary: 'AI가 만든 결과를 업무에 사용하기 전 최소 검증 항목을 구분한다. 사실과 수치는 원문 출처를 다시 확인하고, 민감정보 포함 여부와 숨은 가정을 확인한다.', related: '프롬프트 작성 기본, 사내 보안 규정 확인', status: 'PUBLISHED', durationSec: 68 },
+  { ...base, id: 2, title: '일정 지연 보고, 늦기 전에 말하는 구조', categoryId: 5, tags: ['보고', '일정'], summary: '지연 사실과 영향, 대응안, 필요한 결정을 빠짐없이 보고한다. 현재 상태를 수치나 완료 기준으로 말한다.', related: '결론부터 쓰는 이메일, 회의 어레인지', status: 'PUBLISHED', durationSec: 40 },
+  { ...base, id: 3, title: '결론부터 쓰는 업무 이메일 첫 세 줄', categoryId: 6, tags: ['이메일', '보고'], summary: '보고 이메일은 결론과 요청을 첫 문장에 둔다. 배경 설명은 그다음에 짧게 붙인다.', related: '일정 지연 보고 구조', status: 'PUBLISHED', durationSec: 38 },
+  { ...base, id: 4, title: 'XLOOKUP이 안 될 때 먼저 볼 조건', categoryId: 2, tags: ['XLOOKUP', '함수'], summary: '찾는 값과 범위의 형식이 같은지 먼저 확인한다. 공백과 숫자 형식 차이가 흔한 원인이다.', related: '엑셀 중복값 제거', status: 'PUBLISHED', durationSec: 40 },
+  { ...base, id: 5, title: '미팅 어레인지', categoryId: 1, tags: ['회의', '외래어'], summary: '미팅 어레인지는 회의 준비와 조율을 뜻한다. 일정, 장소, 참석자를 맞추는 일까지 포함한다.', status: 'PUBLISHED', durationSec: 15, cautionEnabled: true },
   { ...base, id: 6, title: '송부', categoryId: 1, tags: ['문서', '한자어'], summary: '송부는 문서나 물건을 보내는 일을 뜻한다. 메일에서는 첨부해 보낸다는 의미로 자주 쓴다.', status: 'PUBLISHED', durationSec: 15 },
   { ...base, id: 7, title: 'R&R', categoryId: 1, tags: ['역할', '약어'], summary: 'R&R은 역할과 책임(Role & Responsibility)을 뜻한다. 누가 무엇을 맡는지 정할 때 쓴다.', status: 'PUBLISHED', durationSec: 15 },
   { ...base, id: 8, title: 'ASAP', categoryId: 1, tags: ['약어', '일정'], summary: 'ASAP은 가능한 한 빨리(As Soon As Possible)를 뜻한다. 정확한 기한을 함께 확인하는 것이 좋다.', status: 'PUBLISHED', durationSec: 15 },
-  { ...base, id: 9, title: '크로스체크', categoryId: 1, tags: ['검토', '외래어'], summary: '크로스체크는 다른 사람이나 다른 자료로 한 번 더 확인하는 일을 뜻한다.', status: 'PUBLISHED', durationSec: 15, cautionEnabled: true, cautionText: '회사에 따라 의미가 다를 수 있음' },
-  { ...base, id: 10, title: '엑셀 중복값 제거', categoryId: 2, tags: ['중복값', '데이터 정리'], summary: '중복된 행을 지우기 전에 기준 열을 먼저 정한다. 원본은 복사해 두고 작업한다.', status: 'PUBLISHED', durationSec: 40 },
-  { ...base, id: 11, title: '공고 분석하는 법', categoryId: 7, tags: [], summary: '', source: '', reviewedAt: '', status: 'DRAFT', durationSec: null },
-  { ...base, id: 12, title: 'STAR로 경험 답변하기', categoryId: 7, tags: ['면접'], summary: '', source: '', reviewedAt: '', status: 'DRAFT', durationSec: null },
+  { ...base, id: 9, title: '크로스체크', categoryId: 1, tags: ['검토', '외래어'], summary: '크로스체크는 다른 사람이나 다른 자료로 한 번 더 확인하는 일을 뜻한다.', status: 'PUBLISHED', durationSec: 15, cautionEnabled: true },
+  { ...base, id: 10, title: '엑셀 중복값 제거', categoryId: 2, tags: ['중복값', '데이터 정리'], summary: '중복된 행을 지우기 전에 기준 열을 먼저 정한다. 원본은 복사해 두고 작업한다.', related: 'XLOOKUP 조건 확인', status: 'PUBLISHED', durationSec: 40 },
+  { ...base, id: 11, title: '공고 분석하는 법', categoryId: 7, tags: [], summary: '', source: '', reviewedAt: '', hasVideo: false, status: 'DRAFT', durationSec: null },
+  { ...base, id: 12, title: 'STAR로 경험 답변하기', categoryId: 7, tags: ['면접'], summary: '', source: '', reviewedAt: '', hasVideo: false, status: 'DRAFT', durationSec: null },
 ];
 
 // 콘텐츠별 등록 문항. 3·5번 외 문항은 핵심 내용 문장을 바탕으로 만든 예시임
@@ -46,8 +47,14 @@ export const sampleQuizzes: Quiz[] = [
   { contentId: 10, version: 1, format: 'THREE', question: '엑셀에서 중복값을 지우기 전에 먼저 할 일은?', choices: ['기준 열을 정하고 원본을 복사해 둔다', '바로 중복 제거를 누른다', '열 너비를 맞춘다'], answer: 0, explanation: '기준 열을 먼저 정하고 원본을 복사해 두어야 잘못 지웠을 때 되돌릴 수 있다.' },
 ];
 
-export function categoryName(categories: Category[], id: number): string {
-  return categories.find((c) => c.id === id)?.name ?? '미지정';
+// 시리즈: 지정 순서로 단계를 보여 주며 잠금 없음(공통기준 29). 11·12는 임시저장이라 넣지 않음
+export const sampleSeries: Series[] = [
+  { id: 1, name: '회사에서 자주 듣는 말', description: '실무에서 자주 나오는 용어를 짧게 정리한 시리즈', stepContentIds: [5, 6, 7, 8, 9] },
+  { id: 2, name: '보고·이메일 기본기', description: '지연 보고와 이메일 작성의 기본 구조', stepContentIds: [2, 3] },
+];
+
+export function categoryName(id: number): string {
+  return sampleCategories.find((c) => c.id === id)?.name ?? '미지정';
 }
 
 export function quizOf(contentId: number): Quiz | undefined {
@@ -66,7 +73,7 @@ function shouldFail(key: string): boolean {
   }
 }
 
-export async function request<T>(key: string, payload: T, ms = 500): Promise<T> {
+export async function request<T>(key: string, payload: T, ms = 450): Promise<T> {
   await wait(ms);
   if (shouldFail(key)) throw new Error('서버에 연결하지 못했습니다.');
   return payload;
