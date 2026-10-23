@@ -1286,7 +1286,7 @@ body.sasu-reset-base {
   margin-top: 4px;
 }
 .sasu-form__media {
-  height: 130px;
+  min-height: 130px;
   border: 1px dashed var(--sasu-line);
   border-radius: var(--sasu-radius-sm);
   display: flex;
