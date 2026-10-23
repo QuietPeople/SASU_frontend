@@ -1,2 +1,8 @@
-// 예시 기능 타입: 콘텐츠 시청 기능 내부에서만 쓰는 타입을 정의할 위치입니다.
-export {}
+import type { WatchContext } from '../../api/learning'
+
+export interface WatchNavigationState {
+  context: WatchContext
+  returnTo: string
+  contentIds: number[]
+  curriculumId?: number
+}

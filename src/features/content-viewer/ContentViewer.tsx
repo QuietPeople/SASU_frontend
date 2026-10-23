@@ -1,4 +1,298 @@
-/** 예시 기능 UI: 영상 플레이어와 학습 패널을 구성할 위치. 아직 구현하지 않았습니다. */
-export function ContentViewer() {
-  return null
+import { useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router'
+import { api, mediaUrl } from '../../api/client'
+import {
+  recordLearningEvent,
+  type LearningContentDetail,
+  type LearningIdentity,
+  type LearningQuestion,
+  type WatchContext,
+} from '../../api/learning'
+import { QuizView } from '../../shared/QuizView'
+import { Button } from '../../shared/ui'
+import { useContentViewer } from './useContentViewer'
+import type { WatchNavigationState } from './types'
+
+interface ContentViewerProps {
+  identity: LearningIdentity
+  detail: LearningContentDetail
+  question: LearningQuestion | null | undefined
+  questionError: Error | null
+  retryQuestion: () => void
+  context: WatchContext
+  backTo: string
+  backLabel: string
+  nextTo?: string
+  nextState?: WatchNavigationState
+}
+
+export function ContentViewer({
+  identity,
+  detail,
+  question,
+  questionError,
+  retryQuestion,
+  context,
+  backTo,
+  backLabel,
+  nextTo,
+  nextState,
+}: ContentViewerProps) {
+  const content = detail.content
+  const queryClient = useQueryClient()
+  const player = useRef<HTMLVideoElement>(null)
+  const [ended, setEnded] = useState(false)
+  const [openedQuestion, setOpenedQuestion] = useState<LearningQuestion | null>(null)
+  const [tab, setTab] = useState<'core' | 'quiz' | 'source'>('core')
+  const [playError, setPlayError] = useState(false)
+  const [eventError, setEventError] = useState('')
+  const [playErrorId] = useState(() => crypto.randomUUID())
+  const watch = useContentViewer({
+    identity,
+    contentId: content.content_id,
+    mediaRevision: content.media_revision!,
+    duration: content.video_duration!,
+    context,
+  })
+  const reaction = useMutation({
+    mutationFn: async ({ kind, on }: { kind: 'like' | 'saved'; on: boolean }) => {
+      await api(`/users/${identity.learnerId}/contents/${content.content_id}/${kind}`, {
+        method: on ? 'PUT' : 'DELETE',
+        ...identity,
+      })
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries()
+    },
+  })
+  const reportPlayError = async () => {
+    try {
+      await recordLearningEvent(identity, playErrorId, {
+        event_type: 'PLAY_ERROR',
+        content_id: content.content_id,
+        error_code: 'VIDEO_PLAYBACK_FAILED',
+      })
+      setEventError('')
+    } catch (cause) {
+      setEventError(cause instanceof Error ? cause.message : '재생 오류를 기록하지 못했어요.')
+    }
+  }
+  // 처음 퀴즈를 보여 줄 때 버전을 고정하고 같은 영상 방문에서는 풀이를 유지한다.
+  // 탭 전환이나 영상 다시보기, 배경 재조회로 새 attempt를 만들지 않는다.
+  if (!openedQuestion && ended && tab === 'quiz' && question) setOpenedQuestion(question)
+
+  return (
+    <div className="sasu-page sasu-feed">
+      <div className="sasu-feed__main">
+        <div className="sasu-feed__bar">
+          <Link className="sasu-link" to={backTo}>
+            {backLabel}
+          </Link>
+          <span className="sasu-eyebrow">영상 학습</span>
+        </div>
+        <header className="sasu-feed__head">
+          <h1 className="sasu-title">{content.title ?? '제목 없음'}</h1>
+          <p className="sasu-sub">
+            {content.category?.name ?? '미지정'} ·{' '}
+            {content.tags.map((tag) => `#${tag.name}`).join(' ')}
+          </p>
+        </header>
+        <div className="sasu-feed__stage">
+          <div className="sasu-player">
+            <video
+              ref={player}
+              src={mediaUrl(content.video_url!)}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={content.title ?? '학습 영상'}
+              style={{
+                display: 'block',
+                width: '100%',
+                maxHeight: 500,
+                aspectRatio: '9 / 16',
+                background: '#0f172a',
+                borderRadius: 14,
+              }}
+              onPlay={() => {
+                setPlayError(false)
+              }}
+              onPlaying={(event) => watch.onPlay(event.currentTarget)}
+              onWaiting={(event) => watch.onWaiting(event.currentTarget)}
+              onRateChange={(event) => watch.onRateChange(event.currentTarget)}
+              onTimeUpdate={(event) => watch.onTimeUpdate(event.currentTarget)}
+              onPause={(event) => watch.onPause(event.currentTarget)}
+              onSeeking={watch.onSeeking}
+              onSeeked={(event) => watch.onSeeked(event.currentTarget)}
+              onEnded={(event) => {
+                watch.onEnded(event.currentTarget)
+                setEnded(true)
+                setTab('quiz')
+              }}
+              onError={() => {
+                setPlayError(true)
+                void reportPlayError()
+              }}
+            >
+              브라우저에서 영상 재생을 지원하지 않습니다.
+            </video>
+          </div>
+        </div>
+        {playError ? (
+          <div className="sasu-card" role="alert">
+            <p>영상을 재생하지 못했어요.</p>
+            <Button
+              onClick={() => {
+                player.current?.load()
+                setPlayError(false)
+              }}
+            >
+              다시 불러오기
+            </Button>
+            <Link className="sasu-link" to="/learner/search">
+              다른 영상 찾기
+            </Link>
+          </div>
+        ) : null}
+        {eventError ? <p role="alert">오류 기록: {eventError}</p> : null}
+        <div className="sasu-row">
+          <Button
+            active={content.liked ?? false}
+            aria-pressed={content.liked ?? false}
+            disabled={reaction.isPending}
+            onClick={() => reaction.mutate({ kind: 'like', on: !content.liked })}
+          >
+            좋아요 {content.like_count}
+          </Button>
+          <Button
+            active={content.saved ?? false}
+            aria-pressed={content.saved ?? false}
+            disabled={reaction.isPending}
+            onClick={() => reaction.mutate({ kind: 'saved', on: !content.saved })}
+          >
+            {content.saved ? '저장됨' : '보관함 저장'}
+          </Button>
+          {nextTo ? (
+            <Link className="sasu-link" to={nextTo} state={nextState}>
+              다음 영상 →
+            </Link>
+          ) : null}
+        </div>
+        <p className="sasu-sub">
+          조회 {watch.result?.view_count ?? content.view_count} ·{' '}
+          {watch.result?.watch_completed || content.watch_completed ? '시청 완료' : '시청 중'}
+        </p>
+        {reaction.isError ? <p role="alert">{reaction.error.message}</p> : null}
+        {watch.error ? (
+          <div role="alert">
+            <p>시청 기록: {watch.error}</p>
+            <Button size="sm" onClick={watch.retry}>
+              기록 다시 저장
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      <aside className="sasu-lp" aria-label="학습 패널">
+        <div className="sasu-lp__head">
+          <h2 className="sasu-lp__title">영상과 함께 학습해요</h2>
+        </div>
+        <div className="sasu-lp__tabs" role="tablist" aria-label="학습 자료">
+          {(['core', 'quiz', 'source'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              className={`sasu-lp__tab ${tab === value ? 'is-active' : ''}`}
+              onClick={() => setTab(value)}
+            >
+              {value === 'core' ? '핵심 정리' : value === 'quiz' ? '퀴즈' : '출처'}
+            </button>
+          ))}
+        </div>
+        <div className="sasu-lp__body">
+          {tab === 'core' ? (
+            <>
+              {detail.one_line_summary ? (
+                <div className="sasu-lp__oneline">
+                  <span className="sasu-lp__label">한 줄 정리</span>
+                  <p>{detail.one_line_summary}</p>
+                </div>
+              ) : null}
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {detail.core_content || '등록된 핵심 정리가 없어요.'}
+              </p>
+              {detail.related_curriculums.length ? (
+                <>
+                  <span className="sasu-lp__label">관련 학습</span>
+                  <ul>
+                    {detail.related_curriculums.map((item) => (
+                      <li key={item.curriculum_id}>
+                        <Link to={`/learner/series/${item.curriculum_id}`}>{item.title}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {detail.caution_enabled ? (
+                <div className="sasu-lp__caution" role="note">
+                  <p className="sasu-lp__caution-title">실무 용어 해석 주의</p>
+                  <p>{detail.caution_text}</p>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {tab === 'source' ? (
+            <dl className="sasu-lp__dl">
+              <dt>출처</dt>
+              <dd>{detail.source || '미등록'}</dd>
+              <dt>검토일</dt>
+              <dd>{detail.reviewed_on || '미등록'}</dd>
+            </dl>
+          ) : null}
+          <div hidden={tab !== 'quiz'}>
+            {questionError && !openedQuestion ? (
+              <div role="alert">
+                <p>{questionError.message}</p>
+                <Button onClick={retryQuestion}>문항 다시 불러오기</Button>
+              </div>
+            ) : null}
+            {openedQuestion ? (
+              <QuizView
+                identity={identity}
+                question={openedQuestion}
+                responsePath="VIDEO_QUIZ"
+                footer={(result) => (
+                  <div className="sasu-row">
+                    {result === 'WRONG' ? (
+                      <Link
+                        className="sasu-link"
+                        to={`/learner/review/${content.content_id}?questionVersionId=${openedQuestion.question_version_id}`}
+                      >
+                        오답 복습
+                      </Link>
+                    ) : null}
+                    <Link
+                      className="sasu-link"
+                      to={nextTo ?? backTo}
+                      state={nextTo ? nextState : undefined}
+                    >
+                      {nextTo ? '다음 영상 →' : backLabel}
+                    </Link>
+                  </div>
+                )}
+              />
+            ) : question === undefined ? (
+              <p role="status">문항을 불러오는 중이에요.</p>
+            ) : question === null ? (
+              <p>등록된 퀴즈가 없어요. 영상 학습을 마치고 다음으로 이동할 수 있어요.</p>
+            ) : !ended ? (
+              <p>영상을 끝까지 보면 퀴즈가 열려요. 시청 완료와 끝 도달은 따로 기록돼요.</p>
+            ) : null}
+          </div>
+        </div>
+      </aside>
+    </div>
+  )
 }

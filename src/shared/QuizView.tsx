@@ -1,129 +1,237 @@
-import { useState, type ReactNode } from 'react';
-import type { Quiz, QuizResult } from '../types/sasu';
-import { request } from '../state/sasuSample';
-import { Button } from './ui';
-
-// C01 공통 문제 풀이·정답 해설 상태.
-// 영상 종료 퀴즈(L02)·오답 복습(L06)·피드 복기(C02)가 모두 이 컴포넌트를 쓴다.
-// - 질문 → 보기 → 제출 → 결과·해설 순서. 한 보기를 골라야 제출 가능
-// - 제출 성공 뒤 보기와 제출 버튼을 잠그고 재도전 버튼을 두지 않음(공통기준 18)
-// - 해설은 사용자가 다음 행동을 고를 때까지 유지(타이머·자동 이동 없음)
-// - 서버 확인 없이 정답 처리하지 않음. 저장 실패 시 고른 답을 유지하고 다시 시도 안내(공통기준 25 예외)
-
-const LETTERS = ['A', 'B', 'C', 'D'];
+import { useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router'
+import { ApiError } from '../api/client'
+import {
+  createLearningAttempt,
+  learningKey,
+  recordLearningEvent,
+  submitLearningAttempt,
+  type LearningAttempt,
+  type LearningIdentity,
+  type LearningQuestion,
+  type LearningResult,
+  type ResponsePath,
+} from '../api/learning'
+import { Button } from './ui'
 
 interface QuizViewProps {
-  quiz: Quiz;
-  context?: string; // 원본 콘텐츠 문맥(예: 영상 제목)
-  // 제출 성공 시 부모가 응답을 기록함. 실패하면 throw 해서 다시 시도 안내를 띄움
-  onSubmit: (picked: number, result: QuizResult) => Promise<void> | void;
-  onSkip?: () => void; // 제출 전 건너뛰기(부모가 건너뛴 사실을 기록)
-  footer?: (result: QuizResult | null) => ReactNode; // 결과에 따른 다음 행동 버튼
+  identity: LearningIdentity
+  question: LearningQuestion
+  responsePath: ResponsePath
+  context?: string
+  attemptId?: string
+  restoredAttempt?: LearningAttempt
+  footer?: (result: LearningResult | null) => ReactNode
 }
 
-export function QuizView({ quiz, context, onSubmit, onSkip, footer }: QuizViewProps) {
-  const [picked, setPicked] = useState<number | null>(null);
-  const [result, setResult] = useState<QuizResult | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+// 학습자·기록 세대·문항 버전이 바뀌면 이전 풀이 상태를 분리한다.
+export function QuizView(props: QuizViewProps) {
+  return (
+    <AttemptView
+      key={`${props.identity.actorId}:${props.identity.learnerId}:${props.identity.generation}:${props.question.question_version_id}:${props.responsePath}:${props.attemptId ?? 'new'}`}
+      {...props}
+    />
+  )
+}
 
-  const letters = quiz.format === 'OX' ? ['O', 'X'] : LETTERS;
-  const locked = result === 'CORRECT' || result === 'WRONG';
+function AttemptView({
+  identity,
+  question,
+  responsePath,
+  context,
+  footer,
+  attemptId: providedAttemptId,
+  restoredAttempt,
+}: QuizViewProps) {
+  const queryClient = useQueryClient()
+  const [newAttemptId] = useState(() => crypto.randomUUID())
+  const attemptId = providedAttemptId ?? newAttemptId
+  const [eventId] = useState(() => crypto.randomUUID())
+  const choiceKey = learningKey(identity, 'attempt-choice', attemptId)
+  const submissionKey = learningKey(identity, 'attempt-submission', attemptId)
+  const [picked, setPicked] = useState<number | null>(
+    () => queryClient.getQueryData<number>(choiceKey) ?? null,
+  )
+  // 응답을 받지 못했어도 서버 저장은 끝났을 수 있어 같은 답으로 재전송한다.
+  const [submittedChoice, setSubmittedChoice] = useState<{ optionId: number | null } | null>(
+    () => queryClient.getQueryData<{ optionId: number | null }>(submissionKey) ?? null,
+  )
+  const attempt = useQuery({
+    queryKey: learningKey(identity, 'attempt', attemptId),
+    initialData: restoredAttempt,
+    queryFn: async ({ signal }) => {
+      const result = await createLearningAttempt(
+        identity,
+        attemptId,
+        question,
+        responsePath,
+        signal,
+      )
+      if (responsePath !== 'WRONG_NOTE' && !result.submitted) {
+        await recordLearningEvent(
+          identity,
+          eventId,
+          {
+            event_type: responsePath === 'VIDEO_QUIZ' ? 'VIDEO_QUIZ_SHOWN' : 'FEED_REVIEW_SHOWN',
+            attempt_id: attemptId,
+          },
+          signal,
+        )
+      }
+      return result
+    },
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  })
+  const submission = useMutation({
+    mutationFn: (optionId: number | null) => submitLearningAttempt(identity, attemptId, optionId),
+    onSuccess: (response) => {
+      // 원본 영상으로 바로 이동해도 확정된 결과가 같은 풀이 캐시에 남는다.
+      queryClient.setQueryData<LearningAttempt>(
+        learningKey(identity, 'attempt', attemptId),
+        (previous) => (previous ? { ...previous, submitted: true, response } : previous),
+      )
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          !query.queryKey.includes('wrong-review') && !query.queryKey.includes('attempt'),
+      })
+    },
+  })
+  const response = submission.data ?? attempt.data?.response
+  const locked = Boolean(response) || submittedChoice !== null
+  const displayedQuestion = response?.question ?? attempt.data?.question ?? question
+  const submit = (optionId: number | null) => {
+    if (!attempt.isSuccess || submission.isPending || response) return
+    const choice = submittedChoice ?? { optionId }
+    setSubmittedChoice(choice)
+    queryClient.setQueryData(submissionKey, choice)
+    submission.mutate(choice.optionId)
+  }
 
-  const submit = async () => {
-    if (picked === null || submitting) return;
-    setSubmitting(true);
-    setError('');
-    const judged: QuizResult = picked === quiz.answer ? 'CORRECT' : 'WRONG';
-    try {
-      await request('quizAnswer', null, 550);
-      await onSubmit(picked, judged);
-      setResult(judged); // 서버 성공 뒤에만 결과 확정
-    } catch {
-      setError('답을 저장하지 못했어요. 고른 답은 그대로 있으니 다시 확인을 눌러 주세요.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const skip = () => {
-    if (locked) return;
-    setResult('SKIPPED');
-    onSkip?.();
-  };
+  const requiresNewQuestion =
+    attempt.error instanceof ApiError &&
+    [
+      'VERSION_CONFLICT',
+      'QUESTION_VERSION_CHANGED',
+      'ATTEMPT_NOT_ELIGIBLE',
+      'QUESTION_NOT_FOUND',
+    ].includes(attempt.error.code)
 
   return (
     <div className="sasu-quiz">
       {context ? <p className="sasu-quiz__context">{context}</p> : null}
-      <p className="sasu-quiz__q">{quiz.question}</p>
-
+      <p className="sasu-quiz__q">{displayedQuestion.question_text}</p>
       <ul className="sasu-quiz__choices" role="radiogroup" aria-label="보기">
-        {quiz.choices.map((choice, i) => {
-          const isPicked = picked === i;
-          const isAnswer = locked && i === quiz.answer;
-          const isWrongPick = result === 'WRONG' && isPicked;
+        {displayedQuestion.options.map((option) => {
+          const isPicked = (response?.selected_option_id ?? picked) === option.option_id
+          const isCorrect =
+            response &&
+            response.result !== 'SKIP' &&
+            response.correct_option_id === option.option_id
           return (
-            <li key={choice}>
+            <li key={option.option_id}>
               <button
                 type="button"
                 role="radio"
                 aria-checked={isPicked}
-                disabled={locked || result === 'SKIPPED'}
-                className={`sasu-choice ${isPicked ? 'is-picked' : ''} ${isAnswer ? 'is-answer' : ''} ${isWrongPick ? 'is-wrong' : ''}`}
-                onClick={() => setPicked(i)}
+                disabled={locked || !attempt.isSuccess}
+                className={`sasu-choice ${isPicked ? 'is-picked' : ''} ${isCorrect ? 'is-answer' : ''} ${response?.result === 'WRONG' && isPicked ? 'is-wrong' : ''}`}
+                onClick={() => {
+                  setPicked(option.option_id)
+                  queryClient.setQueryData(choiceKey, option.option_id)
+                }}
               >
                 <span className="sasu-choice__letter" aria-hidden="true">
-                  {letters[i]}
+                  {displayedQuestion.question_type === 'OX'
+                    ? option.option_text
+                    : String.fromCharCode(64 + option.option_order)}
                 </span>
-                <span className="sasu-choice__text">{choice}</span>
-                {isAnswer ? <span className="sasu-choice__mark">✓ 정답</span> : null}
-                {isWrongPick ? <span className="sasu-choice__mark is-wrong">✕ 내 답</span> : null}
+                <span className="sasu-choice__text">{option.option_text}</span>
+                {isCorrect ? <span className="sasu-choice__mark">✓ 정답</span> : null}
               </button>
             </li>
-          );
+          )
         })}
       </ul>
-
-      {error ? (
+      {attempt.isPending ? <p role="status">문항을 준비하고 있어요.</p> : null}
+      {attempt.isError ? (
+        <div role="alert">
+          <p>{attempt.error.message}</p>
+          {requiresNewQuestion ? (
+            <>
+              <p>현재 목록에서 문항을 다시 선택해 주세요.</p>
+              <Link
+                className="sasu-link"
+                to={
+                  responsePath === 'WRONG_NOTE' ? '/learner/library?tab=wrong' : '/learner/search'
+                }
+              >
+                {responsePath === 'WRONG_NOTE' ? '현재 오답 목록 확인' : '현재 콘텐츠 목록 확인'}
+              </Link>
+            </>
+          ) : (
+            <Button onClick={() => void attempt.refetch()}>다시 불러오기</Button>
+          )}
+        </div>
+      ) : null}
+      {submission.isError ? (
         <p className="sasu-quiz__error" role="alert">
-          {error}
+          {submission.error.message} 같은 답으로 다시 제출할 수 있어요.
         </p>
       ) : null}
-
-      {result === null ? (
+      {!response && attempt.isSuccess ? (
         <div className="sasu-row">
-          {onSkip ? (
-            <Button onClick={skip} disabled={submitting}>
+          {submittedChoice === null ? (
+            <Button onClick={() => submit(null)} disabled={submission.isPending}>
               건너뛰기
             </Button>
           ) : null}
-          <Button variant="primary" onClick={() => void submit()} disabled={picked === null || submitting} loading={submitting}>
-            {submitting ? '확인 중' : '제출'}
+          <Button
+            variant="primary"
+            loading={submission.isPending}
+            disabled={submittedChoice === null && picked === null}
+            onClick={() => submit(picked)}
+          >
+            {submission.isError ? '같은 답 다시 제출' : '제출'}
           </Button>
         </div>
-      ) : result === 'SKIPPED' ? (
-        <div className="sasu-result" role="status">
-          <p className="sasu-result__title">건너뛰었어요</p>
-          <p>건너뛴 사실만 기록하고 오답·복습 대기에는 넣지 않아요.</p>
-          {footer ? <div className="sasu-result__foot">{footer(result)}</div> : null}
-        </div>
-      ) : (
-        <div className={`sasu-result ${result === 'CORRECT' ? 'is-correct' : 'is-wrong'}`} role="status">
+      ) : null}
+      {response ? (
+        <div
+          className={`sasu-result ${response.result === 'CORRECT' ? 'is-correct' : response.result === 'WRONG' ? 'is-wrong' : ''}`}
+          role="status"
+        >
           <p className="sasu-result__title">
-            <span aria-hidden="true">{result === 'CORRECT' ? '✓' : '✕'}</span> {result === 'CORRECT' ? '정답이에요' : '다시 확인해 보세요'}
+            {response.result === 'CORRECT'
+              ? '✓ 정답이에요'
+              : response.result === 'WRONG'
+                ? '다시 확인해 보세요'
+                : '건너뛰었어요'}
           </p>
-          <dl className="sasu-result__dl">
-            <dt>내 답</dt>
-            <dd>{picked !== null ? quiz.choices[picked] : '—'}</dd>
-            <dt>정답</dt>
-            <dd>{quiz.choices[quiz.answer]}</dd>
-          </dl>
-          <p className="sasu-result__exp">
-            <strong>해설</strong> {quiz.explanation}
-          </p>
-          {footer ? <div className="sasu-result__foot">{footer(result)}</div> : null}
+          {response.result === 'SKIP' ? (
+            <p>건너뛴 기록을 저장했어요. 오답으로 기록하지 않아요.</p>
+          ) : (
+            <>
+              <dl className="sasu-result__dl">
+                <dt>내 답</dt>
+                <dd>
+                  {displayedQuestion.options.find(
+                    (option) => option.option_id === response.selected_option_id,
+                  )?.option_text ?? '—'}
+                </dd>
+                <dt>정답</dt>
+                <dd>{response.correct_answer}</dd>
+              </dl>
+              <p className="sasu-result__exp">
+                <strong>해설</strong> {response.explanation}
+              </p>
+            </>
+          )}
+          {footer ? <div className="sasu-result__foot">{footer(response.result)}</div> : null}
         </div>
-      )}
+      ) : null}
     </div>
-  );
+  )
 }

@@ -1,83 +1,121 @@
-import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router';
-import { categoryName, quizOf, sampleSeries } from '../../state/sasuSample';
-import { useStore } from '../../state/store';
-import type { AppState } from '../../state/store';
-import { Badge, Button, StateBlock } from '../../shared/ui';
-
-/**
- * L04 시리즈 목록·단계 상세(공통기준 16·28·29).
- * - 단계는 지정 순서로 표시하며 잠금 없음. 어느 단계든 열 수 있음
- * - 단계 완료 = 시청 90% 이상 AND 해당 문항 정답 이력(어느 경로의 정답이든 반영)
- * - 퀴즈 없는 단계는 시청은 되지만 완료 조건 미충족으로 표시
- */
-
-// 단계 상태 계산. 시청 완료와 정답 이력을 따로 본 뒤 둘 다 충족해야 완료
-function stepState(state: AppState, contentId: number) {
-  const watched = Boolean(state.records.stats[contentId]?.completed);
-  const hasQuiz = Boolean(quizOf(contentId));
-  const answered = state.records.responses.some((r) => r.contentId === contentId && r.result === 'CORRECT');
-  const done = watched && hasQuiz && answered;
-  return { watched, hasQuiz, answered, done };
-}
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { api, queryString, type ApiPage } from '../../api/client'
+import { pageNumber, type CurriculumDetail, type CurriculumSummary } from '../../api/learner'
+import { useSession } from '../../state/session'
+import { Badge, Button, StateBlock } from '../../shared/ui'
 
 export function SeriesPage() {
-  const { state } = useStore();
-  const navigate = useNavigate();
-  const { id } = useParams();
-
-  const selected = useMemo(() => {
-    if (id) return sampleSeries.find((s) => String(s.id) === id);
-    return sampleSeries[0];
-  }, [id]);
-
-  if (sampleSeries.length === 0) {
-    return (
-      <div className="sasu-page">
-        <StateBlock title="아직 시리즈가 없어요." action={<Button variant="primary" onClick={() => navigate('/learner/feed')}>피드 보기</Button>} />
-      </div>
-    );
+  const { actorId, learnerId, generation, isPending, error } = useSession()
+  const navigate = useNavigate()
+  const { id } = useParams()
+  const [params, setParams] = useSearchParams()
+  const page = pageNumber(params.get('page'))
+  const enabled = actorId !== null && learnerId !== null
+  const list = useQuery({
+    queryKey: ['learner', 'curriculums', actorId, learnerId, generation, page],
+    queryFn: ({ signal }) =>
+      api<ApiPage<CurriculumSummary>>(
+        `/curriculums${queryString({ view: 'learner', user_id: learnerId, page, size: 20 })}`,
+        { actorId, signal },
+      ),
+    enabled,
+  })
+  const selectedId = id ? Number(id) : list.data?.items[0]?.curriculum_id
+  const validId = Number.isSafeInteger(selectedId) && Number(selectedId) > 0
+  const detail = useQuery({
+    queryKey: ['learner', 'curriculum', actorId, learnerId, generation, selectedId],
+    queryFn: ({ signal }) =>
+      api<CurriculumDetail>(
+        `/curriculums/${selectedId}${queryString({ view: 'learner', user_id: learnerId })}`,
+        { actorId, signal },
+      ),
+    enabled: enabled && validId,
+  })
+  const selected = detail.data
+  const goPage = (next: number) => {
+    const query = new URLSearchParams(params)
+    query.set('page', String(next))
+    setParams(query)
   }
-
   return (
     <div className="sasu-page sasu-series">
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 시리즈</p>
         <h1 className="sasu-title">시리즈</h1>
       </header>
-
-      <div className="sasu-chips">
-        {sampleSeries.map((s) => {
-          const done = s.stepContentIds.filter((c) => stepState(state, c).done).length;
-          return (
-            <button key={s.id} type="button" className={`sasu-chip sasu-chip--pick ${selected?.id === s.id ? 'is-on' : ''}`} onClick={() => navigate(`/learner/series/${s.id}`)}>
-              {s.name} {done}/{s.stepContentIds.length}
-            </button>
-          );
-        })}
-      </div>
-
-      {selected ? (
-        <section className="sasu-card">
-          {(() => {
-            const done = selected.stepContentIds.filter((c) => stepState(state, c).done).length;
-            const total = selected.stepContentIds.length;
-            return (
-              <>
-                <div className="sasu-series__head">
-                  <div>
-                    <h2 className="sasu-card__title">{selected.name}</h2>
-                    <p className="sasu-sub">{selected.description}</p>
-                  </div>
-                  <span className="sasu-chip">
-                    완료 {done} / {total}
-                  </span>
+      {isPending ? (
+        <StateBlock title="사용자를 불러오는 중이에요." />
+      ) : error ? (
+        <StateBlock title="사용자 정보를 불러오지 못했어요." text={error.message} />
+      ) : !enabled ? (
+        <StateBlock title="학습자를 선택해 주세요." />
+      ) : list.isPending ? (
+        <StateBlock title="시리즈를 불러오는 중이에요." />
+      ) : list.error ? (
+        <StateBlock
+          title="시리즈를 불러오지 못했어요."
+          text={list.error.message}
+          action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
+        />
+      ) : (
+        <>
+          <div className="sasu-chips">
+            {list.data?.items.map((series) => (
+              <button
+                key={series.curriculum_id}
+                type="button"
+                className={`sasu-chip sasu-chip--pick ${selectedId === series.curriculum_id ? 'is-on' : ''}`}
+                onClick={() => navigate(`/learner/series/${series.curriculum_id}?${params}`)}
+              >
+                {series.title} {series.completed_steps ?? '—'}/{series.total_steps}
+              </button>
+            ))}
+          </div>
+          {list.data && (page > 1 || list.data.has_next) ? (
+            <div className="sasu-row" aria-label="시리즈 페이지">
+              <Button disabled={page === 1 || list.isFetching} onClick={() => goPage(page - 1)}>
+                이전
+              </Button>
+              <span>{list.data.page} 페이지</span>
+              <Button
+                disabled={!list.data.has_next || list.isFetching}
+                onClick={() => goPage(page + 1)}
+              >
+                다음
+              </Button>
+            </div>
+          ) : null}
+          {id && !validId ? (
+            <StateBlock title="올바른 시리즈를 선택해 주세요." />
+          ) : !selectedId ? (
+            <StateBlock title="아직 시리즈가 없어요." />
+          ) : detail.isPending ? (
+            <StateBlock title="단계를 불러오는 중이에요." />
+          ) : detail.error ? (
+            <StateBlock
+              title="단계를 불러오지 못했어요."
+              text={detail.error.message}
+              action={<Button onClick={() => void detail.refetch()}>다시 시도</Button>}
+            />
+          ) : selected ? (
+            <section className="sasu-card">
+              <div className="sasu-series__head">
+                <div>
+                  <h2 className="sasu-card__title">{selected.summary.title}</h2>
+                  <p className="sasu-sub">{selected.summary.description}</p>
                 </div>
-                <div className="sasu-progress" aria-hidden="true">
-                  <span style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
-                </div>
-                <p className="sasu-help">어느 단계든 선택해 볼 수 있어요. 미완료 단계도 열려요.</p>
-
+                <span className="sasu-chip">
+                  완료 {selected.summary.completed_steps ?? '—'} / {selected.summary.total_steps}
+                </span>
+              </div>
+              <div className="sasu-progress" aria-hidden="true">
+                <span style={{ width: `${selected.summary.progress_percent ?? 0}%` }} />
+              </div>
+              <p className="sasu-help">이용 가능한 단계는 순서와 관계없이 선택할 수 있어요.</p>
+              {selected.steps.length === 0 ? (
+                <StateBlock title="등록된 단계가 없어요." />
+              ) : (
                 <table className="sasu-table">
                   <thead>
                     <tr>
@@ -89,37 +127,73 @@ export function SeriesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selected.stepContentIds.map((cid, i) => {
-                      const content = state.contents.find((c) => c.id === cid);
-                      const st = stepState(state, cid);
-                      const status = st.done ? '완료' : st.watched || st.answered ? '진행 중' : '미완료';
-                      return (
-                        <tr key={cid}>
-                          <td>
-                            <strong>{i + 1}.</strong> {content?.title ?? '—'}
-                            <span className="sasu-table__sub">{content ? categoryName(content.categoryId) : ''}</span>
-                          </td>
-                          <td>{st.watched ? '✓ 완료' : '— 미완료'}</td>
-                          <td>{!st.hasQuiz ? '퀴즈 없음' : st.answered ? '✓ 정답' : '— 미충족'}</td>
-                          <td>
-                            <Badge tone={st.done ? 'green' : status === '진행 중' ? 'blue' : 'neutral'}>{status}</Badge>
-                          </td>
-                          <td className="sasu-table__right">
-                            <Button size="sm" variant="primary" onClick={() => navigate(`/learner/watch/${cid}?from=series&series=${selected.id}`)}>
-                              보기
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {selected.steps.map((step) => (
+                      <tr key={step.curriculum_content_id}>
+                        <td>
+                          <strong>{step.step_order}.</strong>{' '}
+                          {step.content?.title ?? '이용할 수 없는 콘텐츠'}
+                          <span className="sasu-table__sub">{step.content?.category?.name}</span>
+                        </td>
+                        <td>
+                          {step.watch_completed === null
+                            ? '—'
+                            : step.watch_completed
+                              ? '✓ 완료'
+                              : '— 미완료'}
+                        </td>
+                        <td>
+                          {!step.content?.has_quiz
+                            ? '퀴즈 없음'
+                            : step.question_correct === null
+                              ? '—'
+                              : step.question_correct
+                                ? '✓ 정답'
+                                : '— 미충족'}
+                        </td>
+                        <td>
+                          <Badge tone={step.completed ? 'green' : 'neutral'}>
+                            {!step.available
+                              ? '이용 불가'
+                              : step.completed === null
+                                ? '—'
+                                : step.completed
+                                  ? '완료'
+                                  : '미완료'}
+                          </Badge>
+                        </td>
+                        <td className="sasu-table__right">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={!step.available}
+                            onClick={() =>
+                              navigate(`/learner/watch/${step.content_id}`, {
+                                state: {
+                                  context: 'CURRICULUM',
+                                  curriculumId: selected.summary.curriculum_id,
+                                  returnTo: `/learner/series/${selected.summary.curriculum_id}?${params}`,
+                                  contentIds: selected.steps
+                                    .filter((item) => item.available)
+                                    .map((item) => item.content_id),
+                                },
+                              })
+                            }
+                          >
+                            보기
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                <p className="sasu-help">단계 완료는 영상 끝 도달이 아니라 시청 90% 이상과 해당 문항 정답을 함께 충족해야 해요.</p>
-              </>
-            );
-          })()}
-        </section>
-      ) : null}
+              )}
+              <p className="sasu-help">
+                단계 완료는 시청 90% 이상과 해당 문항 정답을 함께 충족해야 해요.
+              </p>
+            </section>
+          ) : null}
+        </>
+      )}
     </div>
-  );
+  )
 }
