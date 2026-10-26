@@ -1514,3 +1514,156 @@ body.sasu-reset-base {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ===== 영상 좋아요·저장 액션 버튼 ===== */
+.sasu-actions {
+  display: flex;
+  gap: 10px;
+}
+.sasu-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sasu-line);
+  background: #ffffff;
+  color: var(--sasu-sub);
+  border-radius: 14px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.sasu-action--icon-only {
+  padding: 9px 12px;
+}
+.sasu-action:hover:not(:disabled) {
+  border-color: var(--sasu-brand);
+}
+.sasu-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sasu-action__icon {
+  display: inline-flex;
+}
+.sasu-action__icon svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
+}
+.sasu-action--like.is-on {
+  border-color: var(--sasu-red);
+  color: var(--sasu-red);
+}
+.sasu-action--like.is-on .sasu-action__icon svg {
+  fill: var(--sasu-red);
+  stroke: var(--sasu-red);
+}
+.sasu-action--save.is-on {
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+}
+.sasu-action--save.is-on .sasu-action__icon svg {
+  fill: var(--sasu-brand);
+  stroke: var(--sasu-brand);
+}
+.sasu-action.is-on .sasu-action__icon svg {
+  animation: sasu-tick 0.22s ease;
+}
+@keyframes sasu-tick {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+
+
+/* ===== 홈(모드 선택) — 좌우 분할 ===== */
+.sasu-home2 {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(32px, 7vw, 72px) 20px;
+}
+.sasu-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--sasu-shadow);
+  min-height: 380px;
+}
+.sasu-split__half {
+  padding: 40px 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none;
+  color: var(--sasu-ink);
+  transition: background 0.2s ease;
+}
+.sasu-split__half--learner {
+  background: linear-gradient(160deg, #dbeafe, #eff6ff);
+}
+.sasu-split__half--learner:hover {
+  background: linear-gradient(160deg, #cfe4fd, #e3eefe);
+}
+.sasu-split__half--admin {
+  background: linear-gradient(160deg, #d1f3ee, #ecfdf9);
+}
+.sasu-split__half--admin:hover {
+  background: linear-gradient(160deg, #bfece4, #e0faf3);
+}
+.sasu-split__ic {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.14);
+  color: var(--sasu-brand-ink);
+}
+.sasu-split__half--admin .sasu-split__ic {
+  background: rgba(13, 148, 136, 0.16);
+  color: #0f766e;
+}
+.sasu-split__badge {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sasu-brand-ink);
+}
+.sasu-split__half--admin .sasu-split__badge {
+  color: #0f766e;
+}
+.sasu-split__title {
+  margin: 6px 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+.sasu-split__desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sasu-sub);
+}
+.sasu-split__go {
+  margin-top: 26px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--sasu-brand-ink);
+}
+.sasu-split__half--admin .sasu-split__go {
+  color: #0f766e;
+}
+@media (max-width: 720px) {
+  .sasu-split {
+    grid-template-columns: 1fr;
+  }
+}
