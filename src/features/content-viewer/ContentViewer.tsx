@@ -157,22 +157,37 @@ export function ContentViewer({
         ) : null}
         {eventError ? <p role="alert">오류 기록: {eventError}</p> : null}
         <div className="sasu-row">
-          <Button
-            active={content.liked ?? false}
-            aria-pressed={content.liked ?? false}
-            disabled={reaction.isPending}
-            onClick={() => reaction.mutate({ kind: 'like', on: !content.liked })}
-          >
-            좋아요 {content.like_count}
-          </Button>
-          <Button
-            active={content.saved ?? false}
-            aria-pressed={content.saved ?? false}
-            disabled={reaction.isPending}
-            onClick={() => reaction.mutate({ kind: 'saved', on: !content.saved })}
-          >
-            {content.saved ? '저장됨' : '보관함 저장'}
-          </Button>
+          <div className="sasu-actions">
+            <button
+              type="button"
+              className={`sasu-action sasu-action--like ${content.liked ? 'is-on' : ''}`}
+              aria-pressed={content.liked ?? false}
+              aria-label="좋아요"
+              disabled={reaction.isPending}
+              onClick={() => reaction.mutate({ kind: 'like', on: !content.liked })}
+            >
+              <span className="sasu-action__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path d="M12 21s-7.5-4.6-10-9.3C.4 8.4 2 5 5.2 5c2 0 3.3 1.1 4.2 2.4h1.2C11.5 6.1 12.8 5 14.8 5 18 5 19.6 8.4 18 11.7 15.5 16.4 12 21 12 21z" />
+                </svg>
+              </span>
+              <span className="sasu-action__count">{content.like_count}</span>
+            </button>
+            <button
+              type="button"
+              className={`sasu-action sasu-action--icon-only sasu-action--save ${content.saved ? 'is-on' : ''}`}
+              aria-pressed={content.saved ?? false}
+              aria-label={content.saved ? '보관함에 저장됨' : '보관함에 저장'}
+              disabled={reaction.isPending}
+              onClick={() => reaction.mutate({ kind: 'saved', on: !content.saved })}
+            >
+              <span className="sasu-action__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                </svg>
+              </span>
+            </button>
+          </div>
           {nextTo ? (
             <Link className="sasu-link" to={nextTo} state={nextState}>
               다음 영상 →
