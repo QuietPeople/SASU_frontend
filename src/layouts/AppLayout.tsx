@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router'
 import type { ReactNode } from 'react'
+import { LearnerSidebarLayout } from './LearnerSidebarLayout'
 import { useSession } from '../state/session'
 import { Button, Spinner, StateBlock } from '../shared/ui'
 import '../styles/sasu-pages.css'
@@ -37,9 +38,57 @@ export function AppLayout({ role, children }: { role: 'learner' | 'admin'; child
   const switchTo = role === 'learner' ? '/admin/contents' : '/learner/feed'
   const switchLabel = role === 'learner' ? '관리자 화면' : '학습자 화면'
 
+  const content = (
+    <main className="sasu-content">
+      {session.backgroundError ? (
+        <div role="alert">
+          사용자 정보 갱신에 실패했습니다. 작성 중인 내용은 유지됩니다.
+          <Button
+            onClick={() => {
+              void session.refreshSession()
+            }}
+          >
+            다시 확인
+          </Button>
+        </div>
+      ) : null}
+      {session.isPending ? (
+        <Spinner label="사용자 정보 불러오는 중" />
+      ) : session.error &&
+        (session.actorId === null || (role === 'learner' && !session.settings)) ? (
+        <StateBlock
+          title="서버 정보를 불러오지 못했습니다."
+          text={session.error.message}
+          action={
+            <Button
+              onClick={() => {
+                void session.refreshSession()
+              }}
+            >
+              다시 시도
+            </Button>
+          }
+        />
+      ) : session.actorId === null ? (
+        <StateBlock
+          title={`${role === 'admin' ? '관리자' : '학습자'} 사용자가 없습니다.`}
+          text="서버에 등록된 사용자를 확인해 주세요."
+        />
+      ) : (
+        children
+      )}
+    </main>
+  )
+  if (role === 'learner')
+    return (
+      <LearnerSidebarLayout items={items} switchTo={switchTo} switchLabel={switchLabel}>
+        {content}
+      </LearnerSidebarLayout>
+    )
+
   return (
     <div className="sasu-shell">
-      <aside className="sasu-nav" aria-label={role === 'learner' ? '학습자 메뉴' : '관리자 메뉴'}>
+      <aside className="sasu-nav" aria-label="관리자 메뉴">
         <button
           type="button"
           className="sasu-nav__brand"
@@ -63,45 +112,7 @@ export function AppLayout({ role, children }: { role: 'learner' | 'admin'; child
           {switchLabel} →
         </button>
       </aside>
-      <main className="sasu-content">
-        {session.backgroundError ? (
-          <div role="alert">
-            사용자 정보 갱신에 실패했습니다. 작성 중인 내용은 유지됩니다.
-            <Button
-              onClick={() => {
-                void session.refreshSession()
-              }}
-            >
-              다시 확인
-            </Button>
-          </div>
-        ) : null}
-        {session.isPending ? (
-          <Spinner label="사용자 정보 불러오는 중" />
-        ) : session.error &&
-          (session.actorId === null || (role === 'learner' && !session.settings)) ? (
-          <StateBlock
-            title="서버 정보를 불러오지 못했습니다."
-            text={session.error.message}
-            action={
-              <Button
-                onClick={() => {
-                  void session.refreshSession()
-                }}
-              >
-                다시 시도
-              </Button>
-            }
-          />
-        ) : session.actorId === null ? (
-          <StateBlock
-            title={`${role === 'admin' ? '관리자' : '학습자'} 사용자가 없습니다.`}
-            text="서버에 등록된 사용자를 확인해 주세요."
-          />
-        ) : (
-          children
-        )}
-      </main>
+      {content}
     </div>
   )
 }
