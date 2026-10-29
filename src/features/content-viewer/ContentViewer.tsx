@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { api, mediaUrl } from '../../api/client'
@@ -8,6 +8,7 @@ import {
   type LearningIdentity,
   type LearningQuestion,
   type WatchContext,
+  type WatchResult,
 } from '../../api/learning'
 import { QuizView } from '../../shared/QuizView'
 import { Button } from '../../shared/ui'
@@ -25,6 +26,13 @@ interface ContentViewerProps {
   backLabel: string
   nextTo?: string
   nextState?: WatchNavigationState
+  recommendationLabel?: string
+  onNext?: () => void | Promise<void>
+  onPrevious?: () => void
+  onWatchReport?: (result: WatchResult) => void
+  navigationTime?: { current: number }
+  navigationPending?: boolean
+  nextLabel?: string
 }
 
 export function ContentViewer({
@@ -38,10 +46,21 @@ export function ContentViewer({
   backLabel,
   nextTo,
   nextState,
+  recommendationLabel,
+  onNext,
+  onPrevious,
+  onWatchReport,
+  navigationTime,
+  navigationPending = false,
+  nextLabel = '다음 영상 →',
 }: ContentViewerProps) {
   const content = detail.content
   const queryClient = useQueryClient()
   const player = useRef<HTMLVideoElement>(null)
+  const main = useRef<HTMLDivElement>(null)
+  const moving = useRef(false)
+  const localNavigationTime = useRef(0)
+  const [navigating, setNavigating] = useState(false)
   const [ended, setEnded] = useState(false)
   const [openedQuestion, setOpenedQuestion] = useState<LearningQuestion | null>(null)
   const [tab, setTab] = useState<'core' | 'quiz'>('core')
@@ -54,7 +73,78 @@ export function ContentViewer({
     mediaRevision: content.media_revision!,
     duration: content.video_duration!,
     context,
+    onReport: onWatchReport,
   })
+  const flushWatch = watch.flush
+  const move = useCallback(
+    async (direction: 'next' | 'previous') => {
+      const action = direction === 'next' ? onNext : onPrevious
+      if (!action || moving.current || navigationPending) return
+      moving.current = true
+      setNavigating(true)
+      try {
+        player.current?.pause()
+        // 현재 방문 보고가 완료된 뒤에 복기 간격을 평가한다.
+        if (await flushWatch(player.current ?? undefined)) await action()
+      } finally {
+        moving.current = false
+        setNavigating(false)
+      }
+    },
+    [flushWatch, onNext, onPrevious, navigationPending],
+  )
+  useEffect(() => {
+    if (context !== 'FEED') return
+    const area = main.current
+    if (!area) return
+    const lastMove = navigationTime ?? localNavigationTime
+    const interactive = (target: EventTarget | null) =>
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          'button, a, input, textarea, select, video, [contenteditable="true"], [role="radio"], [role="tab"]',
+        ),
+      )
+    const keyboard = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        interactive(event.target) ||
+        (event.target instanceof Node &&
+          event.target !== document.body &&
+          !area.contains(event.target))
+      )
+        return
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+      event.preventDefault()
+      if (event.repeat) return
+      void move(event.key === 'ArrowDown' ? 'next' : 'previous')
+    }
+    const wheel = (event: WheelEvent) => {
+      if (
+        event.ctrlKey ||
+        event.defaultPrevented ||
+        interactive(event.target) ||
+        Math.abs(event.deltaY) < 40 ||
+        Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      )
+        return
+      // 세로로 스크롤해야 하는 좁은 화면은 페이지 스크롤을 우선한다.
+      if (area.getBoundingClientRect().height > window.innerHeight) return
+      event.preventDefault()
+      if (Date.now() - lastMove.current < 800) return
+      lastMove.current = Date.now()
+      void move(event.deltaY > 0 ? 'next' : 'previous')
+    }
+    window.addEventListener('keydown', keyboard)
+    area.addEventListener('wheel', wheel, { passive: false })
+    return () => {
+      window.removeEventListener('keydown', keyboard)
+      area.removeEventListener('wheel', wheel)
+    }
+  }, [context, move, navigationTime])
   const reaction = useMutation({
     mutationFn: async ({ kind, on }: { kind: 'like' | 'saved'; on: boolean }) => {
       await api(`/users/${identity.learnerId}/contents/${content.content_id}/${kind}`, {
@@ -89,12 +179,12 @@ export function ContentViewer({
 
   return (
     <div className="sasu-page sasu-feed">
-      <div className="sasu-feed__main">
+      <div className="sasu-feed__main" ref={main}>
         <div className="sasu-feed__bar">
           <Link className="sasu-link" to={backTo}>
             {backLabel}
           </Link>
-          <span className="sasu-eyebrow">영상 학습</span>
+          <span className="sasu-eyebrow">{context === 'FEED' ? '추천 피드' : '영상 학습'}</span>
         </div>
         <header className="sasu-feed__head">
           <h1 className="sasu-title">{content.title ?? '제목 없음'}</h1>
@@ -102,6 +192,7 @@ export function ContentViewer({
             {content.category?.name ?? '미지정'} ·{' '}
             {content.tags.map((tag) => `#${tag.name}`).join(' ')}
           </p>
+          {recommendationLabel ? <p className="sasu-sub">{recommendationLabel}</p> : null}
         </header>
         <div className="sasu-feed__stage">
           <div className="sasu-player">
@@ -193,7 +284,19 @@ export function ContentViewer({
               </span>
             </button>
           </div>
-          {nextTo ? (
+          {onNext ? (
+            <div className="sasu-row">
+              <Button
+                disabled={!onPrevious || navigating || navigationPending}
+                onClick={() => void move('previous')}
+              >
+                이전 영상
+              </Button>
+              <Button loading={navigating || navigationPending} onClick={() => void move('next')}>
+                {nextLabel}
+              </Button>
+            </div>
+          ) : nextTo ? (
             <Link className="sasu-link" to={nextTo} state={nextState}>
               다음 영상 →
             </Link>
@@ -250,9 +353,7 @@ export function ContentViewer({
                   <p style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{core}</p>
                 </div>
               ) : null}
-              {!summary && !core ? (
-                <p className="sasu-muted">등록된 핵심 정리가 없어요.</p>
-              ) : null}
+              {!summary && !core ? <p className="sasu-muted">등록된 핵심 정리가 없어요.</p> : null}
               {detail.related_curriculums.length ? (
                 <div>
                   <span className="sasu-lp__label">관련 학습</span>
@@ -295,13 +396,22 @@ export function ContentViewer({
                         오답 복습
                       </Link>
                     ) : null}
-                    <Link
-                      className="sasu-link"
-                      to={nextTo ?? backTo}
-                      state={nextTo ? nextState : undefined}
-                    >
-                      {nextTo ? '다음 영상 →' : backLabel}
-                    </Link>
+                    {onNext ? (
+                      <Button
+                        loading={navigating || navigationPending}
+                        onClick={() => void move('next')}
+                      >
+                        {nextLabel}
+                      </Button>
+                    ) : (
+                      <Link
+                        className="sasu-link"
+                        to={nextTo ?? backTo}
+                        state={nextTo ? nextState : undefined}
+                      >
+                        {nextTo ? '다음 영상 →' : backLabel}
+                      </Link>
+                    )}
                   </div>
                 )}
               />

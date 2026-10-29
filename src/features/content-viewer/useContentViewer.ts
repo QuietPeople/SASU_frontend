@@ -14,6 +14,7 @@ interface WatchOptions {
   mediaRevision: string
   duration: number
   context: WatchContext
+  onReport?: (result: WatchResult) => void
 }
 
 // 방문별 연속 시청 구간을 누적 보고한다. 탐색 구간은 포함하지 않는다.
@@ -23,6 +24,7 @@ export function useContentViewer({
   mediaRevision,
   duration,
   context,
+  onReport,
 }: WatchOptions) {
   const queryClient = useQueryClient()
   const [visitId] = useState(() => crypto.randomUUID())
@@ -30,13 +32,18 @@ export function useContentViewer({
   const tracking = useRef(createWatchTracking())
   const [result, setResult] = useState<WatchResult | null>(null)
   const [error, setError] = useState('')
+  const inFlight = useRef<Promise<boolean> | null>(null)
+  const onReportRef = useRef(onReport)
+  useEffect(() => {
+    onReportRef.current = onReport
+  }, [onReport])
 
   const report = useCallback(
-    async (keepalive = false) => {
+    (keepalive = false): Promise<boolean> => {
       const state = tracking.current
-      if (!state.ranges.length || state.played <= 0) return
+      if (!state.ranges.length || state.played <= 0) return Promise.resolve(true)
       // 일반 보고는 순서대로 보내고, 화면을 떠날 때는 최신 누적 구간을 별도 전송한다.
-      if (state.pending && !keepalive) return
+      if (state.pending && !keepalive) return inFlight.current ?? Promise.resolve(false)
       const body = {
         visit_id: visitId,
         media_revision: mediaRevision,
@@ -45,25 +52,50 @@ export function useContentViewer({
         context,
       }
       const signature = JSON.stringify(body)
-      if (signature === state.sent) return
+      if (signature === state.sent) return Promise.resolve(true)
       state.pending = true
-      try {
-        const next = await sendWatchReport(identity, contentId, body, keepalive)
-        state.sent = signature
-        if (active.current) {
-          setResult(next)
-          setError('')
+      const request = (async () => {
+        try {
+          const next = await sendWatchReport(identity, contentId, body, keepalive)
+          state.sent = signature
+          if (active.current) {
+            setResult(next)
+            setError('')
+            onReportRef.current?.(next)
+          }
+          // 서버에 반영된 진도와 저장 목록, 통계를 갱신한다.
+          void queryClient.invalidateQueries()
+          return true
+        } catch (cause) {
+          if (active.current)
+            setError(cause instanceof Error ? cause.message : '시청 기록을 저장하지 못했어요.')
+          return false
+        } finally {
+          state.pending = false
         }
-        // 서버에 반영된 진도와 저장 목록, 통계를 갱신한다.
-        void queryClient.invalidateQueries()
-      } catch (cause) {
-        if (active.current)
-          setError(cause instanceof Error ? cause.message : '시청 기록을 저장하지 못했어요.')
-      } finally {
-        state.pending = false
-      }
+      })()
+      inFlight.current = request
+      return request
     },
     [visitId, mediaRevision, context, identity, contentId, queryClient],
+  )
+
+  const flush = useCallback(
+    async (video?: HTMLVideoElement) => {
+      if (video) {
+        accumulateWatchSample(tracking.current, {
+          currentTime: video.currentTime,
+          playbackRate: video.playbackRate,
+          seeking: video.seeking,
+          wallTime: performance.now(),
+          duration,
+        })
+        tracking.current.playing = false
+      }
+      await inFlight.current
+      return report()
+    },
+    [duration, report],
   )
 
   useEffect(() => {
@@ -96,6 +128,7 @@ export function useContentViewer({
   return {
     result,
     error,
+    flush,
     retry: () => {
       void report()
     },
