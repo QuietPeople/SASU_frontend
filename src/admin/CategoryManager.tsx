@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateCategoryChange } from '../api/queryInvalidation'
 import { api, ApiError } from '../api/client'
 import { useAdminPages, useAdminQuery, type AdminCategory, type AdminContent } from '../api/admin'
 import { useSession } from '../state/session'
@@ -40,11 +41,24 @@ export function CategoryManager({
     standalone && actorId !== null ? (drafts.get(actorId) ?? null) : null,
   )
   const [search, setSearch] = useState('')
-  const [busy, setBusy] = useState(false)
   const saving = useRef(false)
+  const saveMutation = useMutation({
+    mutationFn: persistCategory,
+    onError: (cause) => {
+      if (cause instanceof ApiError && cause.code === 'CATEGORY_NAME_CONFLICT')
+        setConflict('다른 분야에서 사용 중인 이름이에요. 다른 이름을 입력해 주세요.')
+    },
+    onSettled: () => {
+      saving.current = false
+    },
+  })
+  const busy = saveMutation.isPending
   const [touched, setTouched] = useState(false)
   const [conflict, setConflict] = useState('')
-  const [requestError, setRequestError] = useState<unknown>(null)
+  const requestError =
+    saveMutation.error instanceof ApiError && saveMutation.error.code === 'CATEGORY_NAME_CONFLICT'
+      ? null
+      : saveMutation.error
   const [destination, setDestination] = useState<string | null>(null)
   const confirmation = useRef<HTMLDialogElement>(null)
   const stayButton = useRef<HTMLButtonElement>(null)
@@ -71,7 +85,7 @@ export function CategoryManager({
     if (saving.current || editor) return
     setSearch('')
     setTouched(false)
-    setRequestError(null)
+    saveMutation.reset()
     update({
       id: category?.category_id ?? null,
       name: category?.name ?? '',
@@ -135,64 +149,62 @@ export function CategoryManager({
     }
   }, [destination])
 
-  const save = async () => {
+  async function persistCategory({
+    id,
+    name,
+    actorId,
+  }: {
+    id: number | null
+    name: string
+    actorId: number
+  }) {
+    const category = await api<AdminCategory>(id === null ? '/categories' : `/categories/${id}`, {
+      actorId,
+      method: id === null ? 'POST' : 'PATCH',
+      body: { name },
+    })
+    const reused = id === null && categories.some((c) => c.category_id === category.category_id)
+    cache.setQueriesData<{ items: AdminCategory[] }>(
+      {
+        predicate: (query) =>
+          query.queryKey[0] === 'admin' &&
+          query.queryKey[1] === actorId &&
+          query.queryKey.at(-1) === '/categories',
+      },
+      (old) =>
+        old
+          ? {
+              items: [
+                ...old.items.filter((c) => c.category_id !== category.category_id),
+                category,
+              ].sort((a, b) => a.category_id - b.category_id),
+            }
+          : old,
+    )
+    update(null)
+    if (id === null) onCreated?.(category)
+    show(
+      id !== null
+        ? '분야 이름을 바꿨어요.'
+        : reused
+          ? onCreated
+            ? '기존 분야를 콘텐츠에 선택했어요.'
+            : '이미 등록된 분야를 확인했어요.'
+          : onCreated
+            ? '분야를 추가하고 콘텐츠에 선택했어요.'
+            : '새 분야를 추가했어요.',
+    )
+    await invalidateCategoryChange(cache, { renamed: id !== null })
+  }
+  const save = () => {
     if (!editor || saving.current || actorId === null || !dirty || !list.data) return
     setTouched(true)
     if (error) {
       input.current?.focus()
       return
     }
-    const { id } = editor
-    const name = editor.name.trim()
     saving.current = true
-    setBusy(true)
-    setRequestError(null)
-    try {
-      const category = await api<AdminCategory>(id === null ? '/categories' : `/categories/${id}`, {
-        actorId,
-        method: id === null ? 'POST' : 'PATCH',
-        body: { name },
-      })
-      const reused = id === null && categories.some((c) => c.category_id === category.category_id)
-      cache.setQueriesData<{ items: AdminCategory[] }>(
-        {
-          predicate: (query) =>
-            query.queryKey[0] === 'admin' &&
-            query.queryKey[1] === actorId &&
-            query.queryKey.at(-1) === '/categories',
-        },
-        (old) =>
-          old
-            ? {
-                items: [
-                  ...old.items.filter((c) => c.category_id !== category.category_id),
-                  category,
-                ].sort((a, b) => a.category_id - b.category_id),
-              }
-            : old,
-      )
-      update(null)
-      if (id === null) onCreated?.(category)
-      show(
-        id !== null
-          ? '분야 이름을 바꿨어요.'
-          : reused
-            ? onCreated
-              ? '기존 분야를 콘텐츠에 선택했어요.'
-              : '이미 등록된 분야를 확인했어요.'
-            : onCreated
-              ? '분야를 추가하고 콘텐츠에 선택했어요.'
-              : '새 분야를 추가했어요.',
-      )
-      await cache.invalidateQueries()
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.code === 'CATEGORY_NAME_CONFLICT')
-        setConflict('다른 분야에서 사용 중인 이름이에요. 다른 이름을 입력해 주세요.')
-      else setRequestError(cause)
-    } finally {
-      saving.current = false
-      setBusy(false)
-    }
+    saveMutation.mutate({ id: editor.id, name: editor.name.trim(), actorId })
   }
   const form = editor && (
     <form
@@ -232,7 +244,7 @@ export function CategoryManager({
             onClick={() => {
               update(null)
               setTouched(false)
-              setRequestError(null)
+              saveMutation.reset()
             }}
           >
             취소

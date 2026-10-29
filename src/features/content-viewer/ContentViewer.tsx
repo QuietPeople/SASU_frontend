@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { api, mediaUrl } from '../../api/client'
+import { invalidateLearnerReaction } from '../../api/queryInvalidation'
 import {
   recordLearningEvent,
   type LearningContentDetail,
@@ -65,7 +66,6 @@ export function ContentViewer({
   const [openedQuestion, setOpenedQuestion] = useState<LearningQuestion | null>(null)
   const [tab, setTab] = useState<'core' | 'quiz'>('core')
   const [playError, setPlayError] = useState(false)
-  const [eventError, setEventError] = useState('')
   const [playErrorId] = useState(() => crypto.randomUUID())
   const watch = useContentViewer({
     identity,
@@ -152,22 +152,17 @@ export function ContentViewer({
         ...identity,
       })
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries()
-    },
+    onSuccess: (_, { kind }) =>
+      invalidateLearnerReaction(queryClient, identity, content.content_id, kind),
   })
-  const reportPlayError = async () => {
-    try {
-      await recordLearningEvent(identity, playErrorId, {
+  const playErrorReport = useMutation({
+    mutationFn: () =>
+      recordLearningEvent(identity, playErrorId, {
         event_type: 'PLAY_ERROR',
         content_id: content.content_id,
         error_code: 'VIDEO_PLAYBACK_FAILED',
-      })
-      setEventError('')
-    } catch (cause) {
-      setEventError(cause instanceof Error ? cause.message : '재생 오류를 기록하지 못했어요.')
-    }
-  }
+      }),
+  })
   // 처음 퀴즈를 보여 줄 때 버전을 고정하고 같은 영상 방문에서는 풀이를 유지한다.
   // 탭 전환이나 영상 다시보기, 배경 재조회로 새 attempt를 만들지 않는다.
   if (!openedQuestion && ended && tab === 'quiz' && question) setOpenedQuestion(question)
@@ -228,7 +223,7 @@ export function ContentViewer({
               }}
               onError={() => {
                 setPlayError(true)
-                void reportPlayError()
+                playErrorReport.mutate()
               }}
             >
               브라우저에서 영상 재생을 지원하지 않습니다.
@@ -251,7 +246,9 @@ export function ContentViewer({
             </Link>
           </div>
         ) : null}
-        {eventError ? <p role="alert">오류 기록: {eventError}</p> : null}
+        {playErrorReport.isError ? (
+          <p role="alert">오류 기록: {playErrorReport.error.message}</p>
+        ) : null}
         <div className="sasu-row">
           <div className="sasu-actions">
             <button

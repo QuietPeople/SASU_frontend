@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateCurriculumChange } from '../api/queryInvalidation'
 import { api } from '../api/client'
 import {
   adminError,
@@ -192,12 +193,18 @@ function SeriesEditor({
   const [session, setSession] = useState(() => drafts.get(draftKey) ?? initialSeries(initial))
   const { fields, savedId } = session
   const dirty = seriesDirty(session)
-  const [busy, setBusy] = useState(false)
+  const saveMutation = useMutation({
+    mutationFn: persistSeries,
+    onSettled: () => {
+      saving.current = false
+    },
+  })
+  const busy = saveMutation.isPending
   const saving = useRef(false)
   const titleInput = useRef<HTMLInputElement>(null)
   const [touched, setTouched] = useState(false)
   const nameError = seriesNameError(fields.name)
-  const [requestError, setRequestError] = useState<{ cause: unknown; text: string } | null>(null)
+  const requestError = saveMutation.error
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL')
   const [category, setCategory] = useState('')
@@ -285,16 +292,7 @@ function SeriesEditor({
     update({ order })
     setAnnouncement(`${label(source)}: ${order.indexOf(source) + 1}번째로 이동했어요.`)
   }
-  const save = async () => {
-    if (saving.current || actorId === null || !dirty) return
-    setTouched(true)
-    if (nameError) {
-      titleInput.current?.focus()
-      return
-    }
-    saving.current = true
-    setBusy(true)
-    setRequestError(null)
+  async function persistSeries({ session, actorId }: { session: SeriesSession; actorId: number }) {
     let latest = session
     try {
       await saveSeries(session, actorId, api, (next) => {
@@ -303,18 +301,28 @@ function SeriesEditor({
         setSession(next)
       })
       show('시리즈 구성을 저장했어요.')
-      await cache.invalidateQueries()
+      await invalidateCurriculumChange(cache, { curriculumId: latest.savedId ?? undefined })
+      return latest
     } catch (cause) {
       const infoSaved = latest.savedId !== null && latest.savedInfo === seriesInfo(latest.fields)
-      setRequestError({
-        cause,
-        text: `${infoSaved && seriesDirty(latest) ? '기본 정보는 저장됐어요. 현재 순서를 유지한 채 단계 저장을 다시 시도할 수 있어요. ' : ''}${adminError(cause)}`,
-      })
-      if (latest !== session) await cache.invalidateQueries()
-    } finally {
-      saving.current = false
-      setBusy(false)
+      const prefix =
+        infoSaved && seriesDirty(latest)
+          ? '기본 정보는 저장됐어요. 현재 순서를 유지한 채 단계 저장을 다시 시도할 수 있어요. '
+          : ''
+      if (latest !== session)
+        await invalidateCurriculumChange(cache, { curriculumId: latest.savedId ?? undefined })
+      throw new Error(`${prefix}${adminError(cause)}`, { cause })
     }
+  }
+  const save = () => {
+    if (saving.current || actorId === null || !dirty) return
+    setTouched(true)
+    if (nameError) {
+      titleInput.current?.focus()
+      return
+    }
+    saving.current = true
+    saveMutation.mutate({ session, actorId })
   }
   return (
     <>
@@ -652,8 +660,8 @@ function SeriesEditor({
         {requestError && (
           <RequestError
             title="시리즈 저장 실패"
-            error={requestError.cause}
-            text={requestError.text}
+            error={requestError.cause ?? requestError}
+            text={requestError.message}
           />
         )}
       </div>

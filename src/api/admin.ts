@@ -37,6 +37,7 @@ export interface VideoPolicy {
   max_bytes: number
   min_duration_sec: number
   max_duration_sec: number
+  max_long_edge_px: number
   accept: string
   formats: string[]
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateWatchProgress } from '../../api/queryInvalidation'
 import { accumulateWatchSample, createWatchTracking } from './watchTracking'
 import {
   sendWatchReport,
@@ -64,7 +65,7 @@ export function useContentViewer({
             onReportRef.current?.(next)
           }
           // 서버에 반영된 진도와 저장 목록, 통계를 갱신한다.
-          void queryClient.invalidateQueries()
+          void invalidateWatchProgress(queryClient, identity, contentId)
           return true
         } catch (cause) {
           if (active.current)
