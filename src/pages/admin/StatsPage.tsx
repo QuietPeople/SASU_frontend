@@ -1,265 +1,482 @@
-import { Fragment, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { type ApiPage, queryString } from '../../api/client'
-import {
-  useAdminPages,
-  useAdminQuery,
-  type AdminContent,
-  type AdminResponse,
-  type AdminStatistics,
-  type Rate,
-} from '../../api/admin'
-import { Badge, Button, Spinner, StateBlock } from '../../shared/ui'
+import { useRef, useState } from 'react'
+import { useParams } from 'react-router'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useSession } from '../../state/session'
+import { api, type ApiPage, queryString } from '../../api/client'
+import { useAdminQuery, type AdminResponse, type AdminStatistics, type Rate } from '../../api/admin'
+import type { ContentSubview } from '../../admin/contentSubview'
+import { RequestError } from '../../admin/RequestFeedback'
+import { StatsContentPicker } from '../../admin/StatsContentPicker'
+import { SegmentedControl } from '../../admin/SegmentedControl'
+import { Icon } from '../../admin/Icon'
+import { pageNumbers } from '../../admin/pagination'
+import { Badge, Button, Spinner } from '../../admin/ui'
+import '../../admin/content-editor.css'
+import '../../admin/statistics.css'
 
 const PATH_LABEL = { VIDEO_QUIZ: '영상 퀴즈', FEED_REVIEW: '피드 복습', WRONG_NOTE: '오답 복습' }
-const rateText = (rate: Rate) => (rate.percent === null ? '—' : `${rate.percent}%`)
+const RESULT_OPTIONS = [
+  { id: 'ALL', label: '전체' },
+  { id: 'CORRECT', label: '정답' },
+  { id: 'WRONG', label: '오답' },
+  { id: 'SKIP', label: '건너뜀' },
+] as const
+const SIZE = 10
+const number = (value: number) => value.toLocaleString('ko-KR')
+const rateText = (rate: Rate) => (rate.percent === null ? '—' : `${number(rate.percent)}%`)
+const dateText = (value: string) =>
+  new Date(value).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 
-export function StatsPage() {
-  const { id } = useParams()
-  return <Statistics key={id ?? 'all'} target={id} />
+function RateBar({ rate, label }: { rate: Rate; label: string }) {
+  return (
+    <div
+      className={`admin-stats__bar ${rate.percent === null ? 'admin-stats__bar--empty' : ''}`}
+      role="img"
+      aria-label={`${label}: ${rate.percent === null ? '기록 없음' : rateText(rate)}`}
+    >
+      <span style={{ width: `${Math.max(0, Math.min(100, rate.percent ?? 0))}%` }} />
+    </div>
+  )
+}
+
+function LearningCard({
+  title,
+  subtitle,
+  accuracy,
+  participation,
+  participationLabel,
+  skipped,
+  tone,
+}: {
+  title: string
+  subtitle: string
+  accuracy: Rate
+  participation: Rate
+  participationLabel: string
+  skipped: number
+  tone: string
+}) {
+  return (
+    <section className={`admin-stats__panel admin-stats__learning admin-stats__learning--${tone}`}>
+      <header>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </header>
+      <div className="admin-stats__accuracy">
+        <span>정답률</span>
+        <strong>{rateText(accuracy)}</strong>
+      </div>
+      <RateBar rate={accuracy} label={`${title} 정답률`} />
+      <p className="admin-stats__sample">
+        {accuracy.percent === null
+          ? '아직 채점된 응답이 없어요.'
+          : `정답 ${number(accuracy.numerator)} / 채점 응답 ${number(accuracy.denominator)}`}
+        <span>건너뜀 {number(skipped)}</span>
+      </p>
+      <div className="admin-stats__participation">
+        <span>{participationLabel}</span>
+        <strong>{rateText(participation)}</strong>
+      </div>
+      <RateBar rate={participation} label={participationLabel} />
+      <p className="admin-stats__sample">
+        {participation.percent === null
+          ? '아직 노출 기록이 없어요.'
+          : `응답 ${number(participation.numerator)} / 노출 ${number(participation.denominator)}`}
+      </p>
+    </section>
+  )
+}
+
+function ResponseItem({
+  response: r,
+  expanded,
+  toggle,
+  pending,
+}: {
+  response: AdminResponse
+  pending: boolean
+  expanded: boolean
+  toggle: () => void
+}) {
+  const selected =
+    r.result === 'SKIP'
+      ? '건너뜀'
+      : (r.question.options.find((o) => o.option_id === r.selected_option_id)?.option_text ??
+        '선택 정보 없음')
+  return (
+    <li className="admin-stats__response">
+      <button
+        type="button"
+        className="admin-stats__response-toggle"
+        disabled={pending}
+        aria-expanded={expanded}
+        aria-controls={`response-${r.response_id}`}
+        onClick={toggle}
+      >
+        <span className="admin-stats__question">
+          <strong>{r.question.question_text}</strong>
+          <span className="admin-stats__response-meta">
+            <span>{PATH_LABEL[r.response_path]}</span>
+            <time dateTime={r.submitted_at}>{dateText(r.submitted_at)}</time>
+          </span>
+        </span>
+        <Badge tone={r.result === 'CORRECT' ? 'green' : r.result === 'WRONG' ? 'red' : 'neutral'}>
+          {r.result === 'CORRECT' ? '정답' : r.result === 'WRONG' ? '오답' : '건너뜀'}
+        </Badge>
+        <span className="admin-stats__expand">
+          <Icon name="chevronDown" size={17} />
+        </span>
+      </button>
+      {expanded && (
+        <div className="admin-stats__response-detail" id={`response-${r.response_id}`}>
+          <p className="admin-stats__detail-label">
+            제출 당시 문항{' '}
+            <span>
+              문항 #{r.question.question_id} · 버전 ID {r.question.question_version_id}
+            </span>
+          </p>
+          <p className="admin-stats__detail-question">{r.question.question_text}</p>
+          <ol className="admin-stats__options">
+            {[...r.question.options]
+              .sort((a, b) => a.option_order - b.option_order)
+              .map((o) => (
+                <li
+                  key={o.option_id}
+                  className={o.option_id === r.selected_option_id ? 'is-selected' : undefined}
+                >
+                  {o.option_text}
+                  {o.option_id === r.selected_option_id && <span>선택</span>}
+                </li>
+              ))}
+          </ol>
+          <dl>
+            <div className={`admin-stats__answer admin-stats__answer--${r.result.toLowerCase()}`}>
+              <dt>제출한 답</dt>
+              <dd>{selected}</dd>
+            </div>
+            <div className="admin-stats__answer admin-stats__answer--correct">
+              <dt>당시 정답</dt>
+              <dd>{r.correct_answer}</dd>
+            </div>
+            <div className="admin-stats__explanation">
+              <dt>해설</dt>
+              <dd>{r.explanation || '등록된 해설이 없어요.'}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
+    </li>
+  )
+}
+
+export function StatsPage({ embedded }: { embedded?: ContentSubview } = {}) {
+  const { id: routeId } = useParams()
+  const { actorId, generation } = useSession()
+  const id = embedded ? String(embedded.contentId) : routeId
+  return (
+    <div className="admin-page admin-stats">
+      {!embedded && (
+        <>
+          <header className="admin-page__head">
+            <p className="admin-eyebrow">관리자 · 통계</p>
+            <h1 className="admin-title">콘텐츠 반응·학습 통계</h1>
+            <p className="admin-sub">콘텐츠 이용 현황과 학습자의 풀이 결과를 확인해요.</p>
+          </header>
+          <StatsContentPicker key={`${actorId}:${generation}`} target={id} />
+        </>
+      )}
+      <Statistics key={`${actorId}:${generation}:${id ?? 'all'}`} target={id} />
+    </div>
+  )
 }
 
 function Statistics({ target }: { target?: string }) {
-  const navigate = useNavigate()
+  const { actorId, generation } = useSession()
   const [page, setPage] = useState(1)
+  const [result, setResult] = useState<AdminResponse['result'] | 'ALL'>('ALL')
   const [expanded, setExpanded] = useState<number | null>(null)
-  const contents = useAdminPages<AdminContent>('/contents?status=ALL')
+  const responseHeading = useRef<HTMLHeadingElement>(null)
   const statistics = useAdminQuery<AdminStatistics>(
     target ? `/contents/${target}/statistics` : '/statistics',
   )
-  const responses = useAdminQuery<ApiPage<AdminResponse>>(
-    `/responses${queryString({ content_id: target, page, size: 20 })}`,
-  )
+  const responsePath = `/responses${queryString({ content_id: target, result: result === 'ALL' ? undefined : result, page, size: SIZE })}`
+  const responses = useQuery({
+    queryKey: ['admin', actorId, generation, responsePath],
+    queryFn: ({ signal }) => api<ApiPage<AdminResponse>>(responsePath, { actorId, signal }),
+    enabled: actorId !== null,
+    placeholderData: keepPreviousData,
+  })
+  const displayedPage = responses.data?.page ?? page
   const data = statistics.data
   const delta =
     data?.quiz.first_accuracy.percent != null && data.feed_review.accuracy.percent != null
       ? Math.round((data.feed_review.accuracy.percent - data.quiz.first_accuracy.percent) * 100) /
         100
       : null
+  const changePage = (next: number) => {
+    setPage(next)
+    setExpanded(null)
+    responseHeading.current?.focus({ preventScroll: true })
+    responseHeading.current?.scrollIntoView({ block: 'start' })
+  }
   return (
-    <div className="sasu-page sasu-stats">
-      <header className="sasu-page__head">
-        <p className="sasu-eyebrow">관리자 · 통계</p>
-        <h1 className="sasu-title">콘텐츠 반응·학습 통계</h1>
-      </header>
-      <label className="sasu-field sasu-field--block">
-        <span className="sasu-field__label">대상 콘텐츠</span>
-        <select
-          className="sasu-input"
-          value={target ?? ''}
-          onChange={(e) =>
-            navigate(e.target.value ? `/admin/stats/${e.target.value}` : '/admin/stats')
-          }
-        >
-          <option value="">전체 콘텐츠</option>
-          {contents.data?.map((c) => (
-            <option key={c.content_id} value={c.content_id}>
-              {c.title || '제목 없음'}
-            </option>
-          ))}
-        </select>
-      </label>
-      {contents.isError ? (
-        <StateBlock
-          title="콘텐츠 목록을 불러오지 못했어요."
-          action={<Button onClick={() => void contents.refetch()}>다시 시도</Button>}
-        />
-      ) : null}
+    <div className="admin-stats__body">
       {statistics.isPending ? (
         <Spinner label="통계를 불러오는 중" />
       ) : statistics.isError ? (
-        <StateBlock
+        <RequestError
           title="통계를 불러오지 못했어요."
-          text={statistics.error.message}
+          error={statistics.error}
           action={<Button onClick={() => void statistics.refetch()}>다시 시도</Button>}
         />
-      ) : data ? (
-        <>
-          <ul className="sasu-stat-row" aria-label="시청·이용 반응">
-            <li className="sasu-stat">
-              <span className="sasu-stat__label">조회수</span>
-              <strong className="sasu-stat__value">{data.reactions.view_count}</strong>
-            </li>
-            <li className="sasu-stat">
-              <span className="sasu-stat__label">좋아요</span>
-              <strong className="sasu-stat__value">{data.reactions.like_count}</strong>
-            </li>
-            <li className="sasu-stat">
-              <span className="sasu-stat__label">저장</span>
-              <strong className="sasu-stat__value">{data.reactions.saved_count}</strong>
-            </li>
-            <li className="sasu-stat">
-              <span className="sasu-stat__label">시청 완료율</span>
-              <strong className="sasu-stat__value">
-                {rateText(data.reactions.watch_completion)}
-              </strong>
-              <span className="sasu-stat__sub">
-                완료 {data.reactions.watch_completion.numerator} / 대상{' '}
-                {data.reactions.watch_completion.denominator}
-              </span>
-            </li>
-          </ul>
-          <div className="sasu-form__grid">
-            <section className="sasu-card">
-              <h2 className="sasu-card__title">최초 풀이(영상 종료)</h2>
-              <p className="sasu-stat__big">{rateText(data.quiz.first_accuracy)}</p>
-              <p className="sasu-muted">
-                정답 {data.quiz.first_accuracy.numerator} / 응답{' '}
-                {data.quiz.first_accuracy.denominator} · 건너뜀 {data.quiz.skipped_count}
-              </p>
-            </section>
-            <section className="sasu-card">
-              <h2 className="sasu-card__title">피드 복습 · 모든 응답</h2>
-              <p className="sasu-stat__big">{rateText(data.feed_review.accuracy)}</p>
-              <p className="sasu-muted">
-                정답 {data.feed_review.accuracy.numerator} / 응답{' '}
-                {data.feed_review.accuracy.denominator} · 건너뜀 {data.feed_review.skipped_count}
-              </p>
-            </section>
-          </div>
-          <table className="sasu-table">
-            <thead>
-              <tr>
-                <th>학습 지표</th>
-                <th>표시</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>영상 종료 퀴즈 참여율</td>
-                <td>
-                  {rateText(data.quiz.participation)}{' '}
-                  <span className="sasu-muted">
-                    (응답 {data.quiz.participation.numerator} / 노출{' '}
-                    {data.quiz.participation.denominator})
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>피드 복습 응답률</td>
-                <td>
-                  {rateText(data.feed_review.response_rate)}{' '}
-                  <span className="sasu-muted">
-                    (응답 {data.feed_review.response_rate.numerator} / 노출{' '}
-                    {data.feed_review.response_rate.denominator})
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>정답률 변화(복습 − 최초)</td>
-                <td>{delta === null ? '— (비교 불가)' : `${delta > 0 ? '+' : ''}${delta}%p`}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p className="sasu-help">
-            분모가 0이면 —로 표시해요. 표본·분모가 다른 정답률 차이를 학습 효과로 단정하지 않아요.
-          </p>
-          <section className="sasu-card">
-            <h2 className="sasu-card__title">복습·카드 이용</h2>
-            <ul className="sasu-stats__misc">
+      ) : (
+        data && (
+          <>
+            <ul className="admin-stats__summary" aria-label="시청·이용 반응">
               <li>
-                오답 복습: 정답률 {rateText(data.wrong_review.accuracy)} · 미해결{' '}
-                {data.wrong_review.pending_count}개 · 해결 {data.wrong_review.resolved_count}개
+                <span>조회수</span>
+                <strong>
+                  {number(data.reactions.view_count)}
+                  <small>회</small>
+                </strong>
               </li>
               <li>
-                카드 열람 {data.flashcards.viewed_count}회 · 답 펼침 {data.flashcards.flipped_count}
-                회
+                <span>좋아요</span>
+                <strong>
+                  {number(data.reactions.like_count)}
+                  <small>개</small>
+                </strong>
+              </li>
+              <li>
+                <span>저장</span>
+                <strong>
+                  {number(data.reactions.saved_count)}
+                  <small>개</small>
+                </strong>
+              </li>
+              <li className="admin-stats__completion">
+                <span>시청 완료율</span>
+                <strong>{rateText(data.reactions.watch_completion)}</strong>
+                <p>
+                  {data.reactions.watch_completion.percent === null
+                    ? '아직 시청 기록이 없어요.'
+                    : `완료 ${number(data.reactions.watch_completion.numerator)} / 대상 ${number(data.reactions.watch_completion.denominator)}`}
+                </p>
               </li>
             </ul>
-            <p className="sasu-help">카드 답 펼침은 정답 제출·문항 해결로 계산하지 않아요.</p>
-          </section>
-        </>
-      ) : null}
-      <section className="sasu-card">
-        <h2 className="sasu-card__title">응답 상세</h2>
+            <div className="admin-stats__comparison">
+              <LearningCard
+                title="최초 풀이"
+                subtitle="영상 종료 후 첫 퀴즈 응답"
+                accuracy={data.quiz.first_accuracy}
+                participation={data.quiz.participation}
+                participationLabel="퀴즈 참여율"
+                skipped={data.quiz.skipped_count}
+                tone="blue"
+              />
+              <LearningCard
+                title="피드 복습"
+                subtitle="피드에서 제출한 모든 복습 응답"
+                accuracy={data.feed_review.accuracy}
+                participation={data.feed_review.response_rate}
+                participationLabel="복습 응답률"
+                skipped={data.feed_review.skipped_count}
+                tone="green"
+              />
+            </div>
+            <div className="admin-stats__difference">
+              <div>
+                <span>
+                  정답률 차이 <small>복습 − 최초</small>
+                </span>
+                <strong>
+                  {delta === null
+                    ? '비교할 응답이 부족해요'
+                    : `${delta > 0 ? '+' : ''}${number(delta)}%p`}
+                </strong>
+              </div>
+              <p>응답 대상과 표본 수가 달라, 이 차이만으로 학습 효과를 판단할 수는 없어요.</p>
+            </div>
+            <div className="admin-stats__comparison">
+              <section className="admin-stats__panel">
+                <header>
+                  <h2>오답 복습</h2>
+                  <p>오답 노트에서 다시 푼 결과</p>
+                </header>
+                <div className="admin-stats__review-rate">
+                  <span>정답률</span>
+                  <strong>{rateText(data.wrong_review.accuracy)}</strong>
+                </div>
+                <RateBar rate={data.wrong_review.accuracy} label="오답 복습 정답률" />
+                <p className="admin-stats__sample">
+                  {data.wrong_review.accuracy.percent === null
+                    ? '아직 채점된 응답이 없어요.'
+                    : `정답 ${number(data.wrong_review.accuracy.numerator)} / 채점 응답 ${number(data.wrong_review.accuracy.denominator)}`}
+                </p>
+                <dl className="admin-stats__counts">
+                  <div>
+                    <dt>미해결 문항</dt>
+                    <dd>
+                      {number(data.wrong_review.pending_count)}
+                      <small>개</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>해결 문항</dt>
+                    <dd>
+                      {number(data.wrong_review.resolved_count)}
+                      <small>개</small>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+              <section className="admin-stats__panel">
+                <header>
+                  <h2>플래시카드</h2>
+                  <p>질문을 확인하고 답을 펼쳐 본 기록</p>
+                </header>
+                <dl className="admin-stats__counts admin-stats__counts--cards">
+                  <div>
+                    <dt>카드 열람</dt>
+                    <dd>
+                      {number(data.flashcards.viewed_count)}
+                      <small>회</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>답 펼침</dt>
+                    <dd>
+                      {number(data.flashcards.flipped_count)}
+                      <small>회</small>
+                    </dd>
+                  </div>
+                </dl>
+                <p className="admin-stats__note">
+                  답 펼침은 정답 제출이나 오답 해결로 계산하지 않아요.
+                </p>
+              </section>
+            </div>
+          </>
+        )
+      )}
+      <section
+        className="admin-stats__panel admin-stats__responses"
+        aria-busy={responses.isFetching}
+      >
+        <header>
+          <h2 ref={responseHeading} tabIndex={-1}>
+            응답 상세{' '}
+            {responses.data && (
+              <span className="admin-stats__count">{number(responses.data.total)}</span>
+            )}
+          </h2>
+          <p>응답을 누르면 제출 당시의 문항과 해설을 확인할 수 있어요.</p>
+          <SegmentedControl
+            label="응답 결과 필터"
+            value={result}
+            options={[...RESULT_OPTIONS]}
+            onChange={(next) => {
+              setResult(next)
+              setPage(1)
+              setExpanded(null)
+            }}
+          />
+          <div className="admin-stats__loading-status" role="status">
+            {responses.isFetching && (
+              <span>
+                응답을 불러오는 중이에요{responses.isPlaceholderData ? ' · 이전 결과 표시 중' : ''}
+              </span>
+            )}
+          </div>
+        </header>
         {responses.isPending ? (
-          <Spinner />
+          <Spinner label="응답을 불러오는 중" />
         ) : responses.isError ? (
-          <StateBlock
+          <RequestError
             title="응답을 불러오지 못했어요."
-            text={responses.error.message}
+            error={responses.error}
             action={<Button onClick={() => void responses.refetch()}>다시 시도</Button>}
           />
         ) : !responses.data.items.length ? (
-          <p className="sasu-muted">아직 응답이 없어요.</p>
+          <div className="admin-stats__empty">
+            <Icon name="materials" size={28} />
+            <strong>
+              {result === 'ALL'
+                ? '아직 응답이 없어요.'
+                : `${RESULT_OPTIONS.find((option) => option.id === result)?.label} 응답이 없어요.`}
+            </strong>
+            <p>
+              {result === 'ALL'
+                ? '학습자가 퀴즈를 풀면 여기에 표시돼요.'
+                : '다른 결과를 선택해 확인해 보세요.'}
+            </p>
+          </div>
         ) : (
           <>
-            <div className="sasu-table-wrap">
-              <table className="sasu-table">
-                <thead>
-                  <tr>
-                    <th>문항</th>
-                    <th>풀이 경로</th>
-                    <th>정오</th>
-                    <th>제출 시각</th>
-                    <th aria-label="상세" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {responses.data.items.map((r) => (
-                    <Fragment key={r.response_id}>
-                      <tr>
-                        <td>{r.question.question_text}</td>
-                        <td>{PATH_LABEL[r.response_path]}</td>
-                        <td>
-                          <Badge
-                            tone={
-                              r.result === 'CORRECT'
-                                ? 'green'
-                                : r.result === 'WRONG'
-                                  ? 'red'
-                                  : 'neutral'
-                            }
-                          >
-                            {r.result === 'CORRECT'
-                              ? '정답'
-                              : r.result === 'WRONG'
-                                ? '오답'
-                                : '건너뜀'}
-                          </Badge>
-                        </td>
-                        <td>{new Date(r.submitted_at).toLocaleString()}</td>
-                        <td>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              setExpanded(expanded === r.response_id ? null : r.response_id)
-                            }
-                          >
-                            {expanded === r.response_id ? '접기' : '상세'}
-                          </Button>
-                        </td>
-                      </tr>
-                      {expanded === r.response_id ? (
-                        <tr>
-                          <td colSpan={5}>
-                            <p>
-                              제출 당시 선택:{' '}
-                              {r.question.options.find((o) => o.option_id === r.selected_option_id)
-                                ?.option_text ?? '건너뜀'}
-                            </p>
-                            <p>당시 정답: {r.correct_answer}</p>
-                            <p>해설: {r.explanation}</p>
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="sasu-row">
-              <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
-                이전
-              </Button>
-              <span>
-                {page}페이지 · 총 {responses.data.total}개
-              </span>
-              <Button disabled={!responses.data.has_next} onClick={() => setPage(page + 1)}>
-                다음
-              </Button>
-            </div>
+            <ul className="admin-stats__response-list">
+              {responses.data.items.map((r) => (
+                <ResponseItem
+                  key={r.response_id}
+                  response={r}
+                  pending={responses.isPlaceholderData}
+                  expanded={expanded === r.response_id}
+                  toggle={() => setExpanded(expanded === r.response_id ? null : r.response_id)}
+                />
+              ))}
+            </ul>
           </>
+        )}
+        {responses.data && responses.data.total > 0 && (
+          <footer className="admin-stats__footer">
+            <p>
+              총 {number(responses.data.total)}개 중{' '}
+              <strong>
+                {number((displayedPage - 1) * SIZE + 1)}–
+                {number(Math.min(displayedPage * SIZE, responses.data.total))}
+              </strong>
+            </p>
+            <nav className="admin-stats__pagination" aria-label="응답 목록 페이지">
+              <button
+                type="button"
+                aria-label="이전 페이지"
+                disabled={responses.isPlaceholderData || displayedPage === 1}
+                onClick={() => changePage(page - 1)}
+              >
+                <Icon name="chevronLeft" size={17} />
+              </button>
+              {pageNumbers(displayedPage, Math.ceil(responses.data.total / SIZE)).map((p) =>
+                typeof p === 'number' ? (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-label={`${p}페이지`}
+                    disabled={responses.isPlaceholderData}
+                    aria-current={displayedPage === p ? 'page' : undefined}
+                    onClick={() => changePage(p)}
+                  >
+                    {p}
+                  </button>
+                ) : (
+                  <span key={p}>…</span>
+                ),
+              )}
+              <button
+                type="button"
+                aria-label="다음 페이지"
+                disabled={responses.isPlaceholderData || !responses.data.has_next}
+                onClick={() => changePage(page + 1)}
+              >
+                <Icon name="chevronRight" size={17} />
+              </button>
+            </nav>
+          </footer>
         )}
       </section>
     </div>

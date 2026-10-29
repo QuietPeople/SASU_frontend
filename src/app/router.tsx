@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 
 import { HomePage } from '../pages/HomePage'
 import { AppLayout } from '../layouts/AppLayout'
+import { AdminLayout } from '../admin/AdminLayout'
 import { useSession } from '../state/session'
 import { FeedPage } from '../pages/learner/FeedPage'
 import { WelcomePage } from '../pages/learner/WelcomePage'
@@ -33,7 +34,7 @@ function Learner({ children }: { children: React.ReactNode }) {
 }
 
 function Admin({ children }: { children: React.ReactNode }) {
-  return <AppLayout role="admin">{children}</AppLayout>
+  return <AdminLayout>{children}</AdminLayout>
 }
 
 export function AppRouter() {
