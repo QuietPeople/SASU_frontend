@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router'
 import type { ReactNode } from 'react'
 import { useSession } from '../state/session'
 import { Button, Spinner, StateBlock } from '../shared/ui'
+import '../styles/sasu-pages.css'
 
 // 공통 레이아웃: 왼쪽 내비게이션 + 본문(화면 설계서 1-1·1-2).
 // 학습자/관리자 전환은 로컬 데모의 작업 구분이며 로그인·권한 기능이 아님(화면 설계서 1-1).
@@ -33,7 +34,7 @@ export function AppLayout({ role, children }: { role: 'learner' | 'admin'; child
   const navigate = useNavigate()
   const session = useSession()
   const items = role === 'learner' ? LEARNER_NAV : ADMIN_NAV
-  const switchTo = role === 'learner' ? '/admin/contents' : '/learner/search'
+  const switchTo = role === 'learner' ? '/admin/contents' : '/learner/feed'
   const switchLabel = role === 'learner' ? '관리자 화면' : '학습자 화면'
 
   return (
