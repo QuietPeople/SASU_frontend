@@ -282,6 +282,20 @@
   border-radius: 5px;
   padding: 3px 8px;
 }
+.admin-editor__resolution-guide {
+  flex-basis: 100%;
+  min-width: 0;
+  color: #526079;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.admin-editor__resolution-guide p {
+  margin: 0;
+}
+.admin-editor__resolution-guide p + p {
+  margin-top: 4px;
+}
 .admin-editor__policy details {
   flex-basis: 100%;
   margin-top: 2px;

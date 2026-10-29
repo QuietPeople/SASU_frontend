@@ -802,11 +802,16 @@ function ContentEditor({
                   }
                   aria-invalid={invalid('video') || !!fileError}
                   aria-describedby={
-                    fileError
-                      ? 'content-video-selection-error'
-                      : invalid('video')
-                        ? 'content-video-error'
-                        : undefined
+                    [
+                      policy.data ? 'content-video-policy' : '',
+                      fileError
+                        ? 'content-video-selection-error'
+                        : invalid('video')
+                          ? 'content-video-error'
+                          : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined
                   }
                   onChange={(event) => {
                     const selected = Array.from(event.target.files ?? [])
@@ -875,18 +880,38 @@ function ContentEditor({
                 </div>
               )}
               {policy.data && (
-                <div className="admin-editor__policy">
+                <div className="admin-editor__policy" id="content-video-policy">
                   <span>최대 {Math.round(policy.data.max_bytes / 1024 / 1024)} MB</span>
                   <span>
-                    {policy.data.min_duration_sec}–{policy.data.max_duration_sec}초
+                    길이 {policy.data.min_duration_sec}–{policy.data.max_duration_sec}초
                   </span>
+                  <span>
+                    해상도 최대 {policy.data.max_long_edge_px} × {policy.data.max_long_edge_px}px
+                  </span>
+                  <div className="admin-editor__resolution-guide">
+                    <p>
+                      가로·세로 모두 {policy.data.max_long_edge_px}px 이하여야 해요. 영상 비율은
+                      자유예요.
+                    </p>
+                    {policy.data.max_long_edge_px >= 1920 && (
+                      <p>
+                        <strong>Full HD 가능</strong> · 가로 1920 × 1080px / 세로 1080 × 1920px
+                      </p>
+                    )}
+                    {policy.data.max_long_edge_px < 3840 && (
+                      <p>
+                        <strong>4K UHD 불가</strong> · 가로 3840 × 2160px / 세로 2160 × 3840px
+                      </p>
+                    )}
+                  </div>
                   <details>
-                    <summary>지원 형식 확인</summary>
+                    <summary>지원 형식·코덱 확인</summary>
                     <ul>
                       {policy.data.formats.map((format) => (
                         <li key={format}>{format}</li>
                       ))}
                     </ul>
+                    <p>확장자가 같아도 영상·음성 코덱에 따라 업로드가 제한될 수 있어요.</p>
                   </details>
                 </div>
               )}
