@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { ApiError } from '../api/client'
@@ -11,6 +11,7 @@ import {
   type LearningIdentity,
   type LearningQuestion,
   type LearningResult,
+  type LearningResponse,
   type ResponsePath,
 } from '../api/learning'
 import { Button } from './ui'
@@ -22,6 +23,12 @@ interface QuizViewProps {
   context?: string
   attemptId?: string
   restoredAttempt?: LearningAttempt
+  eventId?: string
+  initialSubmission?: { optionId: number | null } | null
+  onSubmission?: (optionId: number | null) => void
+  onReady?: () => void
+  onResponse?: (response: LearningResponse) => void
+  onUnavailable?: () => void
   footer?: (result: LearningResult | null) => ReactNode
 }
 
@@ -43,11 +50,18 @@ function AttemptView({
   footer,
   attemptId: providedAttemptId,
   restoredAttempt,
+  eventId: providedEventId,
+  initialSubmission,
+  onSubmission,
+  onReady,
+  onResponse,
+  onUnavailable,
 }: QuizViewProps) {
   const queryClient = useQueryClient()
   const [newAttemptId] = useState(() => crypto.randomUUID())
   const attemptId = providedAttemptId ?? newAttemptId
-  const [eventId] = useState(() => crypto.randomUUID())
+  const [newEventId] = useState(() => crypto.randomUUID())
+  const eventId = providedEventId ?? newEventId
   const choiceKey = learningKey(identity, 'attempt-choice', attemptId)
   const submissionKey = learningKey(identity, 'attempt-submission', attemptId)
   const [picked, setPicked] = useState<number | null>(
@@ -55,7 +69,10 @@ function AttemptView({
   )
   // 응답을 받지 못했어도 서버 저장은 끝났을 수 있어 같은 답으로 재전송한다.
   const [submittedChoice, setSubmittedChoice] = useState<{ optionId: number | null } | null>(
-    () => queryClient.getQueryData<{ optionId: number | null }>(submissionKey) ?? null,
+    () =>
+      queryClient.getQueryData<{ optionId: number | null }>(submissionKey) ??
+      initialSubmission ??
+      null,
   )
   const attempt = useQuery({
     queryKey: learningKey(identity, 'attempt', attemptId),
@@ -100,11 +117,16 @@ function AttemptView({
     },
   })
   const response = submission.data ?? attempt.data?.response
+  useEffect(() => {
+    if (attempt.data) onReady?.()
+    if (response) onResponse?.(response)
+  }, [attempt.data, response, onReady, onResponse])
   const locked = Boolean(response) || submittedChoice !== null
   const displayedQuestion = response?.question ?? attempt.data?.question ?? question
   const submit = (optionId: number | null) => {
     if (!attempt.isSuccess || submission.isPending || response) return
     const choice = submittedChoice ?? { optionId }
+    onSubmission?.(choice.optionId)
     setSubmittedChoice(choice)
     queryClient.setQueryData(submissionKey, choice)
     submission.mutate(choice.optionId)
@@ -162,6 +184,7 @@ function AttemptView({
           {requiresNewQuestion ? (
             <>
               <p>현재 목록에서 문항을 다시 선택해 주세요.</p>
+              {onUnavailable ? <Button onClick={onUnavailable}>다음 영상으로</Button> : null}
               <Link
                 className="sasu-link"
                 to={

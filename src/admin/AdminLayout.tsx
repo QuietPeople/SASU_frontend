@@ -154,7 +154,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <button
           type="button"
           className="admin-nav__switch"
-          onClick={() => navigate('/learner/search')}
+          onClick={() => navigate('/learner/feed')}
           aria-label="학습자 화면으로 이동"
           title={compact ? '학습자 화면으로 이동' : undefined}
         >

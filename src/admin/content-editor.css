@@ -126,6 +126,9 @@
 .admin-editor .admin-field-error {
   font-size: 12px;
 }
+.admin-editor__field-feedback {
+  min-height: 1.5em;
+}
 .admin-editor__inline {
   display: flex;
   gap: 8px;

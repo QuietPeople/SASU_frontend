@@ -9,7 +9,11 @@ import {
   localReviewDate,
   addContentTag,
   tagInputError,
+  tagSearchPath,
   contentFieldError,
+  resolveContentTag,
+  resolveContentTags,
+  contentMetadataBody,
 } from '../src/admin/contentEditor.ts'
 
 const complete = {
@@ -162,4 +166,102 @@ test('제목의 200자 경계와 공백·날짜 형식을 검증하고 출처는
     ['title'],
   )
   assert.deepEqual(missingPublishFields(complete, [{ name: 'ㄱ' }], true), ['tags'])
+})
+
+test('기존 1자·31~80자 태그는 이름 검색 결과를 ID로 확정하고 공개 조건을 충족한다', () => {
+  for (const length of [1, 31, 80]) {
+    const tag = { tag_id: 100 + length, name: '가'.repeat(length) }
+    const draft = resolveContentTag(`  ${tag.name}  `, [tag])
+    assert.deepEqual(draft, tag)
+    assert.equal(tagInputError(draft), null)
+    assert.deepEqual(addContentTag([], draft), [tag])
+    assert.deepEqual(addContentTag([], tag.name, [tag]), [tag])
+    assert.deepEqual(missingPublishFields(complete, [tag], true), [])
+  }
+})
+
+test('선택한 기존 태그 ID는 검색 결과가 바뀌어도 유지하고 이름을 다시 입력하면 신규 조건으로 판단한다', () => {
+  const selected = { tag_id: 300, name: '한' }
+  assert.deepEqual(resolveContentTag(selected, []), selected)
+  assert.deepEqual(addContentTag([], selected, []), [selected])
+  assert.equal(tagInputError(resolveContentTag(selected, [])), null)
+  assert.match(tagInputError(resolveContentTag('새', [])), /2자 이상/)
+  assert.match(tagInputError(resolveContentTag('새'.repeat(31), [])), /30자 이하/)
+  assert.deepEqual(addContentTag([], resolveContentTag('새', [])), [])
+})
+
+test('같은 ID 또는 이름의 태그를 다시 확정해도 중복하지 않고 미확정 입력은 추가하지 않는다', () => {
+  const existing = { tag_id: 301, name: '한' }
+  const tags = [existing]
+  assert.equal(addContentTag(tags, existing), tags)
+  assert.equal(addContentTag(tags, { tag_id: 301, name: '변경된 이름' }), tags)
+  assert.equal(addContentTag(tags, ' 한 '), tags)
+  const pending = resolveContentTag('긴'.repeat(31), [{ tag_id: 302, name: '긴'.repeat(31) }])
+  assert.equal(tagInputError(pending), null)
+  assert.deepEqual(tags, [existing])
+  assert.deepEqual(contentMetadataBody(complete, tags).tag_ids, [301])
+})
+
+test('신규 태그 객체에도 2~30자 경계를 적용하고 기존 태그와 섞여 있어도 오류를 구분한다', () => {
+  const existing = { tag_id: 303, name: '한' }
+  for (const name of ['가', '가'.repeat(31), '가'.repeat(80)]) {
+    assert.ok(tagInputError({ name }))
+    assert.deepEqual(missingPublishFields(complete, [existing, { name }], true), ['tags'])
+  }
+  for (const name of ['가나', '가'.repeat(30)]) {
+    assert.equal(tagInputError({ name: `  ${name}  ` }), null)
+    assert.deepEqual(addContentTag([], `  ${name}  `), [{ name }])
+    assert.deepEqual(missingPublishFields(complete, [existing, { name }], true), [])
+  }
+})
+
+test('기존 태그는 생성 콜백 없이 연결하고 다른 필드 수정 요청에도 원래 ID를 유지한다', async () => {
+  const tags = [1, 31, 80].map((length) => ({ tag_id: length, name: '가'.repeat(length) }))
+  const resolved = await resolveContentTags(tags, async () => assert.fail('기존 태그 생성 금지'))
+  assert.deepEqual(resolved, tags)
+  const body = contentMetadataBody({ ...complete, title: '수정한 제목' }, resolved)
+  assert.equal(body.title, '수정한 제목')
+  assert.deepEqual(body.tag_ids, [1, 31, 80])
+  assert.deepEqual(missingPublishFields(complete, resolved, true), [])
+})
+
+test('확정된 신규 이름만 공백 제거 후 생성하고 기존·신규가 같은 ID로 돌아오면 하나로 연결한다', async () => {
+  const calls = []
+  const resolved = await resolveContentTags(
+    [{ tag_id: 304, name: '한' }, { name: ' 새 이름 ' }, { name: '다른 이름' }],
+    async (name) => {
+      calls.push(name)
+      return { tag_id: name === '새 이름' ? 305 : 304, name }
+    },
+  )
+  assert.deepEqual(calls, ['새 이름', '다른 이름'])
+  assert.deepEqual(contentMetadataBody(complete, resolved).tag_ids, [304, 305])
+})
+
+test('저장 전 신규 태그 검증 실패 시 정상 신규 태그도 먼저 생성하지 않는다', async () => {
+  let calls = 0
+  for (const name of ['한', '가'.repeat(31)]) {
+    await assert.rejects(
+      resolveContentTags(
+        [{ name: '정상 태그' }, { tag_id: 306, name: '가'.repeat(80) }, { name }],
+        async () => {
+          calls++
+          return { tag_id: 307, name: '정상 태그' }
+        },
+      ),
+      /태그/,
+    )
+  }
+  assert.equal(calls, 0)
+})
+
+test('기존 태그 검색은 신규 생성 길이와 별개로 1자·31~80자를 그대로 전송한다', () => {
+  assert.equal(tagSearchPath('  '), null)
+  for (const length of [1, 2, 30, 31, 80]) {
+    const name = '가'.repeat(length)
+    const url = new URL(tagSearchPath(`  ${name}  `), 'http://test.invalid')
+    assert.equal(url.pathname, '/tags')
+    assert.equal(url.searchParams.get('q'), name)
+    assert.equal(url.searchParams.get('size'), '20')
+  }
 })

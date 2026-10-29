@@ -64,18 +64,77 @@ export function contentFieldError(key: TextField, value: string): string | null 
   return null
 }
 
-export function tagInputError(value: string): string | null {
-  const length = Array.from(value.trim()).length
+export function tagInputError(value: string | ContentTag): string | null {
+  // 이름 제한은 신규 생성에만 적용한다. 기존 태그는 서버의 ID로 연결한다.
+  if (typeof value !== 'string' && value.tag_id !== undefined) return null
+  const name = typeof value === 'string' ? value : value.name
+  const length = Array.from(name.trim()).length
   if (length < TAG_MIN_LENGTH) return `${TAG_MIN_LENGTH}자 이상 입력해 주세요.`
   if (length > TAG_MAX_LENGTH)
     return `최대 길이를 넘었어요. ${TAG_MAX_LENGTH}자 이하로 입력해 주세요.`
   return null
 }
 
-export function addContentTag(tags: ContentTag[], draft: string, options: ContentTag[] = []) {
-  const name = draft.trim()
-  if (tagInputError(name) || tags.some((tag) => tag.name === name)) return tags
-  return [...tags, options.find((tag) => tag.name === name) ?? { name }]
+export function tagSearchPath(value: string): string | null {
+  const name = value.trim()
+  return name ? `/tags?${new URLSearchParams({ q: name, size: '20' })}` : null
+}
+
+export function resolveContentTag(
+  draft: string | ContentTag,
+  options: ContentTag[] = [],
+): ContentTag {
+  if (typeof draft !== 'string' && draft.tag_id !== undefined) return draft
+  const name = (typeof draft === 'string' ? draft : draft.name).trim()
+  return options.find((tag) => tag.tag_id !== undefined && tag.name.trim() === name) ?? { name }
+}
+
+export function addContentTag(
+  tags: ContentTag[],
+  draft: string | ContentTag,
+  options: ContentTag[] = [],
+) {
+  const candidate = resolveContentTag(draft, [...tags, ...options])
+  if (
+    tagInputError(candidate) ||
+    tags.some(
+      (tag) =>
+        (candidate.tag_id !== undefined && tag.tag_id === candidate.tag_id) ||
+        tag.name.trim() === candidate.name.trim(),
+    )
+  )
+    return tags
+  return [...tags, candidate]
+}
+
+export async function resolveContentTags(
+  tags: ContentTag[],
+  createTag: (name: string) => Promise<Required<ContentTag>>,
+): Promise<Required<ContentTag>[]> {
+  const invalidTag = tags.find((tag) => tagInputError(tag))
+  if (invalidTag) throw new Error(`태그 ‘${invalidTag.name}’: ${tagInputError(invalidTag)}`)
+  const resolved = []
+  for (const tag of tags) {
+    resolved.push(
+      tag.tag_id === undefined
+        ? await createTag(tag.name.trim())
+        : { tag_id: tag.tag_id, name: tag.name },
+    )
+  }
+  return [...new Map(resolved.map((tag) => [tag.tag_id, tag])).values()]
+}
+
+export function contentMetadataBody(form: ContentFields, tags: Required<ContentTag>[]) {
+  return {
+    title: form.title.trim() || null,
+    category_id: form.category ? Number(form.category) : null,
+    tag_ids: tags.map((tag) => tag.tag_id),
+    core_content: form.core.trim() || null,
+    source: form.source.trim() || null,
+    reviewed_on: form.reviewed || null,
+    caution_enabled: form.caution,
+    caution_text: form.cautionText.trim() || null,
+  }
 }
 
 export function contentSignature(form: ContentFields, tags: ContentTag[]) {
@@ -96,7 +155,7 @@ export function missingPublishFields(
 ): PublishField[] {
   return publishFields
     .filter(({ key }) => {
-      if (key === 'tags') return tags.length === 0 || tags.some((tag) => tagInputError(tag.name))
+      if (key === 'tags') return tags.length === 0 || tags.some((tag) => tagInputError(tag))
       if (key === 'video') return !hasVideo
       return contentFieldError(key, form[key]) !== null
     })

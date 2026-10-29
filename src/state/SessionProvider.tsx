@@ -1,6 +1,7 @@
 import { useEffect, useRef, type PropsWithChildren } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router'
+import { clearOldFeedSessions } from '../features/feed/session'
 import { api, GENERATION_MISMATCH_EVENT } from '../api/client'
 import { SessionContext, type User, type UserSettings } from './session'
 
@@ -22,6 +23,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   })
   const generation = settings.data?.record_generation ?? null
   const previousGeneration = useRef<number | null>(null)
+  const generationChannel = useRef<BroadcastChannel | null>(null)
 
   useEffect(() => {
     const refresh = () => {
@@ -32,18 +34,35 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [client])
 
   useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel('sasu:record-generation')
+    generationChannel.current = channel
+    channel.onmessage = (event: MessageEvent<{ userId?: number; generation?: number }>) => {
+      if (event.data?.userId === learnerId && Number.isSafeInteger(event.data.generation)) {
+        void client.invalidateQueries({ queryKey: ['session', 'settings', learnerId] })
+      }
+    }
+    return () => {
+      generationChannel.current = null
+      channel.close()
+    }
+  }, [client, learnerId])
+
+  useEffect(() => {
+    if (learnerId !== null && generation !== null) clearOldFeedSessions(learnerId, generation)
     if (
       previousGeneration.current !== null &&
       generation !== null &&
       previousGeneration.current !== generation
     ) {
+      generationChannel.current?.postMessage({ userId: learnerId, generation })
       const otherQueries = {
         predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== 'session',
       }
       void client.cancelQueries(otherQueries).then(() => client.invalidateQueries(otherQueries))
     }
     previousGeneration.current = generation
-  }, [client, generation])
+  }, [client, generation, learnerId])
 
   return (
     <SessionContext.Provider

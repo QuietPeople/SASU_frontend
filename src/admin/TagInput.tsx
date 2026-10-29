@@ -5,6 +5,7 @@ export function TagInput({
   value,
   options,
   onChange,
+  onSelect,
   onAdd,
   invalid,
   describedBy,
@@ -12,6 +13,7 @@ export function TagInput({
   value: string
   options: AdminTag[]
   onChange: (value: string) => void
+  onSelect: (tag: AdminTag) => void
   onAdd: () => void
   invalid: boolean
   describedBy: string
@@ -25,7 +27,10 @@ export function TagInput({
       value={value}
       options={options.map((tag) => ({ id: String(tag.tag_id), label: tag.name }))}
       onChange={onChange}
-      onSelect={(option) => onChange(option.label)}
+      onSelect={(option) => {
+        const tag = options.find((tag) => String(tag.tag_id) === option.id)
+        if (tag) onSelect(tag)
+      }}
       onConfirm={onAdd}
       invalid={invalid}
       describedBy={describedBy}
