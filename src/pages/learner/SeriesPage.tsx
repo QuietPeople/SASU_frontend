@@ -43,6 +43,7 @@ export function SeriesPage() {
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 시리즈</p>
         <h1 className="sasu-title">시리즈</h1>
+        <p className="sasu-sub">단계별로 묶인 영상을 순서대로 학습해요.</p>
       </header>
       {isPending ? (
         <StateBlock title="사용자를 불러오는 중이에요." />
@@ -89,7 +90,15 @@ export function SeriesPage() {
           {id && !validId ? (
             <StateBlock title="올바른 시리즈를 선택해 주세요." />
           ) : !selectedId ? (
-            <StateBlock title="아직 시리즈가 없어요." />
+            <StateBlock
+              title="아직 시리즈가 없어요."
+              text="관리자가 시리즈를 구성하면 단계별로 학습할 수 있어요. 먼저 공개된 영상부터 둘러보세요."
+              action={
+                <Button variant="primary" onClick={() => navigate('/learner/search')}>
+                  영상 검색하러 가기
+                </Button>
+              }
+            />
           ) : detail.isPending ? (
             <StateBlock title="단계를 불러오는 중이에요." />
           ) : detail.error ? (

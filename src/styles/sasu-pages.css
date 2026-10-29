@@ -698,10 +698,11 @@ body.sasu-reset-base {
 /* ===== 피드(L02) ===== */
 .sasu-feed {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
-  gap: 20px;
-  max-width: 1120px;
-  align-items: start;
+  grid-template-columns: minmax(0, 360px) minmax(320px, 1fr);
+  gap: 24px;
+  max-width: 880px;
+  margin: 0 auto;
+  align-items: stretch;
 }
 .sasu-feed--review {
   grid-template-columns: minmax(0, 1fr);
@@ -1665,5 +1666,137 @@ body.sasu-reset-base {
 @media (max-width: 720px) {
   .sasu-split {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 학습 패널 하단 출처·검토일 ===== */
+.sasu-lp__body {
+  flex: 1;
+}
+.sasu-lp__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+.sasu-lp__foot-item {
+  display: inline-flex;
+  gap: 6px;
+  min-width: 0;
+  word-break: break-all;
+}
+.sasu-lp__foot-label {
+  font-weight: 700;
+  color: var(--sasu-sub);
+  flex: 0 0 auto;
+}
+.sasu-lp__related-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+/* ===== 시청 메타(조회·시청 상태) ===== */
+.sasu-watchmeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ===== 보관함 탭 개수 ===== */
+.sasu-tabs__count {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+}
+.sasu-tabs__tab.is-active .sasu-tabs__count {
+  color: var(--sasu-brand-ink);
+}
+
+/* ===== 시작하기 체크리스트 ===== */
+.sasu-start__list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sasu-start__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--sasu-line-soft);
+  font-size: 14px;
+}
+.sasu-start__list li:last-child {
+  border-bottom: 0;
+}
+.sasu-start__mark {
+  flex: 0 0 20px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--sasu-muted);
+}
+.sasu-start__list li.is-done .sasu-start__mark {
+  color: var(--sasu-green);
+}
+.sasu-start__label {
+  flex: 1;
+  min-width: 0;
+}
+.sasu-start__list li.is-done .sasu-start__label {
+  color: var(--sasu-muted);
+}
+
+/* ===== 키보드 포커스 표시 ===== */
+.sasu-btn:focus-visible,
+.sasu-action:focus-visible,
+.sasu-tabs__tab:focus-visible,
+.sasu-lp__tab:focus-visible,
+.sasu-chip--pick:focus-visible,
+.sasu-result-card:focus-visible,
+.sasu-nav__item:focus-visible,
+.sasu-nav__switch:focus-visible,
+.sasu-link:focus-visible,
+.sasu-choice:focus-visible,
+.sasu-split__half:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+  border-radius: var(--sasu-radius-sm);
+}
+.sasu-skeleton {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sasu-skeleton li {
+  height: 64px;
+  border-radius: var(--sasu-radius);
+  background: linear-gradient(
+    100deg,
+    var(--sasu-line-soft) 30%,
+    #f4f7fb 50%,
+    var(--sasu-line-soft) 70%
+  );
+  background-size: 200% 100%;
+  animation: sasu-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes sasu-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sasu-skeleton li {
+    animation: none;
   }
 }

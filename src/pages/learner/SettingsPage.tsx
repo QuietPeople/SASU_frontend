@@ -104,10 +104,14 @@ function SettingsForm({
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 설정</p>
         <h1 className="sasu-title">설정</h1>
+        <p className="sasu-sub">추천과 복기 방식을 내 학습 습관에 맞게 바꿔요.</p>
       </header>
       <section className="sasu-card">
         <h2 className="sasu-card__title">관심 분야</h2>
         <p className="sasu-sub">관심 있는 분야를 여러 개 고를 수 있어요.</p>
+        {interests.length === 0 && categories.length > 0 ? (
+          <p className="sasu-feed__msg">관심 분야를 고르면 추천 영상이 더 정확해져요.</p>
+        ) : null}
         {categories.length === 0 ? (
           <StateBlock title="아직 등록된 분야가 없어요." />
         ) : (

@@ -44,7 +44,7 @@ export function ContentViewer({
   const player = useRef<HTMLVideoElement>(null)
   const [ended, setEnded] = useState(false)
   const [openedQuestion, setOpenedQuestion] = useState<LearningQuestion | null>(null)
-  const [tab, setTab] = useState<'core' | 'quiz' | 'source'>('core')
+  const [tab, setTab] = useState<'core' | 'quiz'>('core')
   const [playError, setPlayError] = useState(false)
   const [eventError, setEventError] = useState('')
   const [playErrorId] = useState(() => crypto.randomUUID())
@@ -81,6 +81,11 @@ export function ContentViewer({
   // 처음 퀴즈를 보여 줄 때 버전을 고정하고 같은 영상 방문에서는 풀이를 유지한다.
   // 탭 전환이나 영상 다시보기, 배경 재조회로 새 attempt를 만들지 않는다.
   if (!openedQuestion && ended && tab === 'quiz' && question) setOpenedQuestion(question)
+
+  // 한 줄 정리와 핵심 정리가 같은 내용이면 한 번만 표시한다.
+  const summary = (detail.one_line_summary ?? '').trim()
+  const core = (detail.core_content ?? '').trim()
+  const showCore = core !== '' && core !== summary
 
   return (
     <div className="sasu-page sasu-feed">
@@ -194,9 +199,13 @@ export function ContentViewer({
             </Link>
           ) : null}
         </div>
-        <p className="sasu-sub">
-          조회 {watch.result?.view_count ?? content.view_count} ·{' '}
-          {watch.result?.watch_completed || content.watch_completed ? '시청 완료' : '시청 중'}
+        <p className="sasu-sub sasu-watchmeta">
+          <span>조회 {watch.result?.view_count ?? content.view_count}</span>
+          {watch.result?.watch_completed || content.watch_completed ? (
+            <span className="sasu-badge sasu-badge--green">✓ 시청 완료</span>
+          ) : (
+            <span className="sasu-badge">시청 중</span>
+          )}
         </p>
         {reaction.isError ? <p role="alert">{reaction.error.message}</p> : null}
         {watch.error ? (
@@ -213,7 +222,7 @@ export function ContentViewer({
           <h2 className="sasu-lp__title">영상과 함께 학습해요</h2>
         </div>
         <div className="sasu-lp__tabs" role="tablist" aria-label="학습 자료">
-          {(['core', 'quiz', 'source'] as const).map((value) => (
+          {(['core', 'quiz'] as const).map((value) => (
             <button
               key={value}
               type="button"
@@ -222,33 +231,39 @@ export function ContentViewer({
               className={`sasu-lp__tab ${tab === value ? 'is-active' : ''}`}
               onClick={() => setTab(value)}
             >
-              {value === 'core' ? '핵심 정리' : value === 'quiz' ? '퀴즈' : '출처'}
+              {value === 'core' ? '핵심 정리' : '퀴즈'}
             </button>
           ))}
         </div>
         <div className="sasu-lp__body">
           {tab === 'core' ? (
             <>
-              {detail.one_line_summary ? (
+              {summary ? (
                 <div className="sasu-lp__oneline">
                   <span className="sasu-lp__label">한 줄 정리</span>
-                  <p>{detail.one_line_summary}</p>
+                  <p>{summary}</p>
                 </div>
               ) : null}
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {detail.core_content || '등록된 핵심 정리가 없어요.'}
-              </p>
+              {showCore ? (
+                <div>
+                  <span className="sasu-lp__label">핵심 정리</span>
+                  <p style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{core}</p>
+                </div>
+              ) : null}
+              {!summary && !core ? (
+                <p className="sasu-muted">등록된 핵심 정리가 없어요.</p>
+              ) : null}
               {detail.related_curriculums.length ? (
-                <>
+                <div>
                   <span className="sasu-lp__label">관련 학습</span>
-                  <ul>
+                  <ul className="sasu-lp__related-list">
                     {detail.related_curriculums.map((item) => (
                       <li key={item.curriculum_id}>
                         <Link to={`/learner/series/${item.curriculum_id}`}>{item.title}</Link>
                       </li>
                     ))}
                   </ul>
-                </>
+                </div>
               ) : null}
               {detail.caution_enabled ? (
                 <div className="sasu-lp__caution" role="note">
@@ -257,14 +272,6 @@ export function ContentViewer({
                 </div>
               ) : null}
             </>
-          ) : null}
-          {tab === 'source' ? (
-            <dl className="sasu-lp__dl">
-              <dt>출처</dt>
-              <dd>{detail.source || '미등록'}</dd>
-              <dt>검토일</dt>
-              <dd>{detail.reviewed_on || '미등록'}</dd>
-            </dl>
           ) : null}
           <div hidden={tab !== 'quiz'}>
             {questionError && !openedQuestion ? (
@@ -306,6 +313,16 @@ export function ContentViewer({
               <p>영상을 끝까지 보면 퀴즈가 열려요. 시청 완료와 끝 도달은 따로 기록돼요.</p>
             ) : null}
           </div>
+        </div>
+        <div className="sasu-lp__foot">
+          <span className="sasu-lp__foot-item">
+            <span className="sasu-lp__foot-label">출처</span>
+            {detail.source || '미등록'}
+          </span>
+          <span className="sasu-lp__foot-item">
+            <span className="sasu-lp__foot-label">검토일</span>
+            {detail.reviewed_on || '미등록'}
+          </span>
         </div>
       </aside>
     </div>

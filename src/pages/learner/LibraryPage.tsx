@@ -43,6 +43,7 @@ export function LibraryPage() {
   const categories = useCategories(actorId, generation)
   const enabled = actorId !== null && learnerId !== null
   const filters = queryString({ category_id: concept, page, size: 20 })
+  // 탭마다 개수를 함께 보여 주기 위해 세 목록을 모두 조회한다.
   const saved = useQuery({
     queryKey: ['learner', 'saved', actorId, learnerId, generation, concept, page],
     queryFn: ({ signal }) =>
@@ -50,7 +51,7 @@ export function LibraryPage() {
         actorId,
         signal,
       }),
-    enabled: enabled && tab === 'saved',
+    enabled,
   })
   const wrong = useQuery({
     queryKey: ['learner', 'wrong', actorId, learnerId, generation, concept, page],
@@ -59,7 +60,7 @@ export function LibraryPage() {
         `/users/${learnerId}/reviews/wrong-answers${queryString({ category_id: concept, status: 'PENDING', page, size: 20 })}`,
         { actorId, signal },
       ),
-    enabled: enabled && tab === 'wrong',
+    enabled,
   })
   const cards = useQuery({
     queryKey: ['learner', 'cards', actorId, learnerId, generation, concept, page],
@@ -68,9 +69,14 @@ export function LibraryPage() {
         actorId,
         signal,
       }),
-    enabled: enabled && tab === 'cards',
+    enabled,
   })
   const active = tab === 'saved' ? saved : tab === 'wrong' ? wrong : cards
+  const countOf = (id: Tab) =>
+    (id === 'saved' ? saved : id === 'wrong' ? wrong : cards).data?.total
+  const conceptName = concept
+    ? (categories.data?.items.find((item) => item.category_id === concept)?.name ?? '선택한 분야')
+    : ''
   const setFilter = (name: string, value: string) => {
     const next = new URLSearchParams(params)
     if (value) next.set(name, value)
@@ -106,6 +112,7 @@ export function LibraryPage() {
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 보관함</p>
         <h1 className="sasu-title">보관함</h1>
+        <p className="sasu-sub">저장한 영상과 복습할 문항, 플래시카드를 모아 둬요.</p>
       </header>
       <div className="sasu-tabs" role="tablist" aria-label="보관함 탭">
         {TABS.map((item) => (
@@ -119,6 +126,9 @@ export function LibraryPage() {
             onClick={() => setFilter('tab', item.id)}
           >
             {item.label}
+            {countOf(item.id) !== undefined ? (
+              <span className="sasu-tabs__count">{countOf(item.id)}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -160,7 +170,9 @@ export function LibraryPage() {
         />
       ) : (
         <>
-          <p className="sasu-search__summary">전체 {active.data?.total ?? 0}개</p>
+          <p className="sasu-search__summary">
+            전체 {active.data?.total ?? 0}개{conceptName ? ` · ${conceptName}` : ' · 분야 전체'}
+          </p>
           {active.data?.items.length === 0 ? (
             <StateBlock
               title={
@@ -170,7 +182,24 @@ export function LibraryPage() {
                     ? '현재 미해결 오답이 없어요.'
                     : '이용할 수 있는 카드가 없어요.'
               }
-              text={concept ? '다른 분야를 선택하거나 전체 목록을 확인해 주세요.' : undefined}
+              text={
+                concept
+                  ? '다른 분야를 선택하거나 전체 목록을 확인해 주세요.'
+                  : tab === 'saved'
+                    ? '영상을 보다가 저장하면 여기에 모여요.'
+                    : tab === 'wrong'
+                      ? '퀴즈에서 틀린 문항이 생기면 여기에서 다시 풀 수 있어요.'
+                      : '퀴즈가 등록된 영상을 시청하면 카드가 만들어져요.'
+              }
+              action={
+                concept ? (
+                  <Button onClick={() => setFilter('concept', '')}>분야 전체 보기</Button>
+                ) : (
+                  <Button variant="primary" onClick={() => navigate('/learner/search')}>
+                    영상 검색하러 가기
+                  </Button>
+                )
+              }
             />
           ) : null}
           {tab === 'saved' ? (

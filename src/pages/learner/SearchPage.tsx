@@ -49,6 +49,7 @@ export function SearchPage() {
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 검색</p>
         <h1 className="sasu-title">검색</h1>
+        <p className="sasu-sub">제목·태그·핵심 정리로 공개 영상을 찾아요.</p>
       </header>
       <form
         ref={searchForm}
@@ -104,6 +105,19 @@ export function SearchPage() {
         <StateBlock
           title="검색어를 입력해 주세요."
           text="제목 → 태그 → 핵심 정리 순으로 일치하는 공개 콘텐츠를 보여 줘요."
+          action={
+            <>
+              <Button
+                variant="primary"
+                onClick={() =>
+                  searchForm.current?.querySelector<HTMLInputElement>('input[name="q"]')?.focus()
+                }
+              >
+                검색어 입력하기
+              </Button>
+              <Button onClick={() => navigate('/learner/series')}>시리즈 둘러보기</Button>
+            </>
+          }
         />
       ) : results.isPending ? (
         <StateBlock title="검색 결과를 불러오는 중이에요." />
