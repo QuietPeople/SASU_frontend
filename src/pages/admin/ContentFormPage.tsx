@@ -3,7 +3,7 @@ import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, queryString, type ApiPage } from '../../api/client'
+import { api, type ApiPage } from '../../api/client'
 import {
   adminError,
   useAdminQuery,
@@ -26,7 +26,10 @@ import {
   missingPublishFields,
   videoSelectionError,
   tagInputError,
-  TAG_MAX_LENGTH,
+  tagSearchPath,
+  resolveContentTag,
+  resolveContentTags,
+  contentMetadataBody,
   contentFieldError,
   type TextField,
   addContentTag,
@@ -81,6 +84,7 @@ interface EditorDraft {
   form: ContentFields
   tags: ContentTag[]
   tagDraft: string
+  tagSelection?: AdminTag | null
   file: File | null
   saved?: EditableContent
   baseline: string
@@ -125,6 +129,7 @@ function ContentEditor({
   const [form, setForm] = useState(seed.form)
   const [tags, setTags] = useState(seed.tags)
   const [tagDraft, setTagDraft] = useState(seed.tagDraft)
+  const [tagSelection, setTagSelection] = useState<AdminTag | null>(seed.tagSelection ?? null)
   const [baseline, setBaseline] = useState(seed.baseline)
   const [busy, setBusy] = useState<'save' | 'publish' | null>(null)
   const [stage, setStage] = useState<SaveStage | null>(null)
@@ -142,14 +147,14 @@ function ContentEditor({
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const savingRef = useRef(false)
-  const tagOptions = useAdminQuery<ApiPage<AdminTag>>(
-    tagDraft.trim() && Array.from(tagDraft.trim()).length <= TAG_MAX_LENGTH
-      ? `/tags${queryString({ q: tagDraft.trim(), size: 20 })}`
-      : null,
-  )
-  const selectedTagError = tags.map((tag) => tagInputError(tag.name)).find(Boolean)
-  const tagError = (tagDraft ? tagInputError(tagDraft) : null) ?? selectedTagError
-  const canAddTag = tagInputError(tagDraft) === null
+  const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
+  const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
+    ...tags,
+    ...(tagOptions.data?.items ?? []),
+  ])
+  const selectedTagError = tags.map((tag) => tagInputError(tag)).find(Boolean)
+  const tagError = (tagDraft ? tagInputError(pendingTag) : null) ?? selectedTagError
+  const canAddTag = tagInputError(pendingTag) === null
   const dirty = file !== null || !!tagDraft.trim() || contentSignature(form, tags) !== baseline
   const missing = missingPublishFields(form, tags, !!file || !!saved?.detail.content.media_revision)
   const touch = (key: TextField | 'tags') => setTouched((current) => ({ ...current, [key]: true }))
@@ -198,9 +203,9 @@ function ContentEditor({
 
   useEffect(() => {
     if (dirty || (!initial && saved))
-      editorDrafts.set(draftKey, { form, tags, tagDraft, file, saved, baseline })
+      editorDrafts.set(draftKey, { form, tags, tagDraft, tagSelection, file, saved, baseline })
     else editorDrafts.delete(draftKey)
-  }, [draftKey, dirty, initial, form, tags, tagDraft, file, saved, baseline])
+  }, [draftKey, dirty, initial, form, tags, tagDraft, tagSelection, file, saved, baseline])
   useEffect(() => {
     if (!dirty && !busy) return
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -232,7 +237,8 @@ function ContentEditor({
 
   const addTag = () => {
     if (!canAddTag) return
-    setTags(addContentTag(tags, tagDraft, tagOptions.data?.items))
+    setTags(addContentTag(tags, pendingTag))
+    setTagSelection(null)
     setError('')
     setTagDraft('')
   }
@@ -311,17 +317,9 @@ function ContentEditor({
     }
     try {
       startStage('tags')
-      const invalidTag = tags.find((tag) => tagInputError(tag.name))
-      if (invalidTag)
-        throw new Error(`태그 ‘${invalidTag.name}’: ${tagInputError(invalidTag.name)}`)
-      const resolvedTags: AdminTag[] = []
-      for (const tag of tags)
-        resolvedTags.push(
-          tag.tag_id === undefined
-            ? await api<AdminTag>('/tags', { method: 'POST', actorId, body: { name: tag.name } })
-            : { tag_id: tag.tag_id, name: tag.name },
-        )
-      const uniqueTags = [...new Map(resolvedTags.map((tag) => [tag.tag_id, tag])).values()]
+      const uniqueTags = await resolveContentTags(tags, (name) =>
+        api<AdminTag>('/tags', { method: 'POST', actorId, body: { name } }),
+      )
       setTags(uniqueTags)
       setTagDraft('')
       startStage('metadata')
@@ -330,16 +328,7 @@ function ContentEditor({
         {
           method: current ? 'PATCH' : 'POST',
           actorId,
-          body: {
-            title: form.title.trim() || null,
-            category_id: form.category ? Number(form.category) : null,
-            tag_ids: uniqueTags.map((tag) => tag.tag_id),
-            core_content: form.core.trim() || null,
-            source: form.source.trim() || null,
-            reviewed_on: form.reviewed || null,
-            caution_enabled: form.caution,
-            caution_text: form.cautionText.trim() || null,
-          },
+          body: contentMetadataBody(form, uniqueTags),
         },
       )
       setSaved(current)
@@ -558,7 +547,14 @@ function ContentEditor({
                           (tag) => tag.tag_id === option.tag_id || tag.name === option.name,
                         ),
                     )}
-                    onChange={setTagDraft}
+                    onChange={(value) => {
+                      setTagDraft(value)
+                      setTagSelection(null)
+                    }}
+                    onSelect={(tag) => {
+                      setTagDraft(tag.name)
+                      setTagSelection(tag)
+                    }}
                     onAdd={addTag}
                     invalid={invalid('tags') || !!tagError}
                     describedBy={
@@ -1028,11 +1024,13 @@ function Field({
         {complete !== undefined && <FieldStatus complete={complete} />}
       </div>
       {children}
-      {error && (
-        <p id={`${id}-error`} className="admin-field-error" aria-live="polite">
-          {error}
-        </p>
-      )}
+      <p
+        id={`${id}-error`}
+        className="admin-field-error admin-editor__field-feedback"
+        aria-live="polite"
+      >
+        {error}
+      </p>
     </div>
   )
 }
