@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateQuestionChange } from '../../api/queryInvalidation'
 import { api } from '../../api/client'
 import {
   useAdminPages,
@@ -275,7 +276,13 @@ function QuestionEditor({
   const signature = questionSignature(draft)
   const [baseline, setBaseline] = useState(() => questionSignature(initialQuestionDraft(initial)))
   const dirty = signature !== baseline
-  const [busy, setBusy] = useState(false)
+  const saveMutation = useMutation({
+    mutationFn: persistQuestion,
+    onSettled: () => {
+      saving.current = false
+    },
+  })
+  const busy = saveMutation.isPending
   const saving = useRef(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [attempted, setAttempted] = useState(false)
@@ -306,8 +313,28 @@ function QuestionEditor({
     window.addEventListener('beforeunload', guard)
     return () => window.removeEventListener('beforeunload', guard)
   }, [dirty, busy])
-  const [requestError, setRequestError] = useState<unknown>(null)
-  const save = async () => {
+  const requestError = saveMutation.error
+  async function persistQuestion({ actorId }: { actorId: number }) {
+    const body = questionBody(draft)
+    const savedQuestion = await api<QuestionVersion>(
+      initial ? `/questions/${initial.question_id}/versions` : `/contents/${contentId}/question`,
+      {
+        method: 'POST',
+        actorId,
+        body: initial
+          ? { ...body, expected_current_version_id: initial.question_version_id }
+          : body,
+      },
+    )
+    drafts.delete(draftKey)
+    setBaseline(signature)
+    onSaved(
+      initial ? '변경사항을 저장했어요. 이전 응답은 보존돼요.' : '퀴즈와 플래시카드를 연결했어요.',
+    )
+    await invalidateQuestionChange(cache, { contentId, questionId: savedQuestion.question_id })
+    return savedQuestion
+  }
+  const save = () => {
     if (saving.current || actorId === null || !dirty) return
     setAttempted(true)
     if (Object.keys(errors).length) {
@@ -316,34 +343,7 @@ function QuestionEditor({
       return
     }
     saving.current = true
-    setBusy(true)
-    setRequestError(null)
-    try {
-      const body = questionBody(draft)
-      await api<QuestionVersion>(
-        initial ? `/questions/${initial.question_id}/versions` : `/contents/${contentId}/question`,
-        {
-          method: 'POST',
-          actorId,
-          body: initial
-            ? { ...body, expected_current_version_id: initial.question_version_id }
-            : body,
-        },
-      )
-      drafts.delete(draftKey)
-      setBaseline(signature)
-      onSaved(
-        initial
-          ? '변경사항을 저장했어요. 이전 응답은 보존돼요.'
-          : '퀴즈와 플래시카드를 연결했어요.',
-      )
-      await cache.invalidateQueries()
-    } catch (cause) {
-      setRequestError(cause)
-    } finally {
-      saving.current = false
-      setBusy(false)
-    }
+    saveMutation.mutate({ actorId })
   }
   return (
     <>

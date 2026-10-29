@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { ApiError } from '../api/client'
+import { invalidateQuizResult } from '../api/queryInvalidation'
 import {
   createLearningAttempt,
   learningKey,
@@ -110,10 +111,7 @@ function AttemptView({
         learningKey(identity, 'attempt', attemptId),
         (previous) => (previous ? { ...previous, submitted: true, response } : previous),
       )
-      void queryClient.invalidateQueries({
-        predicate: (query) =>
-          !query.queryKey.includes('wrong-review') && !query.queryKey.includes('attempt'),
-      })
+      void invalidateQuizResult(queryClient, identity, question.content_id, question.question_id)
     },
   })
   const response = submission.data ?? attempt.data?.response

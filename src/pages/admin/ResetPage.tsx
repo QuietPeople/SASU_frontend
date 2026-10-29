@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateRecordReset } from '../../api/queryInvalidation'
 import { api } from '../../api/client'
 import { useSession } from '../../state/session'
 import { RequestError } from '../../admin/RequestFeedback'
@@ -125,9 +126,7 @@ export function ResetPage() {
   const learnerName = users.find((user) => user.user_id === learnerId)?.name ?? '현재 학습자'
   const cache = useQueryClient()
   const { show, node } = useToast()
-  const [requestError, setRequestError] = useState<unknown>(null)
   const [target, setTarget] = useState<ResetTarget | null>(null)
-  const [busy, setBusy] = useState(false)
   const running = useRef(false)
   const [completed, setCompleted] = useState<{ name: string; result: ResetResult } | null>(null)
   const ready = !isPending && actorId !== null && learnerId !== null && generation !== null
@@ -136,35 +135,46 @@ export function ResetPage() {
     target.userId === learnerId &&
     target.actorId === actorId &&
     target.generation === generation
-  const run = async () => {
-    if (running.current || !target || !valid) return
-    running.current = true
-    setBusy(true)
-    setRequestError(null)
-    setCompleted(null)
-    try {
-      const result = await api<ResetResult>(`/users/${target.userId}/test-records/reset`, {
+  const resetMutation = useMutation({
+    mutationFn: (input: ResetTarget) =>
+      api<ResetResult>(`/users/${input.userId}/test-records/reset`, {
         method: 'POST',
-        actorId: target.actorId,
-        body: { confirm: true, expected_record_generation: target.generation },
-      })
-      if (settings?.user_id === target.userId)
-        cache.setQueryData(['session', 'settings', target.userId], {
+        actorId: input.actorId,
+        body: { confirm: true, expected_record_generation: input.generation },
+      }),
+    onSuccess: async (result, input) => {
+      if (settings?.user_id === input.userId)
+        cache.setQueryData(['session', 'settings', input.userId], {
           ...settings,
           record_generation: result.record_generation,
         })
-      setCompleted({ name: target.name, result })
+      setCompleted({ name: input.name, result })
       setTarget(null)
       show('테스트 기록을 초기화했어요.')
-      await Promise.allSettled([refreshSettings(), cache.invalidateQueries()])
-    } catch (error) {
+      await Promise.allSettled([
+        refreshSettings(),
+        invalidateRecordReset(cache, {
+          learnerId: input.userId,
+          previousGeneration: input.generation,
+          newGeneration: result.record_generation,
+        }),
+      ])
+    },
+    onError: async () => {
       setTarget(null)
-      setRequestError(error)
       await refreshSettings().catch(() => undefined)
-    } finally {
+    },
+    onSettled: () => {
       running.current = false
-      setBusy(false)
-    }
+    },
+  })
+  const busy = resetMutation.isPending
+  const requestError = resetMutation.error
+  const run = () => {
+    if (running.current || !target || !valid) return
+    running.current = true
+    setCompleted(null)
+    resetMutation.mutate(target)
   }
   return (
     <div className="admin-page admin-reset">

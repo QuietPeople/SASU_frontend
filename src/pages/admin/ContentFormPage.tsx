@@ -2,7 +2,8 @@ import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateContentChange } from '../../api/queryInvalidation'
 import { api, type ApiPage } from '../../api/client'
 import {
   adminError,
@@ -131,11 +132,9 @@ function ContentEditor({
   const [tagDraft, setTagDraft] = useState(seed.tagDraft)
   const [tagSelection, setTagSelection] = useState<AdminTag | null>(seed.tagSelection ?? null)
   const [baseline, setBaseline] = useState(seed.baseline)
-  const [busy, setBusy] = useState<'save' | 'publish' | null>(null)
   const [stage, setStage] = useState<SaveStage | null>(null)
   const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null)
   const [error, setError] = useState('')
-  const [requestError, setRequestError] = useState<{ cause: unknown; text?: string } | null>(null)
   const [warning, setWarning] = useState('')
   const [showFieldErrors, setShowFieldErrors] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
@@ -147,6 +146,20 @@ function ContentEditor({
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const savingRef = useRef(false)
+  const saveMutation = useMutation({
+    mutationFn: persistContent,
+    onSettled: () => {
+      savingRef.current = false
+      setStage(null)
+      setUploadProgress(null)
+    },
+  })
+  const busy = saveMutation.isPending
+    ? saveMutation.variables?.publish
+      ? 'publish'
+      : 'save'
+    : null
+  const requestError = saveMutation.error
   const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
   const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
     ...tags,
@@ -260,7 +273,7 @@ function ContentEditor({
       setWarning(`저장된 영상 정보를 다시 불러오지 못했어요. ${adminError(cause)}`)
     }
   }
-  const save = async (publish: boolean) => {
+  const save = (publish: boolean) => {
     if (savingRef.current || actorId === null) return
     if (tagDraft.trim()) {
       setError(
@@ -303,13 +316,15 @@ function ContentEditor({
       return
     }
     savingRef.current = true
-    setBusy(publish ? 'publish' : 'save')
+    saveMutation.mutate({ publish, actorId })
+  }
+  async function persistContent({ publish, actorId }: { publish: boolean; actorId: number }) {
     setUploadProgress(null)
-    setRequestError(null)
     setError('')
     setWarning('')
     let current = saved
     let completedMetadata = false
+    let tagsChanged = false
     const operation: { stage: SaveStage } = { stage: 'tags' }
     const startStage = (next: SaveStage) => {
       operation.stage = next
@@ -317,9 +332,11 @@ function ContentEditor({
     }
     try {
       startStage('tags')
-      const uniqueTags = await resolveContentTags(tags, (name) =>
-        api<AdminTag>('/tags', { method: 'POST', actorId, body: { name } }),
-      )
+      const uniqueTags = await resolveContentTags(tags, async (name) => {
+        const tag = await api<AdminTag>('/tags', { method: 'POST', actorId, body: { name } })
+        tagsChanged = true
+        return tag
+      })
       setTags(uniqueTags)
       setTagDraft('')
       startStage('metadata')
@@ -379,12 +396,16 @@ function ContentEditor({
         ],
         current,
       )
-      await cache.invalidateQueries()
+      await invalidateContentChange(cache, {
+        contentId: current.detail.content.content_id,
+        tagsChanged,
+      })
       setShowFieldErrors(false)
       show(publish ? '공개했어요.' : '저장했어요.')
       editorDrafts.delete(draftKey)
       if (!initial && !embedded)
         navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
+      return current
     } catch (cause) {
       const prefix = completedMetadata
         ? operation.stage === 'video'
@@ -393,7 +414,6 @@ function ContentEditor({
             ? '콘텐츠는 저장됐지만 공개에 실패했어요. '
             : ''
         : ''
-      setRequestError({ cause, text: `${prefix}${adminError(cause)}` })
       if (current) {
         cache.setQueryData(
           [
@@ -404,13 +424,13 @@ function ContentEditor({
           ],
           current,
         )
-        await cache.invalidateQueries()
       }
-    } finally {
-      savingRef.current = false
-      setBusy(null)
-      setStage(null)
-      setUploadProgress(null)
+      if (completedMetadata || tagsChanged)
+        await invalidateContentChange(cache, {
+          contentId: completedMetadata ? current?.detail.content.content_id : undefined,
+          tagsChanged,
+        })
+      throw new Error(`${prefix}${adminError(cause)}`, { cause })
     }
   }
   return (
@@ -457,8 +477,8 @@ function ContentEditor({
       {requestError && (
         <RequestError
           title="콘텐츠 저장·공개 실패"
-          error={requestError.cause}
-          text={requestError.text}
+          error={requestError.cause ?? requestError}
+          text={requestError.message}
         />
       )}
       {error && (

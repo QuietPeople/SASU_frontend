@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router'
 import { clearOldFeedSessions } from '../features/feed/session'
 import { api, GENERATION_MISMATCH_EVENT } from '../api/client'
+import { invalidateRecordReset } from '../api/queryInvalidation'
 import { SessionContext, type User, type UserSettings } from './session'
 
 export function SessionProvider({ children }: PropsWithChildren) {
@@ -22,7 +23,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     enabled: learnerId !== null,
   })
   const generation = settings.data?.record_generation ?? null
-  const previousGeneration = useRef<number | null>(null)
+  const previousGeneration = useRef<{ learnerId: number; generation: number } | null>(null)
   const generationChannel = useRef<BroadcastChannel | null>(null)
 
   useEffect(() => {
@@ -49,19 +50,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [client, learnerId])
 
   useEffect(() => {
-    if (learnerId !== null && generation !== null) clearOldFeedSessions(learnerId, generation)
-    if (
-      previousGeneration.current !== null &&
-      generation !== null &&
-      previousGeneration.current !== generation
-    ) {
+    if (learnerId === null || generation === null) return
+    clearOldFeedSessions(learnerId, generation)
+    const previous = previousGeneration.current
+    if (previous?.learnerId === learnerId && previous.generation !== generation) {
       generationChannel.current?.postMessage({ userId: learnerId, generation })
-      const otherQueries = {
-        predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== 'session',
-      }
-      void client.cancelQueries(otherQueries).then(() => client.invalidateQueries(otherQueries))
+      void invalidateRecordReset(client, {
+        learnerId,
+        previousGeneration: previous.generation,
+        newGeneration: generation,
+      })
     }
-    previousGeneration.current = generation
+    previousGeneration.current = { learnerId, generation }
   }, [client, generation, learnerId])
 
   return (
