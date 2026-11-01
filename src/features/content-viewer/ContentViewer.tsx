@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { api, mediaUrl } from '../../api/client'
+import { invalidateLearnerReaction } from '../../api/queryInvalidation'
 import {
   recordLearningEvent,
   type LearningContentDetail,
   type LearningIdentity,
   type LearningQuestion,
   type WatchContext,
+  type WatchResult,
 } from '../../api/learning'
 import { QuizView } from '../../shared/QuizView'
 import { Button } from '../../shared/ui'
@@ -29,6 +31,13 @@ interface ContentViewerProps {
   nextTo?: string
   prevTo?: string
   nextState?: WatchNavigationState
+  recommendationLabel?: string
+  onNext?: () => void | Promise<void>
+  onPrevious?: () => void
+  onWatchReport?: (result: WatchResult) => void
+  navigationTime?: { current: number }
+  navigationPending?: boolean
+  nextLabel?: string
 }
 
 export function ContentViewer({
@@ -43,16 +52,26 @@ export function ContentViewer({
   nextTo,
   prevTo,
   nextState,
+  recommendationLabel,
+  onNext,
+  onPrevious,
+  onWatchReport,
+  navigationTime,
+  navigationPending = false,
+  nextLabel = '다음 영상 →',
 }: ContentViewerProps) {
   const content = detail.content
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const player = useRef<HTMLVideoElement>(null)
+  const main = useRef<HTMLDivElement>(null)
+  const moving = useRef(false)
+  const localNavigationTime = useRef(0)
+  const [navigating, setNavigating] = useState(false)
   const [ended, setEnded] = useState(false)
   const [openedQuestion, setOpenedQuestion] = useState<LearningQuestion | null>(null)
   const [tab, setTab] = useState<'core' | 'quiz'>('core')
   const [playError, setPlayError] = useState(false)
-  const [eventError, setEventError] = useState('')
   const [playErrorId] = useState(() => crypto.randomUUID())
   const [panelOpen, setPanelOpen] = useState(true)
 
@@ -68,6 +87,8 @@ export function ContentViewer({
   const moveLock = useRef(0)
   const touchStartY = useRef<number | null>(null)
 
+  // 목록(검색·시리즈·보관함)에서 들어온 영상의 스와이프 이동.
+  // 추천 피드는 아래 onNext/onPrevious 쪽에서 따로 처리한다.
   const go = (direction: 'next' | 'prev') => {
     if (openedQuestion) return // 퀴즈를 푸는 중에는 넘어가지 않는다
     const to = direction === 'next' ? nextTo : prevTo
@@ -98,13 +119,14 @@ export function ContentViewer({
     go(moved > 0 ? 'next' : 'prev')
   }
 
-  // 위아래 방향키로도 넘길 수 있게 한다. 입력칸이나 영상에 포커스가 있으면 건드리지 않는다.
+  // 위아래 방향키로도 넘길 수 있게 한다. 입력칸이나 영상, 학습 패널에 있으면 건드리지 않는다.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, select, video, [contenteditable="true"], .sasu-lp'))
-        return      event.preventDefault()
+        return
+      event.preventDefault()
       go(event.key === 'ArrowDown' ? 'next' : 'prev')
     }
     window.addEventListener('keydown', onKey)
@@ -117,7 +139,78 @@ export function ContentViewer({
     mediaRevision: content.media_revision!,
     duration: content.video_duration!,
     context,
+    onReport: onWatchReport,
   })
+  const flushWatch = watch.flush
+  const move = useCallback(
+    async (direction: 'next' | 'previous') => {
+      const action = direction === 'next' ? onNext : onPrevious
+      if (!action || moving.current || navigationPending) return
+      moving.current = true
+      setNavigating(true)
+      try {
+        player.current?.pause()
+        // 현재 방문 보고가 완료된 뒤에 복기 간격을 평가한다.
+        if (await flushWatch(player.current ?? undefined)) await action()
+      } finally {
+        moving.current = false
+        setNavigating(false)
+      }
+    },
+    [flushWatch, onNext, onPrevious, navigationPending],
+  )
+  useEffect(() => {
+    if (context !== 'FEED') return
+    const area = main.current
+    if (!area) return
+    const lastMove = navigationTime ?? localNavigationTime
+    const interactive = (target: EventTarget | null) =>
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          'button, a, input, textarea, select, video, [contenteditable="true"], [role="radio"], [role="tab"]',
+        ),
+      )
+    const keyboard = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        interactive(event.target) ||
+        (event.target instanceof Node &&
+          event.target !== document.body &&
+          !area.contains(event.target))
+      )
+        return
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+      event.preventDefault()
+      if (event.repeat) return
+      void move(event.key === 'ArrowDown' ? 'next' : 'previous')
+    }
+    const wheel = (event: WheelEvent) => {
+      if (
+        event.ctrlKey ||
+        event.defaultPrevented ||
+        interactive(event.target) ||
+        Math.abs(event.deltaY) < 40 ||
+        Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      )
+        return
+      // 세로로 스크롤해야 하는 좁은 화면은 페이지 스크롤을 우선한다.
+      if (area.getBoundingClientRect().height > window.innerHeight) return
+      event.preventDefault()
+      if (Date.now() - lastMove.current < 800) return
+      lastMove.current = Date.now()
+      void move(event.deltaY > 0 ? 'next' : 'previous')
+    }
+    window.addEventListener('keydown', keyboard)
+    area.addEventListener('wheel', wheel, { passive: false })
+    return () => {
+      window.removeEventListener('keydown', keyboard)
+      area.removeEventListener('wheel', wheel)
+    }
+  }, [context, move, navigationTime])
   const reaction = useMutation({
     mutationFn: async ({ kind, on }: { kind: 'like' | 'saved'; on: boolean }) => {
       await api(`/users/${identity.learnerId}/contents/${content.content_id}/${kind}`, {
@@ -125,22 +218,17 @@ export function ContentViewer({
         ...identity,
       })
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries()
-    },
+    onSuccess: (_, { kind }) =>
+      invalidateLearnerReaction(queryClient, identity, content.content_id, kind),
   })
-  const reportPlayError = async () => {
-    try {
-      await recordLearningEvent(identity, playErrorId, {
+  const playErrorReport = useMutation({
+    mutationFn: () =>
+      recordLearningEvent(identity, playErrorId, {
         event_type: 'PLAY_ERROR',
         content_id: content.content_id,
         error_code: 'VIDEO_PLAYBACK_FAILED',
-      })
-      setEventError('')
-    } catch (cause) {
-      setEventError(cause instanceof Error ? cause.message : '재생 오류를 기록하지 못했어요.')
-    }
-  }
+      }),
+  })
   // 처음 퀴즈를 보여 줄 때 버전을 고정하고 같은 영상 방문에서는 풀이를 유지한다.
   // 탭 전환이나 영상 다시보기, 배경 재조회로 새 attempt를 만들지 않는다.
   if (!openedQuestion && ended && tab === 'quiz' && question) setOpenedQuestion(question)
@@ -164,12 +252,12 @@ export function ContentViewer({
 
   return (
     <div className={`sasu-page sasu-feed ${panelOpen ? '' : 'is-lp-closed'}`}>
-      <div className={`sasu-feed__main ${motion}`}>
+      <div className={`sasu-feed__main ${motion}`} ref={main}>
         <div className="sasu-feed__bar">
           <Link className="sasu-link" to={backTo}>
             {backLabel}
           </Link>
-          <span className="sasu-eyebrow">영상 학습</span>
+          <span className="sasu-eyebrow">{context === 'FEED' ? '추천 피드' : '영상 학습'}</span>
         </div>
         <header className="sasu-feed__head">
           <h1 className="sasu-title">{content.title ?? '제목 없음'}</h1>
@@ -177,6 +265,7 @@ export function ContentViewer({
             {content.category?.name ?? '미지정'} ·{' '}
             {content.tags.map((tag) => `#${tag.name}`).join(' ')}
           </p>
+          {recommendationLabel ? <p className="sasu-sub">{recommendationLabel}</p> : null}
         </header>
         <div className="sasu-feed__stage">
           <div
@@ -217,7 +306,7 @@ export function ContentViewer({
               }}
               onError={() => {
                 setPlayError(true)
-                void reportPlayError()
+                playErrorReport.mutate()
               }}
             >
               브라우저에서 영상 재생을 지원하지 않습니다.
@@ -282,7 +371,7 @@ export function ContentViewer({
             </div>
           </div>
         </div>
-        {nextTo || prevTo ? (
+        {onNext || nextTo || prevTo ? (
           <p className="sasu-swipehint">
             {openedQuestion
               ? '퀴즈를 푸는 중에는 아래 버튼으로 이동해요'
@@ -305,8 +394,22 @@ export function ContentViewer({
             </Link>
           </div>
         ) : null}
-        {eventError ? <p role="alert">오류 기록: {eventError}</p> : null}
-        {prevTo || nextTo ? (
+        {playErrorReport.isError ? (
+          <p role="alert">오류 기록: {playErrorReport.error.message}</p>
+        ) : null}
+        {onNext ? (
+          <div className="sasu-row sasu-feed__nav">
+            <Button
+              disabled={!onPrevious || navigating || navigationPending}
+              onClick={() => void move('previous')}
+            >
+              이전 영상
+            </Button>
+            <Button loading={navigating || navigationPending} onClick={() => void move('next')}>
+              {nextLabel}
+            </Button>
+          </div>
+        ) : prevTo || nextTo ? (
           <div className="sasu-row sasu-feed__nav">
             {prevTo ? (
               <Link className="sasu-link" to={prevTo} state={nextState}>
@@ -371,9 +474,7 @@ export function ContentViewer({
                   <p className="sasu-lp__core">{core}</p>
                 </div>
               ) : null}
-              {!summary && !core ? (
-                <p className="sasu-muted">등록된 핵심 정리가 없어요.</p>
-              ) : null}
+              {!summary && !core ? <p className="sasu-muted">등록된 핵심 정리가 없어요.</p> : null}
               {detail.related_curriculums.length ? (
                 <div className="sasu-lp__sec">
                   <span className="sasu-lp__label">관련 학습</span>
@@ -424,13 +525,22 @@ export function ContentViewer({
                         오답 복습
                       </Link>
                     ) : null}
-                    <Link
-                      className="sasu-link"
-                      to={nextTo ?? backTo}
-                      state={nextTo ? nextState : undefined}
-                    >
-                      {nextTo ? '다음 영상 ↓' : backLabel}
-                    </Link>
+                    {onNext ? (
+                      <Button
+                        loading={navigating || navigationPending}
+                        onClick={() => void move('next')}
+                      >
+                        {nextLabel}
+                      </Button>
+                    ) : (
+                      <Link
+                        className="sasu-link"
+                        to={nextTo ?? backTo}
+                        state={nextTo ? nextState : undefined}
+                      >
+                        {nextTo ? '다음 영상 ↓' : backLabel}
+                      </Link>
+                    )}
                   </div>
                 )}
               />

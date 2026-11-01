@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api, queryString, type ApiPage } from '../../api/client'
+import type { LearningIdentity } from '../../api/learning'
+import { invalidateLearnerReaction } from '../../api/queryInvalidation'
 import {
   categoryId,
   pageNumber,
@@ -34,7 +36,7 @@ export function LibraryPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { show, node } = useToast()
-  const [unsaving, setUnsaving] = useState<number | null>(null)
+  const unsavingRef = useRef(false)
   const tab = (
     TABS.some((item) => item.id === params.get('tab')) ? params.get('tab') : 'saved'
   ) as Tab
@@ -72,8 +74,7 @@ export function LibraryPage() {
     enabled,
   })
   const active = tab === 'saved' ? saved : tab === 'wrong' ? wrong : cards
-  const countOf = (id: Tab) =>
-    (id === 'saved' ? saved : id === 'wrong' ? wrong : cards).data?.total
+  const countOf = (id: Tab) => (id === 'saved' ? saved : id === 'wrong' ? wrong : cards).data?.total
   const conceptName = concept
     ? (categories.data?.items.find((item) => item.category_id === concept)?.name ?? '선택한 분야')
     : ''
@@ -84,24 +85,41 @@ export function LibraryPage() {
     if (name !== 'page') next.delete('page')
     setParams(next)
   }
-  const unsave = async (id: number) => {
-    if (unsaving !== null || actorId === null || learnerId === null || generation === null) return
-    setUnsaving(id)
-    try {
-      await api(`/users/${learnerId}/contents/${id}/saved`, {
+  const removal = useMutation({
+    mutationFn: ({
+      id,
+      identity,
+    }: {
+      id: number
+      identity: LearningIdentity
+      previousPage?: number
+    }) =>
+      api(`/users/${identity.learnerId}/contents/${id}/saved`, {
         method: 'DELETE',
-        actorId,
-        generation,
-      })
-      await queryClient.invalidateQueries()
-      if (saved.data?.items.length === 1 && page > 1) setFilter('page', String(page - 1))
+        ...identity,
+      }),
+    onSuccess: async (_, { id, identity, previousPage }) => {
+      await invalidateLearnerReaction(queryClient, identity, id, 'saved')
+      if (previousPage !== undefined) setFilter('page', String(previousPage))
       show('저장을 해제했어요.')
-    } catch (error) {
+    },
+    onError: async (error) => {
       show(error instanceof Error ? error.message : '저장 해제를 반영하지 못했어요.', 'error')
-      await refreshSettings()
-    } finally {
-      setUnsaving(null)
-    }
+      await refreshSettings().catch(() => undefined)
+    },
+    onSettled: () => {
+      unsavingRef.current = false
+    },
+  })
+  const unsaving = removal.isPending ? removal.variables.id : null
+  const unsave = (id: number) => {
+    if (unsavingRef.current || actorId === null || learnerId === null || generation === null) return
+    unsavingRef.current = true
+    removal.mutate({
+      id,
+      identity: { actorId, learnerId, generation },
+      previousPage: saved.data?.items.length === 1 && page > 1 ? page - 1 : undefined,
+    })
   }
   const openVideo = (id: number) =>
     navigate(`/learner/watch/${id}`, {

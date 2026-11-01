@@ -1,0 +1,481 @@
+.admin-flashcard {
+  --fc-bg: #f2efff;
+  --fc-ink: #30345b;
+  --fc-muted: #77769b;
+  --fc-accent: #7760d2;
+  --fc-line: #7770ac26;
+  --fc-positive: #497c75;
+  --fc-negative: #b46179;
+  width: min(100%, 320px);
+  aspect-ratio: 9 / 16;
+  margin-inline: auto;
+  perspective: 1400px;
+  container-type: inline-size;
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.admin-flashcard__turn {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 650ms cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+.admin-flashcard__turn.is-flipped {
+  transform: rotateY(180deg);
+}
+.admin-flashcard__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 23px;
+  border: 1px solid var(--fc-line);
+  background: var(--fc-bg);
+  color: var(--fc-ink);
+  padding: 7.5cqw;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 16px 32px -22px #26365755;
+}
+.admin-flashcard__face--back {
+  transform: rotateY(180deg);
+}
+.admin-flashcard__art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.admin-flashcard__art span {
+  position: absolute;
+  display: block;
+}
+.admin-flashcard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.admin-flashcard__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 3.6cqw;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.admin-flashcard__brand > span {
+  font-size: 2.75cqw;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--fc-muted);
+}
+.admin-flashcard__spark {
+  color: var(--fc-accent);
+  font-size: 9cqw;
+  line-height: 0.8;
+}
+.admin-flashcard__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: center;
+  padding-block: 8cqw;
+  gap: 5cqw;
+}
+.admin-flashcard__eyebrow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fc-ink);
+  font-size: 4.5cqw;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  justify-self: start;
+}
+.admin-flashcard__eyebrow > span {
+  display: grid;
+  place-items: center;
+  width: 9cqw;
+  height: 9cqw;
+  border: 1px solid var(--fc-line);
+  border-radius: 50%;
+  font-size: 4.8cqw;
+  color: var(--fc-accent);
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+.admin-flashcard__copy {
+  min-height: 0;
+  max-height: 100%;
+  overflow: clip;
+}
+.admin-flashcard__copy p {
+  margin: 0;
+  font-size: 8.2cqw;
+  line-height: 1.5;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+.admin-flashcard__face--back .admin-flashcard__copy p {
+  font-size: 9.5cqw;
+  font-weight: 800;
+}
+.admin-flashcard__copy[data-length='medium'] p {
+  font-size: 6.9cqw;
+  line-height: 1.65;
+}
+.admin-flashcard__copy[data-length='long'] p {
+  font-size: 5.8cqw;
+  line-height: 1.75;
+}
+.admin-flashcard__copy p.is-placeholder {
+  opacity: 0.55;
+  font-weight: 600;
+}
+.admin-flashcard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--fc-line);
+  padding-top: 5cqw;
+}
+.admin-flashcard__page {
+  flex-shrink: 0;
+  font-size: 3cqw;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.admin-flashcard__page > span {
+  color: var(--fc-muted);
+  font-weight: 400;
+}
+.admin-flashcard__flip-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fc-muted);
+  font-size: 3.3cqw;
+  font-weight: 550;
+}
+.admin-flashcard[role='button'] {
+  cursor: pointer;
+  border-radius: 23px;
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-flashcard[role='button']:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: 5px;
+}
+.admin-flashcard.is-text-card .admin-flashcard__body {
+  align-items: center;
+  padding-inline: 0;
+}
+.admin-flashcard.is-text-card .admin-flashcard__eyebrow {
+  justify-content: flex-start;
+}
+.admin-flashcard.is-text-card .admin-flashcard__copy {
+  width: 100%;
+}
+.admin-flashcard.is-text-card .admin-flashcard__copy p {
+  font-size: 14cqw;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+.admin-flashcard.is-text-card .admin-flashcard__face--back .admin-flashcard__copy p {
+  font-size: 18cqw;
+}
+.admin-flashcard.is-text-card .admin-flashcard__copy p.is-placeholder {
+  font-size: 8cqw;
+}
+.admin-flashcard__ox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7cqw;
+  padding-block: 2cqw;
+  color: var(--fc-positive);
+}
+.admin-flashcard__ox.is-x {
+  color: var(--fc-negative);
+}
+.admin-flashcard__ox svg {
+  width: 54cqw;
+  height: 54cqw;
+  max-width: 100%;
+  overflow: visible;
+}
+.admin-flashcard__ox-halo {
+  fill: currentColor;
+  fill-opacity: 0.045;
+  stroke: currentColor;
+  stroke-opacity: 0.16;
+  stroke-width: 1;
+}
+.admin-flashcard__ox-mark {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.admin-flashcard__ox p {
+  margin: 0;
+  font-size: 5.2cqw;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  color: var(--fc-ink);
+}
+/* 오로라: 반투명 색면과 부드러운 산세리프 */
+.admin-flashcard--aurora .admin-flashcard__face {
+  background: linear-gradient(155deg, #f7f3ff 5%, #eeedff 50%, #e9f4f8 100%);
+}
+.admin-flashcard--aurora .admin-flashcard__art span:nth-child(1) {
+  width: 110%;
+  height: 60%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #c1b8f575, transparent 68%);
+  top: -22%;
+  right: -35%;
+}
+.admin-flashcard--aurora .admin-flashcard__art span:nth-child(2) {
+  width: 120%;
+  height: 80%;
+  border: 1px solid #ffffffa0;
+  border-radius: 48%;
+  bottom: -52%;
+  left: -35%;
+  transform: rotate(-25deg);
+  box-shadow:
+    0 0 0 18px #ffffff25,
+    0 0 0 37px #ffffff18;
+}
+.admin-flashcard--aurora .admin-flashcard__face--back {
+  background: linear-gradient(155deg, #e9f4f8, #eeedff 65%, #f7f3ff);
+}
+/* 페이퍼: 따뜻한 종이와 명조 계열 제목 */
+.admin-flashcard--paper {
+  --fc-bg: #f7f2e8;
+  --fc-ink: #463b32;
+  --fc-muted: #948575;
+  --fc-accent: #ae724e;
+  --fc-line: #9f84632e;
+  --fc-positive: #627458;
+  --fc-negative: #ae6652;
+}
+.admin-flashcard--paper .admin-flashcard__face {
+  border-radius: 6px 22px 6px 22px;
+  background-image: repeating-linear-gradient(0deg, transparent 0 5px, #8c765008 5px 6px);
+}
+.admin-flashcard--paper .admin-flashcard__art {
+  inset: 12px;
+  border: 1px solid var(--fc-line);
+  border-radius: 2px 13px 2px 13px;
+}
+.admin-flashcard--paper .admin-flashcard__art span:first-child {
+  bottom: 19%;
+  right: -18%;
+  width: 80%;
+  aspect-ratio: 1;
+  border: 1px solid #a68b6826;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 12px #a68b6808,
+    0 0 0 25px #a68b6806;
+}
+.admin-flashcard--paper .admin-flashcard__copy p {
+  font-family: 'AppleMyungjo', 'Noto Serif KR', 'Batang', serif;
+  font-weight: 600;
+  letter-spacing: -0.065em;
+  line-height: 1.65;
+}
+.admin-flashcard--paper .admin-flashcard__spark {
+  font-family: Georgia, serif;
+  font-size: 7cqw;
+}
+.admin-flashcard--paper .admin-flashcard__ox-mark {
+  stroke-width: 9;
+}
+/* 미드나잇: 짙은 잉크색과 별의 궤도 */
+.admin-flashcard--midnight {
+  --fc-bg: #1c2940;
+  --fc-ink: #eff2ee;
+  --fc-muted: #a3b1c5;
+  --fc-accent: #e6c886;
+  --fc-line: #cad9f02b;
+  --fc-positive: #9ed7c2;
+  --fc-negative: #f0b4a8;
+}
+.admin-flashcard--midnight .admin-flashcard__face {
+  background: radial-gradient(ellipse at 95% 0%, #405271, #1c2940 65%);
+}
+.admin-flashcard--midnight .admin-flashcard__art span:nth-child(1) {
+  width: 135%;
+  aspect-ratio: 1;
+  border: 1px solid #a5b9d026;
+  border-radius: 50%;
+  bottom: -41%;
+  right: -62%;
+  box-shadow:
+    0 0 0 18px #a5b9d008,
+    0 0 0 36px #a5b9d006;
+}
+.admin-flashcard--midnight .admin-flashcard__art span:nth-child(2) {
+  height: 3px;
+  width: 3px;
+  border-radius: 50%;
+  background: #e4d6a9;
+  top: 23%;
+  right: 16%;
+  box-shadow:
+    -44px 25px #e4d6a955,
+    22px 110px #e4d6a955,
+    -160px 310px #e4d6a955;
+}
+.admin-flashcard--midnight .admin-flashcard__copy p {
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+.admin-flashcard--midnight .admin-flashcard__ox-mark {
+  filter: drop-shadow(0 0 8px #c5d6f025);
+}
+/* 보태니컬: 초록 여백과 잎의 실루엣 */
+.admin-flashcard--botanical {
+  --fc-bg: #edf3e9;
+  --fc-ink: #29483b;
+  --fc-muted: #718576;
+  --fc-accent: #65865f;
+  --fc-line: #6989642c;
+  --fc-positive: #527e5b;
+  --fc-negative: #a16a59;
+}
+.admin-flashcard--botanical .admin-flashcard__art span {
+  border: 1px solid #5e8a5b22;
+  background: #7ca2710c;
+  border-radius: 100% 0 100% 0;
+  width: 70%;
+  height: 28%;
+  right: -35%;
+  transform: rotate(-20deg);
+}
+.admin-flashcard--botanical .admin-flashcard__art span:nth-child(1) {
+  top: 17%;
+}
+.admin-flashcard--botanical .admin-flashcard__art span:nth-child(2) {
+  top: 39%;
+  right: -38%;
+  transform: rotate(15deg);
+}
+.admin-flashcard--botanical .admin-flashcard__art span:nth-child(3) {
+  bottom: -16%;
+  left: -28%;
+  width: 100%;
+  height: 38%;
+  transform: rotate(80deg);
+}
+.admin-flashcard--botanical .admin-flashcard__body {
+  padding-right: 3cqw;
+}
+/* 시트러스: 레몬색 면과 선명한 타이포그래피 */
+.admin-flashcard--citrus {
+  --fc-bg: #f6f1ca;
+  --fc-ink: #414531;
+  --fc-muted: #89896a;
+  --fc-accent: #818747;
+  --fc-line: #84835b30;
+  --fc-positive: #6b8050;
+  --fc-negative: #ad6746;
+}
+.admin-flashcard--citrus .admin-flashcard__art span:first-child {
+  width: 110%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #e6e4a1;
+  top: -48%;
+  right: -32%;
+  box-shadow: 0 0 0 22px #e9e7b133;
+}
+.admin-flashcard--citrus .admin-flashcard__art span:nth-child(2) {
+  width: 32%;
+  height: 8%;
+  background: #d8dd9d50;
+  bottom: 18%;
+  right: -9%;
+  transform: rotate(-38deg);
+  border-radius: 999px;
+}
+.admin-flashcard--citrus .admin-flashcard__copy p {
+  font-weight: 850;
+  letter-spacing: -0.055em;
+}
+.admin-flashcard--citrus .admin-flashcard__eyebrow > span {
+  border-radius: 7px;
+  background: var(--fc-ink);
+  color: var(--fc-bg);
+  border: 0;
+  font-family: inherit;
+  font-style: normal;
+}
+.admin-flashcard--citrus .admin-flashcard__ox-mark {
+  stroke-width: 18;
+}
+/* 블루프린트: 연한 모눈과 파란 인쇄물 */
+.admin-flashcard--blueprint {
+  --fc-bg: #edf4fc;
+  --fc-ink: #284c79;
+  --fc-muted: #7891b0;
+  --fc-accent: #527cad;
+  --fc-line: #638bb431;
+  --fc-positive: #487e8b;
+  --fc-negative: #aa6e92;
+}
+.admin-flashcard--blueprint .admin-flashcard__face {
+  background-image:
+    linear-gradient(#7399bf09 1px, transparent 1px),
+    linear-gradient(90deg, #7399bf09 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.admin-flashcard--blueprint .admin-flashcard__art span:first-child {
+  width: 90%;
+  aspect-ratio: 1;
+  border: 1px dashed #5e86b32e;
+  border-radius: 50%;
+  right: -42%;
+  bottom: -21%;
+}
+.admin-flashcard--blueprint .admin-flashcard__art span:nth-child(2) {
+  width: 64%;
+  aspect-ratio: 1;
+  border: 1px solid #5e86b322;
+  border-radius: 50%;
+  right: -29%;
+  bottom: -14%;
+}
+.admin-flashcard--blueprint .admin-flashcard__eyebrow > span {
+  border-radius: 5px;
+}
+.admin-flashcard--blueprint .admin-flashcard__ox-halo {
+  stroke-dasharray: 3 5;
+  fill-opacity: 0.025;
+}
+.admin-flashcard--blueprint .admin-flashcard__ox-mark {
+  stroke-width: 10;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-flashcard__turn {
+    transition: none;
+  }
+}

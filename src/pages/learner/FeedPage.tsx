@@ -9,28 +9,14 @@ import {
   type WatchContext,
 } from '../../api/learning'
 import { queryString } from '../../api/client'
+import { PersonalizedFeed } from '../../features/feed/PersonalizedFeed'
 import { ContentViewer } from '../../features/content-viewer/ContentViewer'
 import type { WatchNavigationState } from '../../features/content-viewer/types'
 import { useSession } from '../../state/session'
 import { Button, StateBlock } from '../../shared/ui'
 
 export function FeedPage({ mode }: { mode: 'feed' | 'watch' }) {
-  if (mode === 'feed') {
-    return (
-      <div className="sasu-page">
-        <StateBlock
-          title="추천 피드는 아직 준비 중이에요."
-          text="지금은 검색에서 공개 영상을 선택해 학습할 수 있어요."
-          action={
-            <Link className="sasu-btn sasu-btn--primary" to="/learner/search">
-              영상 검색하기
-            </Link>
-          }
-        />
-        <p className="sasu-help">피드 사이 복습도 추천 피드와 함께 제공될 예정이에요.</p>
-      </div>
-    )
-  }
+  if (mode === 'feed') return <PersonalizedFeed />
   return <WatchPage />
 }
 

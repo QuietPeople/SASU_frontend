@@ -37,6 +37,7 @@ export interface VideoPolicy {
   max_bytes: number
   min_duration_sec: number
   max_duration_sec: number
+  max_long_edge_px: number
   accept: string
   formats: string[]
 }
@@ -144,12 +145,12 @@ export async function adminPages<T>(
   }
 }
 
-export function useAdminPages<T>(path: string) {
+export function useAdminPages<T>(path: string, enabled = true) {
   const { actorId, generation } = useSession()
   return useQuery({
     queryKey: ['admin', actorId, generation, 'all-pages', path],
     queryFn: ({ signal }) => adminPages<T>(path, actorId!, signal),
-    enabled: actorId !== null,
+    enabled: actorId !== null && enabled,
   })
 }
 

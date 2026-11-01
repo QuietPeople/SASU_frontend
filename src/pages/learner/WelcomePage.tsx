@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
+import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
 import { Button, StateBlock } from '../../shared/ui'
 
@@ -55,38 +57,61 @@ function WelcomeForm({
   initial: LearnerSettings
   categories: Category[]
 }) {
-  const { actorId, learnerId, refreshSettings } = useSession()
+  const { actorId, learnerId } = useSession()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [picked, setPicked] = useState(initial.interest_category_ids)
-  const [saving, setSaving] = useState<'start' | 'skip' | null>(null)
-  const [error, setError] = useState('')
+  const savingRef = useRef(false)
   const toggle = (id: number) =>
     setPicked((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     )
-  const start = async (skip: boolean) => {
-    if (saving || actorId === null || learnerId === null || (!skip && !picked.length)) return
-    setSaving(skip ? 'skip' : 'start')
-    setError('')
-    try {
-      await api<LearnerSettings>(`/users/${learnerId}/settings`, {
+  const update = useMutation({
+    mutationFn: ({
+      actorId,
+      learnerId,
+      picked,
+      skip,
+    }: {
+      actorId: number
+      learnerId: number
+      picked: number[]
+      skip: boolean
+    }) =>
+      api<LearnerSettings>(`/users/${learnerId}/settings`, {
         method: 'PATCH',
         actorId,
         body: skip
           ? { interest_guide_completed: true }
           : { interest_category_ids: picked, interest_guide_completed: true },
+      }),
+    onSuccess: async (settings, { actorId, learnerId }) => {
+      queryClient.setQueryData<LearnerSettings>(['session', 'settings', learnerId], (current) => {
+        if (current && current.record_generation > settings.record_generation) return current
+        return settings
       })
-      await refreshSettings()
+      await invalidateLearnerSettings(queryClient, {
+        actorId,
+        learnerId,
+        generation: settings.record_generation,
+      })
       navigate('/learner/feed')
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : '관심 분야를 저장하지 못했어요. 다시 시도해 주세요.',
-      )
-    } finally {
-      setSaving(null)
-    }
+    },
+    onSettled: () => {
+      savingRef.current = false
+    },
+  })
+  const saving = update.isPending ? (update.variables.skip ? 'skip' : 'start') : null
+  const error = update.isError
+    ? update.error instanceof Error
+      ? update.error.message
+      : '관심 분야를 저장하지 못했어요. 다시 시도해 주세요.'
+    : ''
+  const start = (skip: boolean) => {
+    if (savingRef.current || actorId === null || learnerId === null || (!skip && !picked.length))
+      return
+    savingRef.current = true
+    update.mutate({ actorId, learnerId, picked: [...picked], skip })
   }
   return (
     <div className="sasu-page sasu-onboard">

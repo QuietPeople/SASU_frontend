@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 
-import { HomePage } from '../pages/HomePage'
 import { AppLayout } from '../layouts/AppLayout'
+import { AdminLayout } from '../admin/AdminLayout'
 import { useSession } from '../state/session'
 import { FeedPage } from '../pages/learner/FeedPage'
 import { WelcomePage } from '../pages/learner/WelcomePage'
@@ -33,14 +33,13 @@ function Learner({ children }: { children: React.ReactNode }) {
 }
 
 function Admin({ children }: { children: React.ReactNode }) {
-  return <AppLayout role="admin">{children}</AppLayout>
+  return <AdminLayout>{children}</AdminLayout>
 }
 
 export function AppRouter() {
   return (
     <Routes>
-      {/* 모드 선택(로컬 시연용) */}
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<Navigate to="/learner/feed" replace />} />
 
       {/* 학습자 화면 L01~L09 */}
       <Route
@@ -214,8 +213,8 @@ export function AppRouter() {
         }
       />
 
-      {/* 알 수 없는 경로는 홈으로 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 알 수 없는 경로는 학습자 피드로 */}
+      <Route path="*" element={<Navigate to="/learner/feed" replace />} />
     </Routes>
   )
 }

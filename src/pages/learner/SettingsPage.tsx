@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
+import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
 import { Button, StateBlock } from '../../shared/ui'
 import { useToast } from '../../shared/useToast'
@@ -59,45 +61,73 @@ function SettingsForm({
   initial: LearnerSettings
   categories: Category[]
 }) {
-  const { actorId, learnerId, refreshSettings } = useSession()
+  const { actorId, learnerId } = useSession()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { show, node } = useToast()
   const [interests, setInterests] = useState(initial.interest_category_ids)
   const [interval, setInterval] = useState(String(initial.review_interval))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const savingRef = useRef(false)
+  const [validationError, setValidationError] = useState('')
   const requestedBack = params.get('back')
   const backTo = requestedBack?.startsWith('/learner/') ? requestedBack : ''
   const toggle = (id: number) =>
     setInterests((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     )
-  const save = async () => {
-    const value = Number(interval)
-    if (!Number.isInteger(value) || value < MIN_INTERVAL || value > MAX_INTERVAL) {
-      setError(`복기 간격은 ${MIN_INTERVAL}~${MAX_INTERVAL} 사이 정수로 입력해 주세요.`)
-      return
-    }
-    if (saving || actorId === null || learnerId === null) return
-    setSaving(true)
-    setError('')
-    try {
-      await api<LearnerSettings>(`/users/${learnerId}/settings`, {
+  const update = useMutation({
+    mutationFn: ({
+      actorId,
+      learnerId,
+      interests,
+      interval,
+    }: {
+      actorId: number
+      learnerId: number
+      interests: number[]
+      interval: number
+    }) =>
+      api<LearnerSettings>(`/users/${learnerId}/settings`, {
         method: 'PATCH',
         actorId,
-        body: { interest_category_ids: interests, review_interval: value },
+        body: { interest_category_ids: interests, review_interval: interval },
+      }),
+    onSuccess: async (settings, { actorId, learnerId }) => {
+      queryClient.setQueryData<LearnerSettings>(['session', 'settings', learnerId], (current) => {
+        if (current && current.record_generation > settings.record_generation) return current
+        return settings
       })
-      await refreshSettings()
+      await invalidateLearnerSettings(queryClient, {
+        actorId,
+        learnerId,
+        generation: settings.record_generation,
+      })
       show('설정을 저장했어요.')
       if (backTo) navigate(backTo)
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : '설정을 저장하지 못했어요. 다시 시도해 주세요.',
-      )
-    } finally {
-      setSaving(false)
+    },
+    onSettled: () => {
+      savingRef.current = false
+    },
+  })
+  const saving = update.isPending
+  const error =
+    validationError ||
+    (update.isError
+      ? update.error instanceof Error
+        ? update.error.message
+        : '설정을 저장하지 못했어요. 다시 시도해 주세요.'
+      : '')
+  const save = () => {
+    if (savingRef.current || actorId === null || learnerId === null) return
+    const value = Number(interval)
+    if (!Number.isInteger(value) || value < MIN_INTERVAL || value > MAX_INTERVAL) {
+      setValidationError(`복기 간격은 ${MIN_INTERVAL}~${MAX_INTERVAL} 사이 정수로 입력해 주세요.`)
+      return
     }
+    savingRef.current = true
+    setValidationError('')
+    update.mutate({ actorId, learnerId, interests: [...interests], interval: value })
   }
   return (
     <div className="sasu-page sasu-settings">
