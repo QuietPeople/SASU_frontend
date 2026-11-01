@@ -31,6 +31,8 @@ interface ContentViewerProps {
   nextTo?: string
   prevTo?: string
   nextState?: WatchNavigationState
+  listIndex?: number
+  listTotal?: number
   recommendationLabel?: string
   onNext?: () => void | Promise<void>
   onPrevious?: () => void
@@ -52,6 +54,8 @@ export function ContentViewer({
   nextTo,
   prevTo,
   nextState,
+  listIndex,
+  listTotal,
   recommendationLabel,
   onNext,
   onPrevious,
@@ -74,8 +78,13 @@ export function ContentViewer({
   const [playError, setPlayError] = useState(false)
   const [playErrorId] = useState(() => crypto.randomUUID())
   const [panelOpen, setPanelOpen] = useState(true)
+  const [toast, setToast] = useState<{ text: string; id: number } | null>(null)
 
-  // 들어오는 방향은 첫 렌더에서 한 번만 읽고, 마운트 후에 비운다.
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 1600)
+    return () => window.clearTimeout(timer)
+  }, [toast])
   const [entering] = useState<'below' | 'above' | null>(enterFrom)
   useEffect(() => {
     enterFrom = null
@@ -218,8 +227,20 @@ export function ContentViewer({
         ...identity,
       })
     },
-    onSuccess: (_, { kind }) =>
-      invalidateLearnerReaction(queryClient, identity, content.content_id, kind),
+    onSuccess: (_, { kind, on }) => {
+      setToast({
+        text:
+          kind === 'saved'
+            ? on
+              ? '보관함에 저장했어요'
+              : '보관함에서 뺐어요'
+            : on
+              ? '좋아요를 눌렀어요'
+              : '좋아요를 취소했어요',
+        id: Date.now(),
+      })
+      return invalidateLearnerReaction(queryClient, identity, content.content_id, kind)
+    },
   })
   const playErrorReport = useMutation({
     mutationFn: () =>
@@ -320,6 +341,11 @@ export function ContentViewer({
 
             {/* 영상 안 좌상단: 조회수·시청 상태 */}
             <div className="sasu-ov-top">
+              {listIndex && listTotal ? (
+                <span className="sasu-ov-pill sasu-ov-pill--idx">
+                  {listIndex} / {listTotal}
+                </span>
+              ) : null}
               <span className="sasu-ov-pill">
                 조회 {watch.result?.view_count ?? content.view_count}
               </span>
@@ -570,6 +596,14 @@ export function ContentViewer({
           </div>
         </dl>
       </aside>
+      {toast ? (
+        <p className="sasu-toast" role="status">
+          <span className="sasu-toast__ic" aria-hidden="true">
+            ✓
+          </span>
+          {toast.text}
+        </p>
+      ) : null}
     </div>
   )
 }

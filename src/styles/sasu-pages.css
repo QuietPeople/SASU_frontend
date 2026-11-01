@@ -2118,10 +2118,75 @@ body.sasu-reset-base {
   text-decoration: none;
 }
 .sasu-result__foot .sasu-row > *:last-child {
-  background: var(--sasu-brand-soft);
-  border-color: #c7dbfb;
-  color: var(--sasu-brand-ink);
+  background: var(--sasu-brand);
+  border-color: var(--sasu-brand);
+  color: #fff;
 }
 .sasu-result__foot .sasu-row > *:last-child:hover {
-  background: #dbe8fd;
+  background: var(--sasu-brand-ink);
+}
+.sasu-ov-pill--idx {
+  background: rgba(37, 99, 235, 0.75);
+}
+.sasu-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  animation: sasu-toast-in 0.18s ease-out;
+}
+.sasu-toast__ic {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+@keyframes sasu-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sasu-toast { animation: none; }
+}
+
+.sasu-result-card {
+  border-width: 1.5px;
+  border-radius: 10px;
+  padding: 13px 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sasu-result-card:not(.sasu-result-card--static):hover {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb {
+  flex: 0 0 46px;
+  height: 46px;
+  border-radius: 9px;
+  font-size: 0;
+  padding: 0;
+}
+.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb::before {
+  content: '▶';
+  font-size: 16px;
+  line-height: 1;
+}
+.sasu-result-card:not(.sasu-result-card--static):hover .sasu-result-card__thumb {
+  background: #fff;
+}
+.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__title {
+  font-size: 14.5px;
+}
+.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__summary {
+  display: none;
+}
+.sasu-result-card:not(.sasu-result-card--static)::after {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--sasu-muted);
+  font-size: 16px;
 }
