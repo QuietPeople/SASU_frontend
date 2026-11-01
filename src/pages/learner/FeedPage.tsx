@@ -202,6 +202,8 @@ function WatchContent({ identity, contentId }: { identity: LearningIdentity; con
         nextTo={nextTo}
         prevTo={prevTo}
         nextState={nextState}
+        listIndex={currentIndex >= 0 ? currentIndex + 1 : undefined}
+        listTotal={ids.length > 1 ? ids.length : undefined}
       />
     </>
   )
