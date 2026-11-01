@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { api, mediaUrl } from '../../api/client'
@@ -19,6 +19,17 @@ import type { WatchNavigationState } from './types'
 // 스와이프로 넘어온 방향을 다음 화면이 이어받아 들어오는 애니메이션에 쓴다.
 let enterFrom: 'below' | 'above' | null = null
 
+function isNavigationControl(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        'button, a, input, textarea, select, [contenteditable="true"], [role="radio"], [role="tab"], .sasu-lp',
+      ),
+    )
+  )
+}
+
 interface ContentViewerProps {
   identity: LearningIdentity
   detail: LearningContentDetail
@@ -37,7 +48,7 @@ interface ContentViewerProps {
   onNext?: () => void | Promise<void>
   onPrevious?: () => void
   onWatchReport?: (result: WatchResult) => void
-  navigationTime?: { current: number }
+  navigationTime?: RefObject<number>
   navigationPending?: boolean
   nextLabel?: string
 }
@@ -60,7 +71,7 @@ export function ContentViewer({
   onNext,
   onPrevious,
   onWatchReport,
-  navigationTime,
+  navigationTime: navigationTimeRef,
   navigationPending = false,
   nextLabel = '다음 ↓',
 }: ContentViewerProps) {
@@ -92,55 +103,7 @@ export function ContentViewer({
 
   // 나가는 방향(전환 애니메이션용)
   const [exit, setExit] = useState<'up' | 'down' | null>(null)
-  // 휠 한 번에 여러 개가 넘어가지 않도록 잠금
-  const moveLock = useRef(0)
-  const touchStartY = useRef<number | null>(null)
-
-  // 목록(검색·시리즈·보관함)에서 들어온 영상의 스와이프 이동.
-  // 추천 피드는 아래 onNext/onPrevious 쪽에서 따로 처리한다.
-  const go = (direction: 'next' | 'prev') => {
-    if (openedQuestion) return // 퀴즈를 푸는 중에는 넘어가지 않는다
-    const to = direction === 'next' ? nextTo : prevTo
-    if (!to) return // 목록 없이 연 영상은 아무 일도 하지 않는다
-    const now = Date.now()
-    if (now - moveLock.current < 700) return
-    moveLock.current = now
-    enterFrom = direction === 'next' ? 'below' : 'above'
-    setExit(direction === 'next' ? 'up' : 'down')
-    window.setTimeout(() => navigate(to, { state: nextState }), 160)
-  }
-
-  const onWheel = (event: React.WheelEvent) => {
-    if (Math.abs(event.deltaY) < 20) return
-    go(event.deltaY > 0 ? 'next' : 'prev')
-  }
-  const onTouchStart = (event: React.TouchEvent) => {
-    touchStartY.current = event.touches[0]?.clientY ?? null
-  }
-  const onTouchEnd = (event: React.TouchEvent) => {
-    const start = touchStartY.current
-    touchStartY.current = null
-    if (start === null) return
-    const end = event.changedTouches[0]?.clientY
-    if (end === undefined) return
-    const moved = start - end
-    if (Math.abs(moved) < 50) return
-    go(moved > 0 ? 'next' : 'prev')
-  }
-
-  // 위아래 방향키로도 넘길 수 있게 한다. 입력칸이나 영상, 학습 패널에 있으면 건드리지 않는다.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-      const target = event.target as HTMLElement | null
-      if (target?.closest('input, textarea, select, video, [contenteditable="true"], .sasu-lp'))
-        return
-      event.preventDefault()
-      go(event.key === 'ArrowDown' ? 'next' : 'prev')
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const watch = useContentViewer({
     identity,
@@ -168,25 +131,69 @@ export function ContentViewer({
     },
     [flushWatch, onNext, onPrevious, navigationPending],
   )
+  // 제스처와 방향키도 버튼과 같은 피드 이동·시청 보고 흐름을 사용한다.
+  const go = useCallback(
+    (direction: 'next' | 'previous') => {
+      if (openedQuestion || moving.current || navigationPending) return
+      const action = direction === 'next' ? onNext : onPrevious
+      const to = direction === 'next' ? nextTo : prevTo
+      if (!action && !to) return
+      const now = Date.now()
+      const lastMove = navigationTimeRef?.current ?? localNavigationTime.current
+      if (now - lastMove < 800) return
+      if (navigationTimeRef) navigationTimeRef.current = now
+      else localNavigationTime.current = now
+
+      if (action) {
+        void move(direction)
+        return
+      }
+      enterFrom = direction === 'next' ? 'below' : 'above'
+      setExit(direction === 'next' ? 'up' : 'down')
+      window.setTimeout(() => navigate(to!, { state: nextState }), 160)
+    },
+    [
+      openedQuestion,
+      navigationPending,
+      onNext,
+      onPrevious,
+      nextTo,
+      prevTo,
+      navigationTimeRef,
+      move,
+      navigate,
+      nextState,
+    ],
+  )
+
+  const onTouchStart = (event: React.TouchEvent) => {
+    touchStart.current =
+      !event.defaultPrevented && event.touches.length === 1 && !isNavigationControl(event.target)
+        ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+        : null
+  }
+  const onTouchEnd = (event: React.TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    const end = event.changedTouches[0]
+    if (!start || !end || event.defaultPrevented || event.touches.length) return
+    const moved = start.y - end.clientY
+    if (Math.abs(moved) < 50 || Math.abs(end.clientX - start.x) > Math.abs(moved)) return
+    go(moved > 0 ? 'next' : 'previous')
+  }
+
   useEffect(() => {
-    if (context !== 'FEED') return
     const area = main.current
     if (!area) return
-    const lastMove = navigationTime ?? localNavigationTime
-    const interactive = (target: EventTarget | null) =>
-      target instanceof Element &&
-      Boolean(
-        target.closest(
-          'button, a, input, textarea, select, video, [contenteditable="true"], [role="radio"], [role="tab"]',
-        ),
-      )
     const keyboard = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        interactive(event.target) ||
+        openedQuestion ||
+        isNavigationControl(event.target) ||
+        (event.target instanceof Element && event.target.closest('video')) ||
         (event.target instanceof Node &&
           event.target !== document.body &&
           !area.contains(event.target))
@@ -195,23 +202,27 @@ export function ContentViewer({
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
       event.preventDefault()
       if (event.repeat) return
-      void move(event.key === 'ArrowDown' ? 'next' : 'previous')
+      go(event.key === 'ArrowDown' ? 'next' : 'previous')
     }
     const wheel = (event: WheelEvent) => {
       if (
         event.ctrlKey ||
         event.defaultPrevented ||
-        interactive(event.target) ||
+        openedQuestion ||
+        isNavigationControl(event.target) ||
         Math.abs(event.deltaY) < 40 ||
         Math.abs(event.deltaX) > Math.abs(event.deltaY)
       )
         return
-      // 세로로 스크롤해야 하는 좁은 화면은 페이지 스크롤을 우선한다.
-      if (area.getBoundingClientRect().height > window.innerHeight) return
+      const overPlayer = event.target instanceof Element && event.target.closest('.sasu-player')
+      // 영상 밖에서는 기존 추천 피드의 휠 이동 범위와 페이지 스크롤을 유지한다.
+      if (
+        !overPlayer &&
+        (context !== 'FEED' || area.getBoundingClientRect().height > window.innerHeight)
+      )
+        return
       event.preventDefault()
-      if (Date.now() - lastMove.current < 800) return
-      lastMove.current = Date.now()
-      void move(event.deltaY > 0 ? 'next' : 'previous')
+      go(event.deltaY > 0 ? 'next' : 'previous')
     }
     window.addEventListener('keydown', keyboard)
     area.addEventListener('wheel', wheel, { passive: false })
@@ -219,7 +230,7 @@ export function ContentViewer({
       window.removeEventListener('keydown', keyboard)
       area.removeEventListener('wheel', wheel)
     }
-  }, [context, move, navigationTime])
+  }, [context, go, openedQuestion])
   const reaction = useMutation({
     mutationFn: async ({ kind, on }: { kind: 'like' | 'saved'; on: boolean }) => {
       await api(`/users/${identity.learnerId}/contents/${content.content_id}/${kind}`, {
@@ -297,9 +308,11 @@ export function ContentViewer({
         <div className="sasu-feed__stage">
           <div
             className="sasu-player"
-            onWheel={onWheel}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
+            onTouchCancel={() => {
+              touchStart.current = null
+            }}
           >
             <video
               ref={player}
