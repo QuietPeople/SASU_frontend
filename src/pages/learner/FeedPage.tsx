@@ -159,6 +159,8 @@ function WatchContent({ identity, contentId }: { identity: LearningIdentity; con
   const currentIndex = ids.indexOf(contentId)
   const nextId = currentIndex >= 0 ? ids[currentIndex + 1] : undefined
   const nextTo = nextId ? `/learner/watch/${nextId}?${params.toString()}` : undefined
+  const prevId = currentIndex > 0 ? ids[currentIndex - 1] : undefined
+  const prevTo = prevId ? `/learner/watch/${prevId}?${params.toString()}` : undefined
   if (detail.isPending)
     return (
       <div className="sasu-page">
@@ -212,6 +214,7 @@ function WatchContent({ identity, contentId }: { identity: LearningIdentity; con
         backTo={backTo}
         backLabel={backLabel}
         nextTo={nextTo}
+        prevTo={prevTo}
         nextState={nextState}
       />
     </>

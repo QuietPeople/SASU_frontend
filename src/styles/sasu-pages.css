@@ -1800,3 +1800,323 @@ body.sasu-reset-base {
     animation: none;
   }
 }
+
+/* ===== 영상 스와이프 전환 ===== */
+.sasu-player {
+  touch-action: pan-x;
+}
+@keyframes sasu-enter-below {
+  from { transform: translateY(34px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes sasu-enter-above {
+  from { transform: translateY(-34px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes sasu-exit-up {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-34px); opacity: 0; }
+}
+@keyframes sasu-exit-down {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(34px); opacity: 0; }
+}
+.sasu-feed__main.is-enter-below { animation: sasu-enter-below 0.22s ease-out; }
+.sasu-feed__main.is-enter-above { animation: sasu-enter-above 0.22s ease-out; }
+.sasu-feed__main.is-exit-up { animation: sasu-exit-up 0.16s ease-in forwards; }
+.sasu-feed__main.is-exit-down { animation: sasu-exit-down 0.16s ease-in forwards; }
+.sasu-swipehint {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--sasu-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sasu-feed__main.is-enter-below,
+  .sasu-feed__main.is-enter-above,
+  .sasu-feed__main.is-exit-up,
+  .sasu-feed__main.is-exit-down {
+    animation: none;
+  }
+}
+
+/* ===== 영상 안 오버레이(좋아요·저장·조회수·패널 토글) ===== */
+.sasu-player {
+  position: relative;
+}
+.sasu-ov-top {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 2;
+  pointer-events: none;
+}
+.sasu-ov-pill {
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+.sasu-ov-pill--done {
+  background: rgba(21, 128, 61, 0.85);
+}
+.sasu-ov {
+  position: absolute;
+  right: 10px;
+  bottom: 56px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.sasu-ov__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sasu-ov__btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.sasu-ov__btn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.8);
+}
+.sasu-ov__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sasu-ov__btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: fill 0.2s ease, transform 0.2s ease;
+}
+.sasu-ov__btn--like.is-on {
+  color: #f87171;
+}
+.sasu-ov__btn--save.is-on {
+  color: #93c5fd;
+}
+.sasu-ov__btn.is-on svg {
+  fill: currentColor;
+  animation: sasu-tick 0.22s ease;
+}
+.sasu-ov__count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.sasu-ov__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.sasu-feed__nav {
+  justify-content: center;
+}
+
+/* ===== 학습 패널 접기 ===== */
+.sasu-feed.is-lp-closed {
+  grid-template-columns: minmax(0, 360px);
+  justify-content: center;
+}
+.sasu-lp__head {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sasu-lp__fold {
+  flex: 0 0 auto;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  color: var(--sasu-sub);
+  border-radius: var(--sasu-radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sasu-lp__fold:hover {
+  background: var(--sasu-line-soft);
+}
+.sasu-lp__fold:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+}
+@media (max-width: 960px) {
+  .sasu-feed.is-lp-closed {
+    grid-template-columns: 1fr;
+  }
+}
+.sasu-lp[hidden] {
+  display: none;
+}
+/* ===== 영상 오버레이: 평소 흐리게, 마우스 올리면 또렷하게 ===== */
+.sasu-ov,
+.sasu-ov-top {
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+.sasu-player:hover .sasu-ov,
+.sasu-player:hover .sasu-ov-top,
+.sasu-player:focus-within .sasu-ov,
+.sasu-player:focus-within .sasu-ov-top {
+  opacity: 1;
+}
+/* 터치 기기는 마우스 올리기가 없으니 항상 또렷하게 */
+@media (hover: none) {
+  .sasu-ov,
+  .sasu-ov-top {
+    opacity: 1;
+  }
+}
+/* ① 한 줄 정리 — 강조 박스 */
+.sasu-lp__oneline {
+  background: var(--sasu-brand-soft);
+  border-left: 3px solid var(--sasu-brand);
+  border-radius: var(--sasu-radius-sm);
+  padding: 11px 13px;
+}
+.sasu-lp__oneline .sasu-lp__label {
+  color: var(--sasu-brand-ink);
+}
+.sasu-lp__oneline p {
+  margin: 5px 0 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--sasu-ink);
+}
+
+/* ② 핵심 정리 — 줄 간격 넓히고 글자는 검은색 */
+.sasu-lp__sec {
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+}
+.sasu-lp__body > .sasu-lp__sec:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.sasu-lp__core {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--sasu-ink);
+}
+
+/* ③ 관련 학습 — 카드 버튼 */
+.sasu-lp__related-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sasu-lp__related-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--sasu-ink);
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius-sm);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sasu-lp__related-list a:hover {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+.sasu-lp__related-list a:hover .sasu-lp__rel-ic {
+  background: #fff;
+}
+.sasu-lp__related-list a:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+}
+.sasu-lp__rel-ic {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+.sasu-lp__rel-t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sasu-lp__rel-go {
+  flex: 0 0 auto;
+  color: var(--sasu-muted);
+  font-size: 15px;
+}
+
+/* ④ 라벨 통일 — 한글에 의미 없는 대문자 변환 제거 */
+.sasu-lp__label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/* ⑤ 출처·검토일 — 2칸으로 정돈 */
+.sasu-lp__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.sasu-lp__foot-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sasu-lp__foot-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+}
+.sasu-lp__foot-value {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sasu-sub);
+  word-break: break-all;
+}
