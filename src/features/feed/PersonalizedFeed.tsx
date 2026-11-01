@@ -426,7 +426,7 @@ function FeedVideo({
         onWatchReport={onWatchReport}
         navigationTime={navigationTime}
         navigationPending={busy}
-        nextLabel={last ? '피드 마치기' : '다음 영상 →'}
+        nextLabel={last ? '피드 마치기' : '다음 ↓'}
       />
     </>
   )
