@@ -58,7 +58,7 @@ export function ContentViewer({
   onWatchReport,
   navigationTime,
   navigationPending = false,
-  nextLabel = '다음 영상 →',
+  nextLabel = '다음 ↓',
 }: ContentViewerProps) {
   const content = detail.content
   const queryClient = useQueryClient()
@@ -254,18 +254,24 @@ export function ContentViewer({
     <div className={`sasu-page sasu-feed ${panelOpen ? '' : 'is-lp-closed'}`}>
       <div className={`sasu-feed__main ${motion}`} ref={main}>
         <div className="sasu-feed__bar">
-          <Link className="sasu-link" to={backTo}>
-            {backLabel}
+          <Link className="sasu-backlink" to={backTo}>
+            ← {backLabel.replace(/^←\s*/, '')}
           </Link>
-          <span className="sasu-eyebrow">{context === 'FEED' ? '추천 피드' : '영상 학습'}</span>
+          <span className="sasu-ctxchip">
+            {context === 'FEED' ? '추천 피드' : '영상 학습'}
+            {recommendationLabel ? ` · ${recommendationLabel}` : ''}
+          </span>
         </div>
         <header className="sasu-feed__head">
           <h1 className="sasu-title">{content.title ?? '제목 없음'}</h1>
-          <p className="sasu-sub">
-            {content.category?.name ?? '미지정'} ·{' '}
-            {content.tags.map((tag) => `#${tag.name}`).join(' ')}
-          </p>
-          {recommendationLabel ? <p className="sasu-sub">{recommendationLabel}</p> : null}
+          <div className="sasu-metaline">
+            <span className="sasu-metaline__cat">{content.category?.name ?? '미지정'}</span>
+            {content.tags.map((tag) => (
+              <span className="sasu-metaline__tag" key={tag.name}>
+                #{tag.name}
+              </span>
+            ))}
+          </div>
         </header>
         <div className="sasu-feed__stage">
           <div
@@ -284,7 +290,7 @@ export function ContentViewer({
               style={{
                 display: 'block',
                 width: '100%',
-                maxHeight: 500,
+                maxHeight: 'min(640px, 70vh)',
                 aspectRatio: '9 / 16',
                 background: '#0f172a',
                 borderRadius: 14,
@@ -403,7 +409,7 @@ export function ContentViewer({
               disabled={!onPrevious || navigating || navigationPending}
               onClick={() => void move('previous')}
             >
-              이전 영상
+              ↑ 이전
             </Button>
             <Button loading={navigating || navigationPending} onClick={() => void move('next')}>
               {nextLabel}
@@ -413,12 +419,12 @@ export function ContentViewer({
           <div className="sasu-row sasu-feed__nav">
             {prevTo ? (
               <Link className="sasu-link" to={prevTo} state={nextState}>
-                ↑ 이전 영상
+                ↑ 이전
               </Link>
             ) : null}
             {nextTo ? (
               <Link className="sasu-link" to={nextTo} state={nextState}>
-                다음 영상 ↓
+                다음 ↓
               </Link>
             ) : null}
           </div>
