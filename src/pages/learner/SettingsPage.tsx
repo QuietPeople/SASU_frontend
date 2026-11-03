@@ -1,12 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
 import { useToast } from '../../shared/useToast'
+
+import { clearView, readView, writeView } from '../../features/learner-navigation/state'
+import '../../features/learner-navigation/learner-uiux.css'
 
 const MIN_INTERVAL = 1
 const MAX_INTERVAL = 20
@@ -25,7 +29,7 @@ export function SettingsPage() {
       <div className="sasu-page">
         <StateBlock
           title="설정을 불러오지 못했어요."
-          text={(session.error ?? categories.error)?.message}
+          error={session.error ?? categories.error}
           action={
             <Button
               onClick={() => {
@@ -47,7 +51,7 @@ export function SettingsPage() {
     )
   return (
     <SettingsForm
-      key={`${session.learnerId}:${session.generation}`}
+      key={`${session.actorId}:${session.learnerId}:${session.generation}`}
       initial={session.settings}
       categories={categories.data?.items ?? []}
     />
@@ -61,13 +65,43 @@ function SettingsForm({
   initial: LearnerSettings
   categories: Category[]
 }) {
-  const { actorId, learnerId } = useSession()
+  const { actorId, learnerId, generation } = useSession()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { show, node } = useToast()
-  const [interests, setInterests] = useState(initial.interest_category_ids)
-  const [interval, setInterval] = useState(String(initial.review_interval))
+  const draftKey = `${actorId}:${learnerId}:${generation}:settings-draft`
+  const [draft] = useState(() => {
+    const saved = readView<{ interests: number[]; interval: string }>(draftKey)
+    return saved &&
+      Array.isArray(saved.interests) &&
+      saved.interests.every((id) => Number.isSafeInteger(id) && id > 0) &&
+      typeof saved.interval === 'string'
+      ? saved
+      : undefined
+  })
+  const [interests, setInterests] = useState(draft?.interests ?? initial.interest_category_ids)
+  const [interval, setInterval] = useState(draft?.interval ?? String(initial.review_interval))
+  const [baseline, setBaseline] = useState({
+    interests: initial.interest_category_ids,
+    interval: String(initial.review_interval),
+  })
+  const dirty =
+    [...interests].sort((a, b) => a - b).join(',') !==
+      [...baseline.interests].sort((a, b) => a - b).join(',') || interval !== baseline.interval
+  useEffect(() => {
+    if (dirty) writeView(draftKey, { interests, interval })
+    else clearView(draftKey)
+  }, [dirty, draftKey, interests, interval])
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
   const savingRef = useRef(false)
   const [validationError, setValidationError] = useState('')
   const requestedBack = params.get('back')
@@ -103,6 +137,13 @@ function SettingsForm({
         learnerId,
         generation: settings.record_generation,
       })
+      clearView(draftKey)
+      setInterests(settings.interest_category_ids)
+      setInterval(String(settings.review_interval))
+      setBaseline({
+        interests: settings.interest_category_ids,
+        interval: String(settings.review_interval),
+      })
       show('설정을 저장했어요.')
       if (backTo) navigate(backTo)
     },
@@ -111,18 +152,13 @@ function SettingsForm({
     },
   })
   const saving = update.isPending
-  const error =
-    validationError ||
-    (update.isError
-      ? update.error instanceof Error
-        ? update.error.message
-        : '설정을 저장하지 못했어요. 다시 시도해 주세요.'
-      : '')
   const save = () => {
     if (savingRef.current || actorId === null || learnerId === null) return
     const value = Number(interval)
     if (!Number.isInteger(value) || value < MIN_INTERVAL || value > MAX_INTERVAL) {
-      setValidationError(`복기 간격은 ${MIN_INTERVAL}~${MAX_INTERVAL} 사이 정수로 입력해 주세요.`)
+      setValidationError(
+        `피드 복습 간격은 ${MIN_INTERVAL}~${MAX_INTERVAL} 사이 정수로 입력해 주세요.`,
+      )
       return
     }
     savingRef.current = true
@@ -134,8 +170,14 @@ function SettingsForm({
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 설정</p>
         <h1 className="sasu-title">설정</h1>
-        <p className="sasu-sub">추천과 복기 방식을 내 학습 습관에 맞게 바꿔요.</p>
+        <p className="sasu-sub">추천과 피드 복습 방식을 내 학습 습관에 맞게 바꿔요.</p>
       </header>
+      {dirty ? (
+        <p className="sasu-draft-notice" role="status">
+          아직 저장하지 않은 변경사항이 있어요. 같은 브라우저 탭에서 다른 메뉴에 다녀와도 입력을
+          복원해요. 추천에 적용하려면 저장해 주세요.
+        </p>
+      ) : null}
       <section className="sasu-card">
         <h2 className="sasu-card__title">관심 분야</h2>
         <p className="sasu-sub">관심 있는 분야를 여러 개 고를 수 있어요.</p>
@@ -163,7 +205,7 @@ function SettingsForm({
         )}
       </section>
       <section className="sasu-card">
-        <h2 className="sasu-card__title">복기 간격</h2>
+        <h2 className="sasu-card__title">피드 복습 간격</h2>
         <label className="sasu-field sasu-field--inline">
           <span>시청 완료 영상</span>
           <input
@@ -179,19 +221,33 @@ function SettingsForm({
           <span>개마다</span>
         </label>
         <p id="interval-hint" className="sasu-help">
+          {Number.isInteger(Number(interval)) &&
+          Number(interval) >= MIN_INTERVAL &&
+          Number(interval) <= MAX_INTERVAL
+            ? `영상 ${Number(interval)}개를 시청 완료하면 복습 문항을 제안해요. 복습할 문항이 없으면 영상 시청을 계속해요. `
+            : ''}
           1~20개 중 선택할 수 있어요. 저장한 간격은 다음 이용에도 유지돼요.
         </p>
-        {error ? (
+        {validationError ? (
           <p className="sasu-field-error" role="alert">
-            {error}
+            {validationError}
           </p>
+        ) : null}
+        {update.isError && !validationError ? (
+          <StateBlock title="설정을 저장하지 못했어요." error={update.error} />
         ) : null}
       </section>
       <div className="sasu-row">
         <Button variant="primary" onClick={() => void save()} loading={saving}>
           저장
         </Button>
-        <Button onClick={() => navigate(backTo || '/learner/feed')} disabled={saving}>
+        <Button
+          onClick={() => {
+            clearView(draftKey)
+            navigate(backTo || '/learner/feed')
+          }}
+          disabled={saving}
+        >
           취소
         </Button>
       </div>

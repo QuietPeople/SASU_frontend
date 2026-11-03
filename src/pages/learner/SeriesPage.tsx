@@ -3,7 +3,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api, queryString, type ApiPage } from '../../api/client'
 import { pageNumber, type CurriculumDetail, type CurriculumSummary } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Badge, Button, StateBlock } from '../../shared/ui'
+import { Badge, Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { useListMemory } from '../../features/learner-navigation/useListMemory'
+import '../../features/learner-navigation/learner-uiux.css'
 
 export function SeriesPage() {
   const { actorId, learnerId, generation, isPending, error } = useSession()
@@ -32,7 +35,28 @@ export function SeriesPage() {
       ),
     enabled: enabled && validId,
   })
+  const memory = useListMemory(
+    `${actorId}:${learnerId}:${generation}`,
+    'series',
+    `${id ?? ''}:${params}`,
+    list.isSuccess && detail.isSuccess,
+  )
   const selected = detail.data
+  const resumeStep =
+    selected?.steps.find((step) => step.available && !step.completed) ??
+    selected?.steps.find((step) => step.available)
+  const openStep = (contentId: number) => {
+    if (!selected) return
+    memory.remember(selected.summary.curriculum_id)
+    navigate(`/learner/watch/${contentId}`, {
+      state: {
+        context: 'CURRICULUM',
+        curriculumId: selected.summary.curriculum_id,
+        returnTo: `/learner/series/${selected.summary.curriculum_id}?${params}`,
+        contentIds: selected.steps.filter((step) => step.available).map((step) => step.content_id),
+      },
+    })
+  }
   const goPage = (next: number) => {
     const query = new URLSearchParams(params)
     query.set('page', String(next))
@@ -48,7 +72,7 @@ export function SeriesPage() {
       {isPending ? (
         <StateBlock title="사용자를 불러오는 중이에요." />
       ) : error ? (
-        <StateBlock title="사용자 정보를 불러오지 못했어요." text={error.message} />
+        <StateBlock title="사용자 정보를 불러오지 못했어요." error={error} />
       ) : !enabled ? (
         <StateBlock title="학습자를 선택해 주세요." />
       ) : list.isPending ? (
@@ -56,23 +80,33 @@ export function SeriesPage() {
       ) : list.error ? (
         <StateBlock
           title="시리즈를 불러오지 못했어요."
-          text={list.error.message}
+          error={list.error}
           action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
         />
       ) : (
         <>
-          <div className="sasu-chips">
+          <ul className="sasu-series-list" aria-label="학습 시리즈 목록">
             {list.data?.items.map((series) => (
-              <button
-                key={series.curriculum_id}
-                type="button"
-                className={`sasu-chip sasu-chip--pick ${selectedId === series.curriculum_id ? 'is-on' : ''}`}
-                onClick={() => navigate(`/learner/series/${series.curriculum_id}?${params}`)}
-              >
-                {series.title} {series.completed_steps ?? '—'}/{series.total_steps}
-              </button>
+              <li key={series.curriculum_id}>
+                <button
+                  data-list-item={series.curriculum_id}
+                  type="button"
+                  className={`sasu-series-choice ${selectedId === series.curriculum_id ? 'is-on' : ''}`}
+                  aria-pressed={selectedId === series.curriculum_id}
+                  onClick={() => navigate(`/learner/series/${series.curriculum_id}?${params}`)}
+                >
+                  <strong>{series.title}</strong>
+                  <p className="sasu-sub">
+                    {series.description || '이 시리즈의 영상을 함께 학습해 보세요.'}
+                  </p>
+                  <span>
+                    영상 {series.total_steps}개 · 완료 {series.completed_steps ?? '—'}개 · 진행률{' '}
+                    {series.progress_percent ?? 0}%
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
           {list.data && (page > 1 || list.data.has_next) ? (
             <div className="sasu-row" aria-label="시리즈 페이지">
               <Button disabled={page === 1 || list.isFetching} onClick={() => goPage(page - 1)}>
@@ -104,7 +138,7 @@ export function SeriesPage() {
           ) : detail.error ? (
             <StateBlock
               title="단계를 불러오지 못했어요."
-              text={detail.error.message}
+              error={detail.error}
               action={<Button onClick={() => void detail.refetch()}>다시 시도</Button>}
             />
           ) : selected ? (
@@ -121,7 +155,18 @@ export function SeriesPage() {
               <div className="sasu-progress" aria-hidden="true">
                 <span style={{ width: `${selected.summary.progress_percent ?? 0}%` }} />
               </div>
-              <p className="sasu-help">이용 가능한 단계는 순서와 관계없이 선택할 수 있어요.</p>
+              <div className="sasu-row">
+                <p className="sasu-help">
+                  {resumeStep && !resumeStep.completed
+                    ? `다음 미완료 단계: ${resumeStep.step_order}. ${resumeStep.content?.title ?? ''}`
+                    : '이용 가능한 단계는 순서와 관계없이 선택할 수 있어요.'}
+                </p>
+                {resumeStep ? (
+                  <Button variant="primary" onClick={() => openStep(resumeStep.content_id)}>
+                    {resumeStep.completed ? '다시 학습하기' : '이어서 학습하기'}
+                  </Button>
+                ) : null}
+              </div>
               {selected.steps.length === 0 ? (
                 <StateBlock title="등록된 단계가 없어요." />
               ) : (
@@ -140,10 +185,11 @@ export function SeriesPage() {
                       <tr key={step.curriculum_content_id}>
                         <td>
                           <strong>{step.step_order}.</strong>{' '}
-                          {step.content?.title ?? '이용할 수 없는 콘텐츠'}
+                          {step.content?.title ?? '이용할 수 없는 영상'}
                           <span className="sasu-table__sub">{step.content?.category?.name}</span>
                         </td>
                         <td>
+                          <span className="sasu-series-step__mobile-label">시청</span>
                           {step.watch_completed === null
                             ? '—'
                             : step.watch_completed
@@ -151,6 +197,7 @@ export function SeriesPage() {
                               : '— 미완료'}
                         </td>
                         <td>
+                          <span className="sasu-series-step__mobile-label">퀴즈</span>
                           {!step.content?.has_quiz
                             ? '퀴즈 없음'
                             : step.question_correct === null
@@ -160,6 +207,7 @@ export function SeriesPage() {
                                 : '— 미충족'}
                         </td>
                         <td>
+                          <span className="sasu-series-step__mobile-label">단계 상태</span>
                           <Badge tone={step.completed ? 'green' : 'neutral'}>
                             {!step.available
                               ? '이용 불가'
@@ -175,18 +223,7 @@ export function SeriesPage() {
                             size="sm"
                             variant="primary"
                             disabled={!step.available}
-                            onClick={() =>
-                              navigate(`/learner/watch/${step.content_id}`, {
-                                state: {
-                                  context: 'CURRICULUM',
-                                  curriculumId: selected.summary.curriculum_id,
-                                  returnTo: `/learner/series/${selected.summary.curriculum_id}?${params}`,
-                                  contentIds: selected.steps
-                                    .filter((item) => item.available)
-                                    .map((item) => item.content_id),
-                                },
-                              })
-                            }
+                            onClick={() => openStep(step.content_id)}
                           >
                             보기
                           </Button>
