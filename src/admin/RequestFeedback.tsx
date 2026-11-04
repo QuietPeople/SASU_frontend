@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { ApiError } from '../api/client'
 import { Icon } from './Icon'
+import { learnerErrorMessage } from '../features/learner-navigation/state'
 import './request-feedback.css'
 
 const FeedbackContext = createContext<{
@@ -92,9 +93,21 @@ export function RequestError({
           </p>
         )}
         {fields && <pre className="admin-request-error__fields">{fields}</pre>}
-        {action && <div className="admin-request-error__action">{action}</div>}
       </div>
     </details>
   )
-  return context?.host ? createPortal(details, context.host) : context ? null : details
+  return (
+    <>
+      <div className="admin-request-summary" role="alert">
+        <strong>{title}</strong>
+        <p>
+          {learnerErrorMessage(
+            error ?? new Error(text ?? '입력 내용을 확인하거나 잠시 후 다시 시도해 주세요.'),
+          )}
+        </p>
+        {action && <div className="admin-request-error__action">{action}</div>}
+      </div>
+      {context?.host ? createPortal(details, context.host) : context ? null : details}
+    </>
+  )
 }

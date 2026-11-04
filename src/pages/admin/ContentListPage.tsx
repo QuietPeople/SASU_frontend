@@ -4,11 +4,13 @@ import { RequestError } from '../../admin/RequestFeedback'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { type ApiPage, queryString } from '../../api/client'
-import { type AdminContent, useAdminQuery } from '../../api/admin'
+import { type AdminContent, type AdminCategory, useAdminQuery } from '../../api/admin'
 import { Badge, Button, Spinner, StateBlock } from '../../admin/ui'
 import { Icon, type IconName } from '../../admin/Icon'
 import { pageNumbers } from '../../admin/pagination'
 import '../../admin/content-list.css'
+import { useAdminView } from '../../admin/useAdminView'
+import { adminFilters, adminPage, adminStatus, adminId } from '../../admin/navigation'
 
 function ContentActions({
   content,
@@ -40,27 +42,37 @@ const PAGE_SIZE = 10
 
 export function ContentListPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('ALL')
-  const [page, setPage] = useState(1)
+  const [params, setParams] = useAdminView('contents')
+  const query = params.get('q') ?? '',
+    status = adminStatus(params.get('status')),
+    page = adminPage(params.get('page'))
+  const category = adminId(params.get('category_id'))
+  const update = (values: Record<string, string>) => setParams(adminFilters(params, values), true)
+  const setQuery = (value: string) => update({ q: value })
+  const setStatus = (value: string) => update({ status: value })
+  const setPage = (value: number) => update({ page: String(value) })
+  const categories = useAdminQuery<{ items: AdminCategory[] }>('/categories')
   const [panel, setPanel] = useState<{ content: AdminContent; view: ContentSubviewKind } | null>(
     null,
   )
   const openPanel = (content: AdminContent, view: ContentSubviewKind) => setPanel({ content, view })
   const list = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: query.trim() || undefined, status, page, size: PAGE_SIZE })}`,
+    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status, page, size: PAGE_SIZE })}`,
   )
-  const all = useAdminQuery<ApiPage<AdminContent>>('/contents?status=ALL&size=1')
-  const published = useAdminQuery<ApiPage<AdminContent>>('/contents?status=PUBLISHED&size=1')
-  const drafts = useAdminQuery<ApiPage<AdminContent>>('/contents?status=DRAFT&size=1')
+  const all = useAdminQuery<ApiPage<AdminContent>>(
+    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'ALL', size: 1 })}`,
+  )
+  const published = useAdminQuery<ApiPage<AdminContent>>(
+    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'PUBLISHED', size: 1 })}`,
+  )
+  const drafts = useAdminQuery<ApiPage<AdminContent>>(
+    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'DRAFT', size: 1 })}`,
+  )
   const reset = () => {
-    setQuery('')
-    setStatus('ALL')
-    setPage(1)
+    setParams(new URLSearchParams())
   }
   const selectStatus = (next: string) => {
     setStatus(next)
-    setPage(1)
   }
   const summaries: {
     value: string
@@ -153,28 +165,26 @@ export function ContentListPage() {
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value)
-                  setPage(1)
                 }}
                 placeholder="제목, 태그, 핵심 내용 검색"
               />
             </div>
-            <div className="admin-cl__filter">
-              <label htmlFor="admin-content-status">상태</label>
-              <div className="admin-cl__select">
-                <select
-                  id="admin-content-status"
-                  value={status}
-                  onChange={(event) => selectStatus(event.target.value)}
-                >
-                  <option value="ALL">전체</option>
-                  <option value="PUBLISHED">공개</option>
-                  <option value="DRAFT">임시저장</option>
-                </select>
-                <span className="admin-cl__filter-chevron">
-                  <Icon name="chevronDown" size={16} />
-                </span>
-              </div>
-            </div>
+            <label className="admin-content-filter">
+              <span>분야</span>
+              <select
+                className="admin-input"
+                aria-label="콘텐츠 분야"
+                value={category ?? ''}
+                onChange={(event) => update({ category_id: event.target.value })}
+              >
+                <option value="">전체 분야</option>
+                {categories.data?.items.map((item) => (
+                  <option key={item.category_id} value={item.category_id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button className="admin-cl__search-submit" type="submit">
               검색
             </button>
@@ -190,7 +200,7 @@ export function ContentListPage() {
               )}{' '}
               <span>{list.data?.total?.toLocaleString() ?? '—'}</span>
             </p>
-            {query || status !== 'ALL' ? (
+            {query || status !== 'ALL' || category ? (
               <button type="button" onClick={reset}>
                 <Icon name="reset" size={14} /> 조건 초기화
               </button>

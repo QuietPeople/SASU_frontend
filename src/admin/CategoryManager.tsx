@@ -337,13 +337,46 @@ export function CategoryManager({
                         {contents.data && !contents.isError ? (
                           <>
                             <span>
-                              전체 <b>{usage.total}</b>
+                              <button
+                                type="button"
+                                disabled={busy || !!editor}
+                                aria-label={`${cat.name} 전체 콘텐츠 보기`}
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/contents?category_id=${cat.category_id}&status=ALL`,
+                                  )
+                                }
+                              >
+                                전체 <b>{usage.total}</b>
+                              </button>
                             </span>
                             <span className="is-published">
-                              공개 <b>{usage.published}</b>
+                              <button
+                                type="button"
+                                disabled={busy || !!editor}
+                                aria-label={`${cat.name} 공개 콘텐츠 보기`}
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/contents?category_id=${cat.category_id}&status=PUBLISHED`,
+                                  )
+                                }
+                              >
+                                공개 <b>{usage.published}</b>
+                              </button>
                             </span>
                             <span>
-                              임시저장 <b>{usage.draft}</b>
+                              <button
+                                type="button"
+                                disabled={busy || !!editor}
+                                aria-label={`${cat.name} 임시저장 콘텐츠 보기`}
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/contents?category_id=${cat.category_id}&status=DRAFT`,
+                                  )
+                                }
+                              >
+                                임시저장 <b>{usage.draft}</b>
+                              </button>
                             </span>
                           </>
                         ) : (

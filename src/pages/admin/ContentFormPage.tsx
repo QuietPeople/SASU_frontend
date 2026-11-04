@@ -1,6 +1,6 @@
 import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidateContentChange } from '../../api/queryInvalidation'
@@ -41,6 +41,8 @@ import {
 } from '../../admin/contentEditor'
 import { uploadVideo, type VideoUploadProgress } from '../../admin/uploadVideo'
 import '../../admin/content-editor.css'
+import { useContentDraft } from '../../admin/useContentDraft'
+import { Field, SectionHeading } from '../../admin/ContentFields'
 
 export function ContentFormPage({ embedded }: { embedded?: ContentSubview } = {}) {
   const { id: routeId } = useParams()
@@ -127,11 +129,19 @@ function ContentEditor({
   )
   const [saved, setSaved] = useState(seed.saved)
   const [file, setFile] = useState<File | null>(seed.file)
-  const [form, setForm] = useState(seed.form)
-  const [tags, setTags] = useState(seed.tags)
-  const [tagDraft, setTagDraft] = useState(seed.tagDraft)
-  const [tagSelection, setTagSelection] = useState<AdminTag | null>(seed.tagSelection ?? null)
-  const [baseline, setBaseline] = useState(seed.baseline)
+  const {
+    form,
+    setForm,
+    tags,
+    setTags,
+    tagDraft,
+    setTagDraft,
+    tagSelection,
+    setTagSelection,
+    baseline,
+    setBaseline,
+    dirty: textDirty,
+  } = useContentDraft(seed)
   const [stage, setStage] = useState<SaveStage | null>(null)
   const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null)
   const [error, setError] = useState('')
@@ -168,7 +178,7 @@ function ContentEditor({
   const selectedTagError = tags.map((tag) => tagInputError(tag)).find(Boolean)
   const tagError = (tagDraft ? tagInputError(pendingTag) : null) ?? selectedTagError
   const canAddTag = tagInputError(pendingTag) === null
-  const dirty = file !== null || !!tagDraft.trim() || contentSignature(form, tags) !== baseline
+  const dirty = file !== null || textDirty
   const missing = missingPublishFields(form, tags, !!file || !!saved?.detail.content.media_revision)
   const touch = (key: TextField | 'tags') => setTouched((current) => ({ ...current, [key]: true }))
   const fieldError = (key: TextField) =>
@@ -498,10 +508,29 @@ function ContentEditor({
           }
         />
       )}
+      {missing.length > 0 && (
+        <nav className="admin-editor__missing" aria-label="공개 준비 항목">
+          <strong>공개 준비</strong>
+          {missing.map((key) => (
+            <button
+              type="button"
+              key={key}
+              aria-label={`${publishFields.find((item) => item.key === key)!.label} 입력으로 이동`}
+              disabled={busy !== null}
+              onClick={() => {
+                setShowFieldErrors(true)
+                focusField(key)
+              }}
+            >
+              {publishFields.find((item) => item.key === key)!.label}
+            </button>
+          ))}
+        </nav>
+      )}
       <fieldset disabled={busy !== null} className="admin-editor__fieldset">
         <legend className="admin-sr">콘텐츠 작성</legend>
         <div className="admin-editor__grid">
-          <div className="admin-editor__column">
+          <div className="admin-editor__column admin-editor__column--basic">
             <section className="admin-editor__section">
               <SectionHeading
                 number="01"
@@ -673,46 +702,8 @@ function ContentEditor({
                 </Field>
               </div>
             </section>
-            <section className="admin-editor__section">
-              <SectionHeading
-                number="03"
-                title="추가 안내"
-                description="학습자가 참고할 주의 사항을 설정할 수 있어요."
-              />
-              <label className="admin-editor__check">
-                <input
-                  type="checkbox"
-                  checked={form.caution}
-                  onChange={(e) => set('caution', e.target.checked)}
-                />
-                주의 문구 표시
-              </label>
-              {form.caution && (
-                <Field
-                  label="주의 문구"
-                  id="content-caution"
-                  onBlur={() => touch('cautionText')}
-                  error={fieldError('cautionText')}
-                >
-                  <textarea
-                    id="content-caution"
-                    className="admin-input admin-input--area"
-                    rows={3}
-                    value={form.cautionText}
-                    onChange={(e) => set('cautionText', e.target.value)}
-                    aria-invalid={cautionInvalid}
-                    aria-describedby={cautionInvalid ? 'content-caution-error' : undefined}
-                  />
-                </Field>
-              )}
-              <p className="admin-help">
-                관련 시리즈:{' '}
-                {saved?.detail.related_curriculums.map((item) => item.title).join(', ') ||
-                  '연결된 시리즈 없음'}
-              </p>
-            </section>
           </div>
-          <div className="admin-editor__column">
+          <div className="admin-editor__column admin-editor__column--video">
             <section
               className={`admin-editor__section admin-editor__video-section${draggingFile ? ' admin-is-dragging' : ''}`}
               onDragEnter={(event) => {
@@ -927,6 +918,47 @@ function ContentEditor({
               )}
             </section>
           </div>
+          <div className="admin-editor__column admin-editor__column--caution">
+            {' '}
+            <section className="admin-editor__section">
+              <SectionHeading
+                number="03"
+                title="추가 안내"
+                description="학습자가 참고할 주의 사항을 설정할 수 있어요."
+              />
+              <label className="admin-editor__check">
+                <input
+                  type="checkbox"
+                  checked={form.caution}
+                  onChange={(e) => set('caution', e.target.checked)}
+                />
+                주의 문구 표시
+              </label>
+              {form.caution && (
+                <Field
+                  label="주의 문구"
+                  id="content-caution"
+                  onBlur={() => touch('cautionText')}
+                  error={fieldError('cautionText')}
+                >
+                  <textarea
+                    id="content-caution"
+                    className="admin-input admin-input--area"
+                    rows={3}
+                    value={form.cautionText}
+                    onChange={(e) => set('cautionText', e.target.value)}
+                    aria-invalid={cautionInvalid}
+                    aria-describedby={cautionInvalid ? 'content-caution-error' : undefined}
+                  />
+                </Field>
+              )}
+              <p className="admin-help">
+                관련 시리즈:{' '}
+                {saved?.detail.related_curriculums.map((item) => item.title).join(', ') ||
+                  '연결된 시리즈 없음'}
+              </p>
+            </section>
+          </div>
         </div>
       </fieldset>
       <div className="admin-editor__savebar">
@@ -1013,77 +1045,5 @@ function ContentEditor({
       )}
       {node}
     </div>
-  )
-}
-
-function SectionHeading({
-  number,
-  title,
-  description,
-  complete,
-}: {
-  number: string
-  title: string
-  description?: string
-  complete?: boolean
-}) {
-  return (
-    <header className="admin-editor__section-head">
-      <span>{number}</span>
-      <div>
-        <div className="admin-editor__label-row">
-          <h2>{title}</h2>
-          {complete !== undefined && <FieldStatus complete={complete} />}
-        </div>
-        {description && <p>{description}</p>}
-      </div>
-    </header>
-  )
-}
-function Field({
-  label,
-  id,
-  error,
-  complete,
-  onBlur,
-  children,
-}: {
-  label: string
-  id: string
-  error?: string
-  complete?: boolean
-  onBlur?: () => void
-  children: ReactNode
-}) {
-  return (
-    <div
-      className="admin-field"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) onBlur?.()
-      }}
-    >
-      <div className="admin-editor__label-row">
-        <label className="admin-field__label" htmlFor={id}>
-          {label}
-        </label>
-        {complete !== undefined && <FieldStatus complete={complete} />}
-      </div>
-      {children}
-      <p
-        id={`${id}-error`}
-        className="admin-field-error admin-editor__field-feedback"
-        aria-live="polite"
-      >
-        {error}
-      </p>
-    </div>
-  )
-}
-
-function FieldStatus({ complete }: { complete: boolean }) {
-  return (
-    <span className={`admin-editor__field-status${complete ? ' admin-is-complete' : ''}`}>
-      {complete ? '입력 완료' : '입력 필요'}
-    </span>
   )
 }

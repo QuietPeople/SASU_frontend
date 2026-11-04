@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidateCurriculumChange } from '../api/queryInvalidation'
-import { api } from '../api/client'
+import { api, queryString, type ApiPage } from '../api/client'
 import {
   adminError,
-  useAdminPages,
   useAdminQuery,
   type AdminContent,
+  type AdminCategory,
   type CurriculumDetail,
 } from '../api/admin'
 import { useSession } from '../state/session'
@@ -32,8 +32,17 @@ import {
 
 // 화면을 벗어나도 입력과 부분 저장된 ID를 유지한다. 새로고침 이후에는 서버 저장분만 남는다.
 const drafts = new Map<string, SeriesSession>()
+const rememberedCandidates = new Map<string, Map<number, AdminContent>>()
 
-export function SeriesDialog({ id, onClose }: { id: number | 'new'; onClose: () => void }) {
+export function SeriesDialog({
+  id,
+  onClose,
+  onSavedId,
+}: {
+  id: number | 'new'
+  onClose: () => void
+  onSavedId?: (id: number) => void
+}) {
   const { actorId } = useSession()
   const ref = useRef<HTMLDialogElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
@@ -41,12 +50,11 @@ export function SeriesDialog({ id, onClose }: { id: number | 'new'; onClose: () 
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
-  const candidates = useAdminPages<AdminContent>('/contents?status=ALL')
   const detail = useAdminQuery<CurriculumDetail>(
     id === 'new' ? null : `/curriculums/${id}?view=editor`,
   )
-  const ready = candidates.data !== undefined && (id === 'new' || detail.data !== undefined)
-  const error = candidates.error ?? (id === 'new' ? null : detail.error)
+  const ready = id === 'new' || detail.data !== undefined
+  const error = id === 'new' ? null : detail.error
   const requestClose = () => {
     if (busy) return
     if (dirty) setConfirmClose(true)
@@ -136,7 +144,6 @@ export function SeriesDialog({ id, onClose }: { id: number | 'new'; onClose: () 
             action={
               <Button
                 onClick={() => {
-                  void candidates.refetch()
                   if (id !== 'new') void detail.refetch()
                 }}
               >
@@ -150,7 +157,7 @@ export function SeriesDialog({ id, onClose }: { id: number | 'new'; onClose: () 
             key={`${actorId}:${id}`}
             draftKey={`${actorId}:${id}`}
             initial={id === 'new' ? undefined : detail.data}
-            candidates={candidates.data!}
+            onSavedId={onSavedId}
             onDirtyChange={setDirty}
             onBusyChange={setBusy}
             onClose={requestClose}
@@ -171,7 +178,7 @@ export function SeriesDialog({ id, onClose }: { id: number | 'new'; onClose: () 
 function SeriesEditor({
   draftKey,
   initial,
-  candidates,
+  onSavedId,
   onDirtyChange,
   onBusyChange,
   onClose,
@@ -179,13 +186,13 @@ function SeriesEditor({
 }: {
   draftKey: string
   initial?: CurriculumDetail
-  candidates: AdminContent[]
+  onSavedId?: (id: number) => void
   onDirtyChange: (dirty: boolean) => void
   onBusyChange: (busy: boolean) => void
   onClose: () => void
   onLeave: () => void
 }) {
-  const { actorId } = useSession()
+  const { actorId, generation } = useSession()
   const cache = useQueryClient()
   const navigate = useNavigate()
   const { show, node } = useToast()
@@ -250,7 +257,23 @@ function SeriesEditor({
     writeDraft(next)
     setSession(next)
   }
-  const byId = new Map(candidates.map((content) => [content.content_id, content]))
+  const candidateScope = `${actorId}:${generation}`
+  const list = useAdminQuery<ApiPage<AdminContent>>(
+    `/contents${queryString({ q: search.trim() || undefined, status, category_id: categoryId || undefined, page, size: 10 })}`,
+  )
+  const categoryList = useAdminQuery<{ items: AdminCategory[] }>('/categories')
+  useEffect(() => {
+    if (!list.data) return
+    const next = new Map(rememberedCandidates.get(candidateScope))
+    for (const content of list.data.items) next.set(content.content_id, content)
+    rememberedCandidates.set(candidateScope, next)
+  }, [candidateScope, list.data])
+  useEffect(() => {
+    if (!busy && savedId !== null) onSavedId?.(savedId)
+  }, [busy, savedId, onSavedId])
+  const candidates = list.data?.items ?? []
+  const byId = new Map(rememberedCandidates.get(candidateScope))
+  for (const content of candidates) byId.set(content.content_id, content)
   for (const step of initial?.steps ?? [])
     if (step.content && !byId.has(step.content_id)) byId.set(step.content_id, step.content)
   const availability = new Map(initial?.steps.map((step) => [step.content_id, step.available]))
@@ -260,27 +283,10 @@ function SeriesEditor({
     const content = byId.get(id)
     return content?.status === 'PUBLISHED' && content.video_url && availability.get(id) !== false
   }).length
-  const categories = [
-    ...new Map(
-      candidates.flatMap((content) =>
-        content.category ? [[content.category.category_id, content.category] as const] : [],
-      ),
-    ).values(),
-  ]
-  const filtered = candidates.filter(
-    (content) =>
-      (status === 'ALL' || status === content.status) &&
-      (categoryId
-        ? String(content.category?.category_id) === categoryId
-        : (content.category?.name ?? '')
-            .toLocaleLowerCase()
-            .includes(category.trim().toLocaleLowerCase())) &&
-      `${content.title ?? ''} ${content.content_id}`
-        .toLocaleLowerCase()
-        .includes(search.trim().toLocaleLowerCase()),
-  )
-  const pages = Math.max(1, Math.ceil(filtered.length / 10))
-  const currentPage = Math.min(page, pages)
+  const categories = categoryList.data?.items ?? []
+  const filtered = candidates
+  const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 10))
+  const currentPage = page
   const label = (id: number) => byId.get(id)?.title || `제목 없음 #${id}`
   const add = (id: number) => {
     update({ order: addSeriesStep(fields.order, id) })
@@ -390,7 +396,7 @@ function SeriesEditor({
             >
               <header className="admin-series__panel-head">
                 <h3>
-                  콘텐츠 선택 <span>{filtered.length}</span>
+                  콘텐츠 선택 <span>{list.data?.total ?? '—'}</span>
                 </h3>
               </header>
               <div className="admin-series__filters">
@@ -399,7 +405,7 @@ function SeriesEditor({
                   <input
                     type="search"
                     aria-label="추가할 콘텐츠 검색"
-                    placeholder="제목 또는 콘텐츠 번호 검색"
+                    placeholder="제목·태그·핵심 내용 검색"
                     value={search}
                     onChange={(event) => {
                       setSearch(event.target.value)
@@ -425,7 +431,6 @@ function SeriesEditor({
                     ]}
                     onChange={(value) => {
                       setCategory(value)
-                      setCategoryId(null)
                       setPage(1)
                     }}
                     onSelect={(option) => {
@@ -449,8 +454,23 @@ function SeriesEditor({
                   }}
                 />
               </div>
+              {list.isPending && <Spinner />}
+              {list.isError && (
+                <RequestError
+                  title="콘텐츠 후보를 불러오지 못했어요."
+                  error={list.error}
+                  action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
+                />
+              )}
+              {categoryList.isError && (
+                <RequestError
+                  title="후보 분야를 불러오지 못했어요."
+                  error={categoryList.error}
+                  action={<Button onClick={() => void categoryList.refetch()}>다시 시도</Button>}
+                />
+              )}
               <ul className="admin-series__candidate-list">
-                {filtered.slice((currentPage - 1) * 10, currentPage * 10).map((content) => {
+                {filtered.map((content) => {
                   const added = fields.order.includes(content.content_id)
                   return (
                     <li key={content.content_id} className={added ? 'is-added' : ''}>
@@ -478,7 +498,7 @@ function SeriesEditor({
                   )
                 })}
               </ul>
-              {!filtered.length && (
+              {!list.isPending && !list.isError && !filtered.length && (
                 <div className="admin-series__empty">
                   <Icon name="search" size={25} />
                   <strong>
@@ -510,7 +530,7 @@ function SeriesEditor({
                   <button
                     type="button"
                     aria-label="이전 후보 페이지"
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || list.isFetching}
                     onClick={() => setPage(currentPage - 1)}
                   >
                     <Icon name="chevronLeft" size={17} />
@@ -521,7 +541,7 @@ function SeriesEditor({
                   <button
                     type="button"
                     aria-label="다음 후보 페이지"
-                    disabled={currentPage === pages}
+                    disabled={!list.data?.has_next || list.isFetching}
                     onClick={() => setPage(currentPage + 1)}
                   >
                     <Icon name="chevronRight" size={17} />
