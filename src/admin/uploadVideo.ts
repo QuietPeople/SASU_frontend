@@ -1,6 +1,9 @@
 import { ApiError, GENERATION_MISMATCH_EVENT } from '../api/client.ts'
 import type { UploadedVideo } from '../api/admin.ts'
 
+export const VIDEO_UPLOAD_TIMEOUT_MS = 10 * 60 * 1000
+export const VIDEO_RESPONSE_TIMEOUT_MS = 3 * 60 * 1000
+
 export interface VideoUploadProgress {
   phase: 'uploading' | 'processing'
   loaded: number
@@ -14,14 +17,24 @@ export function uploadVideo({
   file,
   expectedMediaRevision,
   onProgress,
+  signal,
+  timeoutMs = VIDEO_UPLOAD_TIMEOUT_MS,
+  responseTimeoutMs = VIDEO_RESPONSE_TIMEOUT_MS,
 }: {
   contentId: number
   actorId: number
   file: File
   expectedMediaRevision?: string | null
   onProgress: (progress: VideoUploadProgress) => void
+  signal?: AbortSignal
+  timeoutMs?: number
+  responseTimeoutMs?: number
 }): Promise<UploadedVideo> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('영상 업로드 요청을 중단했습니다.', 'AbortError'))
+      return
+    }
     const request = new XMLHttpRequest()
     const body = new FormData()
     body.append('file', file)
@@ -33,12 +46,23 @@ export function uploadVideo({
       percent: null,
     }
     let settled = false
+    let responseTimer: ReturnType<typeof setTimeout> | undefined
+    const abort = () => {
+      fail(new DOMException('영상 업로드 요청을 중단했습니다.', 'AbortError'))
+      request.abort()
+    }
+    const cleanup = () => {
+      clearTimeout(responseTimer)
+      signal?.removeEventListener('abort', abort)
+    }
     const fail = (error: unknown) => {
       if (settled) return
       settled = true
+      cleanup()
       reject(error)
     }
     request.open('PUT', `/api/contents/${contentId}/video`)
+    request.timeout = timeoutMs
     request.setRequestHeader('Accept', 'application/json')
     request.setRequestHeader('X-Actor-Id', String(actorId))
     // multipart 경계는 브라우저가 설정하며, upload 완료와 응답 완료는 구분한다.
@@ -55,7 +79,7 @@ export function uploadVideo({
       onProgress(progress)
     }
     request.upload.onload = () => {
-      if (settled) return
+      if (settled || progress.phase === 'processing') return
       progress = {
         ...progress,
         phase: 'processing',
@@ -63,6 +87,11 @@ export function uploadVideo({
         percent: 100,
       }
       onProgress(progress)
+      if (settled) return
+      responseTimer = setTimeout(() => {
+        fail(new ApiError(0, 'UPLOAD_TIMEOUT', '영상 처리 응답 대기 시간이 초과되었습니다.'))
+        request.abort()
+      }, responseTimeoutMs)
     }
     request.onload = () => {
       if (settled) return
@@ -97,6 +126,7 @@ export function uploadVideo({
         return
       }
       settled = true
+      cleanup()
       resolve(data as UploadedVideo)
     }
     request.onerror = () =>
@@ -106,7 +136,12 @@ export function uploadVideo({
     request.ontimeout = () =>
       fail(new ApiError(0, 'UPLOAD_TIMEOUT', '영상 업로드 응답 시간이 초과되었습니다.'))
     request.onabort = () => fail(new DOMException('영상 업로드가 취소되었습니다.', 'AbortError'))
+    signal?.addEventListener('abort', abort, { once: true })
     onProgress(progress)
-    request.send(body)
+    try {
+      if (!settled) request.send(body)
+    } catch (error) {
+      fail(error)
+    }
   })
 }

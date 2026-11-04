@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
-import { uploadVideo } from '../src/admin/uploadVideo.ts'
+import {
+  uploadVideo,
+  VIDEO_UPLOAD_TIMEOUT_MS,
+  VIDEO_RESPONSE_TIMEOUT_MS,
+} from '../src/admin/uploadVideo.ts'
 import { ApiError } from '../src/api/client.ts'
 
 const originalXHR = globalThis.XMLHttpRequest
@@ -22,6 +26,10 @@ class FakeXHR {
   }
   send(body) {
     this.body = body
+  }
+  abort() {
+    this.aborted = true
+    this.onabort?.()
   }
   progress(loaded, total, lengthComputable = true) {
     this.upload.onprogress({ loaded, total, lengthComputable })
@@ -148,4 +156,61 @@ test('프록시 HTML 오류와 빈 성공 응답을 영상 저장 성공으로 �
     request.respond(status, response)
     await assert.rejects(promise, { code: 'INVALID_RESPONSE', status })
   }
+})
+
+test('이미 취소된 요청은 파일을 보내지 않는다', async () => {
+  const controller = new AbortController()
+  controller.abort()
+  const { promise } = start({ signal: controller.signal })
+  await assert.rejects(promise, { name: 'AbortError' })
+  assert.equal(FakeXHR.instances.length, 0)
+})
+
+test('전송 완료 후 대기를 중단해도 늦은 성공 응답을 적용하지 않는다', async () => {
+  const controller = new AbortController()
+  const { promise, request, events } = start({ signal: controller.signal })
+  request.upload.onload()
+  controller.abort()
+  assert.equal(request.aborted, true)
+  request.respond(200, result)
+  request.progress(100, 100)
+  await assert.rejects(promise, { name: 'AbortError' })
+  assert.equal(events.length, 2)
+})
+
+test('전체 요청 제한과 별도로 파일 전송 이후의 응답 대기 제한을 적용한다', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { promise, request } = start()
+  assert.equal(request.timeout, VIDEO_UPLOAD_TIMEOUT_MS)
+  const rejection = assert.rejects(promise, { code: 'UPLOAD_TIMEOUT' })
+  t.mock.timers.tick(VIDEO_RESPONSE_TIMEOUT_MS)
+  assert.equal(request.aborted, undefined)
+  request.upload.onload()
+  t.mock.timers.tick(VIDEO_RESPONSE_TIMEOUT_MS - 1)
+  assert.equal(request.aborted, undefined)
+  t.mock.timers.tick(1)
+  await rejection
+  assert.equal(request.aborted, true)
+})
+
+test('완료된 요청은 타이머와 취소 신호를 해제한다', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const controller = new AbortController()
+  const { promise, request } = start({ signal: controller.signal })
+  request.upload.onload()
+  request.respond(200, result)
+  await promise
+  controller.abort()
+  t.mock.timers.tick(VIDEO_RESPONSE_TIMEOUT_MS)
+  assert.equal(request.aborted, undefined)
+})
+
+test('초기 진행 콜백에서 취소해도 전송을 시작하지 않는다', async () => {
+  const controller = new AbortController()
+  const { promise, request } = start({
+    signal: controller.signal,
+    onProgress: () => controller.abort(),
+  })
+  await assert.rejects(promise, { name: 'AbortError' })
+  assert.equal(request.body, undefined)
 })
