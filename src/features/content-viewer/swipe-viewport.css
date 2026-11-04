@@ -1,0 +1,108 @@
+.content-viewer .swipe-viewport {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, var(--viewer-width));
+  aspect-ratio: 9 / 16;
+  border-radius: 24px;
+}
+.content-viewer:not(.feed-review) .swipe-viewport {
+  box-shadow: 0 16px 42px #1b284421;
+}
+.swipe-viewport__scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+  border-radius: inherit;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.swipe-viewport__scroll::-webkit-scrollbar {
+  display: none;
+}
+.swipe-viewport__scroll[data-dragging] {
+  cursor: grabbing;
+}
+.swipe-viewport__slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow: hidden;
+}
+.swipe-viewport__media {
+  position: absolute;
+  inset: 0;
+}
+.swipe-viewport__panel {
+  display: contents;
+}
+.swipe-viewport__extras:empty {
+  display: none;
+}
+.content-viewer .swipe-viewport .sasu-player {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  box-shadow: none;
+}
+.swipe-viewport__pending {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: #0f172a14;
+  animation: swipe-wait 120ms ease 180ms both;
+}
+@keyframes swipe-wait {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.content-viewer .swipe-preview__title {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 64px 24px 28px;
+  margin: 0;
+  background: linear-gradient(transparent, #000b);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.swipe-preview__end {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 32px;
+  text-align: center;
+  color: #e2e8f0;
+}
+.swipe-preview__end p {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .content-viewer .swipe-viewport {
+    border-radius: 18px;
+  }
+  .content-viewer .swipe-preview__title {
+    font-size: 17px;
+    padding: 56px 18px 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-viewport__pending {
+    animation: none;
+  }
+}

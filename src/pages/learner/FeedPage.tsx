@@ -8,9 +8,20 @@ import {
   type LearningIdentity,
   type WatchContext,
 } from '../../api/learning'
-import { queryString } from '../../api/client'
+import { api, queryString } from '../../api/client'
 import { PersonalizedFeed } from '../../features/feed/PersonalizedFeed'
 import { ContentViewer } from '../../features/content-viewer/ContentViewer'
+import { BufferedVideo } from '../../features/content-viewer/BufferedVideo'
+import { VideoLoading } from '../../features/content-viewer/VideoLoading'
+import { LEARNING_PRELOAD_STALE_MS } from '../../features/content-viewer/preloadPolicy'
+import { SwipeViewport } from '../../features/content-viewer/SwipeViewport'
+import { SwipeScene } from '../../features/content-viewer/SwipeScene'
+import { ScreenLoading } from '../../app/RouteContent'
+import {
+  createViewerSession,
+  type ViewerSession,
+} from '../../features/content-viewer/viewerSession'
+import type { CurriculumDetail } from '../../api/learner'
 import type { WatchNavigationState } from '../../features/content-viewer/types'
 import { useSession } from '../../state/session'
 import { Button, StateBlock } from '../../shared/ui'
@@ -30,12 +41,11 @@ function WatchPage() {
         : null,
     [actorId, learnerId, generation],
   )
-  if (isPending && !identity)
-    return (
-      <div className="sasu-page">
-        <StateBlock title="학습자 정보를 불러오는 중이에요." />
-      </div>
-    )
+  const playback = useMemo(
+    () => createViewerSession(`${actorId}:${learnerId}:${generation}`),
+    [actorId, learnerId, generation],
+  )
+  if (isPending && !identity) return <ScreenLoading label="학습자 정보 불러오는 중" />
   if (error && !identity)
     return (
       <div className="sasu-page">
@@ -71,25 +81,36 @@ function WatchPage() {
         </div>
       ) : null}
       <WatchContent
-        key={`${actorId}:${learnerId}:${generation}:${id}`}
+        key={`${actorId}:${learnerId}:${generation}`}
         identity={identity}
+        playback={playback}
         contentId={id}
       />
     </>
   )
 }
 
-function WatchContent({ identity, contentId }: { identity: LearningIdentity; contentId: number }) {
+function WatchContent({
+  identity,
+  contentId,
+  playback,
+}: {
+  identity: LearningIdentity
+  contentId: number
+  playback: ViewerSession
+}) {
   const [params] = useSearchParams()
   const location = useLocation()
   const detail = useQuery({
     queryKey: learningKey(identity, 'content', contentId),
     queryFn: ({ signal }) => getLearningContent(identity, contentId, signal),
+    staleTime: LEARNING_PRELOAD_STALE_MS,
     retry: false,
   })
   const question = useQuery({
     queryKey: learningKey(identity, 'question', contentId),
     queryFn: ({ signal }) => getLearningQuestion(identity, contentId, signal),
+    staleTime: LEARNING_PRELOAD_STALE_MS,
     retry: false,
   })
   const from = params.get('from')
@@ -106,6 +127,23 @@ function WatchContent({ identity, contentId }: { identity: LearningIdentity; con
           : 'SEARCH'
   const version = params.get('questionVersionId')
   const series = routeState?.curriculumId ?? Number(params.get('series'))
+  const curriculum = useQuery({
+    queryKey: [
+      'learner',
+      'curriculum',
+      identity.actorId,
+      identity.learnerId,
+      identity.generation,
+      series,
+    ],
+    queryFn: ({ signal }) =>
+      api<CurriculumDetail>(
+        `/curriculums/${series}${queryString({ view: 'learner', user_id: identity.learnerId })}`,
+        { actorId: identity.actorId, signal },
+      ),
+    enabled: context === 'CURRICULUM' && Number.isSafeInteger(series) && series > 0,
+    retry: false,
+  })
   const reviewQuery = queryString({
     questionVersionId: version,
     returnTo: params.get('returnTo'),
@@ -135,76 +173,138 @@ function WatchContent({ identity, contentId }: { identity: LearningIdentity; con
   const rawIds = Array.isArray(routeState?.contentIds)
     ? routeState.contentIds
     : (params.get('list') ?? '').split(',')
-  const ids = rawIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+  const ids =
+    context === 'CURRICULUM' && curriculum.data
+      ? [...curriculum.data.steps]
+          .sort((a, b) => a.step_order - b.step_order)
+          .filter((step) => step.available && step.content)
+          .map((step) => step.content_id)
+      : rawIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
   const nextState: WatchNavigationState = {
     ...routeState,
     context,
     returnTo: backTo,
     contentIds: ids,
+    curriculumId: context === 'CURRICULUM' ? series : undefined,
+  }
+  const videoPath = (id: number) => {
+    const query = new URLSearchParams(params)
+    if (context === 'CURRICULUM') {
+      query.set('from', 'series')
+      query.set('series', String(series))
+    }
+    return `/learner/watch/${id}?${query.toString()}`
   }
   const currentIndex = ids.indexOf(contentId)
   const nextId = currentIndex >= 0 ? ids[currentIndex + 1] : undefined
-  const nextTo = nextId ? `/learner/watch/${nextId}?${params.toString()}` : undefined
+  const nextTo = nextId ? videoPath(nextId) : undefined
   const prevId = currentIndex > 0 ? ids[currentIndex - 1] : undefined
-  const prevTo = prevId ? `/learner/watch/${prevId}?${params.toString()}` : undefined
-  if (detail.isPending)
-    return (
-      <div className="sasu-page">
-        <StateBlock title="영상을 불러오는 중이에요." />
-      </div>
-    )
-  if (detail.isError && !detail.data)
-    return (
-      <div className="sasu-page">
-        <StateBlock
-          title="영상을 불러오지 못했어요."
-          text={detail.error.message}
-          action={
-            <>
-              <Button onClick={() => void detail.refetch()}>다시 시도</Button>
-              <Link to={backTo}>{backLabel}</Link>
-            </>
+  const prevTo = prevId ? videoPath(prevId) : undefined
+  const renderCurrent = () => {
+    if (detail.isPending)
+      return (
+        <SwipeScene
+          panelPending
+          media={
+            <div className="sasu-player">
+              <VideoLoading />
+            </div>
           }
         />
-      </div>
+      )
+    if (detail.isError && !detail.data)
+      return (
+        <SwipeScene
+          media={
+            <div className="sasu-player swipe-preview__end">
+              <p>현재 영상을 불러올 수 없어요.</p>
+            </div>
+          }
+        >
+          <StateBlock
+            title="영상을 불러오지 못했어요."
+            text={detail.error.message}
+            action={
+              <>
+                <Button onClick={() => void detail.refetch()}>다시 시도</Button>
+                <Link to={backTo}>{backLabel}</Link>
+              </>
+            }
+          />
+        </SwipeScene>
+      )
+    if (
+      !detail.data.content.video_url ||
+      !detail.data.content.media_revision ||
+      !detail.data.content.video_duration
     )
-  if (
-    !detail.data.content.video_url ||
-    !detail.data.content.media_revision ||
-    !detail.data.content.video_duration
-  )
+      return (
+        <SwipeScene
+          media={
+            <div className="sasu-player swipe-preview__end">
+              <p>현재 영상을 불러올 수 없어요.</p>
+            </div>
+          }
+        >
+          <StateBlock
+            title="현재 재생할 수 없는 영상이에요."
+            action={<Link to={backTo}>{backLabel}</Link>}
+          />
+        </SwipeScene>
+      )
     return (
-      <div className="sasu-page">
-        <StateBlock
-          title="현재 재생할 수 없는 영상이에요."
-          action={<Link to={backTo}>{backLabel}</Link>}
+      <>
+        {detail.isError ? (
+          <div className="sasu-page" role="alert">
+            <p>영상 정보를 갱신하지 못했어요. {detail.error.message}</p>
+            <Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>
+          </div>
+        ) : null}
+        <ContentViewer
+          playback={playback}
+          series={
+            context === 'CURRICULUM' && series > 0
+              ? {
+                  data: curriculum.data,
+                  loading: curriculum.isPending,
+                  error: curriculum.error,
+                  retry: () => void curriculum.refetch(),
+                  path: videoPath,
+                }
+              : undefined
+          }
+          key={`${contentId}:${detail.data.content.media_revision}:${context}`}
+          identity={identity}
+          detail={detail.data}
+          question={question.data}
+          questionError={question.error}
+          retryQuestion={() => void question.refetch()}
+          context={context}
+          backTo={backTo}
+          backLabel={backLabel}
+          nextTo={nextTo}
+          prevTo={prevTo}
+          nextState={nextState}
+          listIndex={currentIndex >= 0 ? currentIndex + 1 : undefined}
+          listTotal={ids.length > 1 ? ids.length : undefined}
         />
-      </div>
+      </>
     )
+  }
+  const contentIds = ids.includes(contentId) ? [...new Set(ids)] : [contentId]
   return (
-    <>
-      {detail.isError ? (
-        <div className="sasu-page" role="alert">
-          <p>영상 정보를 갱신하지 못했어요. {detail.error.message}</p>
-          <Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>
-        </div>
-      ) : null}
-      <ContentViewer
-        key={`${contentId}:${detail.data.content.media_revision}:${context}`}
-        identity={identity}
-        detail={detail.data}
-        question={question.data}
-        questionError={question.error}
-        retryQuestion={() => void question.refetch()}
-        context={context}
-        backTo={backTo}
-        backLabel={backLabel}
-        nextTo={nextTo}
-        prevTo={prevTo}
-        nextState={nextState}
-        listIndex={currentIndex >= 0 ? currentIndex + 1 : undefined}
-        listTotal={ids.length > 1 ? ids.length : undefined}
-      />
-    </>
+    <SwipeViewport
+      activeKey={`video:${contentId}`}
+      items={contentIds.map((id) => ({
+        key: `video:${id}`,
+        renderVideo: (mediaHost, activeContent, active) => (
+          <BufferedVideo identity={identity} contentId={id} active={active} mediaHost={mediaHost}>
+            {activeContent}
+          </BufferedVideo>
+        ),
+      }))}
+    >
+      {renderCurrent()}
+    </SwipeViewport>
   )
 }
