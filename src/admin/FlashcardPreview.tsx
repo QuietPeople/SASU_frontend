@@ -8,13 +8,25 @@ export function FlashcardPreview({
   answer,
   isOX,
   style,
+  flipped: controlledFlipped,
+  onFlip,
+  disabled = false,
 }: {
   question: string
   answer: string
   isOX: boolean
   style: FlashcardStyle
+  flipped?: boolean
+  onFlip?: () => void
+  disabled?: boolean
 }) {
-  const [flipped, setFlipped] = useState(false)
+  const [localFlipped, setFlipped] = useState(false)
+  const flipped = controlledFlipped ?? localFlipped
+  const flip = () => {
+    if (disabled) return
+    if (onFlip) onFlip()
+    else setFlipped((old) => !old)
+  }
   const contentId = useId()
   return (
     <div
@@ -22,12 +34,13 @@ export function FlashcardPreview({
       role="button"
       tabIndex={0}
       aria-label={flipped ? '카드 앞면 보기' : '카드 뒷면 보기'}
+      aria-disabled={disabled || undefined}
       aria-describedby={`${contentId}-${flipped ? 'answer' : 'question'}`}
-      onClick={() => setFlipped((old) => !old)}
+      onClick={flip}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          if (!event.repeat) setFlipped((old) => !old)
+          if (!event.repeat) flip()
         }
       }}
     >
