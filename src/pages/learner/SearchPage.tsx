@@ -4,7 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { api, queryString, type ApiPage } from '../../api/client'
 import { categoryId, pageNumber, useCategories, type LearnerContent } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { useListMemory } from '../../features/learner-navigation/useListMemory'
+import '../../features/learner-navigation/learner-uiux.css'
 
 export function SearchPage() {
   const { actorId, learnerId, generation, isPending, error } = useSession()
@@ -22,8 +25,14 @@ export function SearchPage() {
         `/contents${queryString({ q, category_id: catId, status: 'PUBLISHED', user_id: learnerId, page, size: 20 })}`,
         { actorId, signal },
       ),
-    enabled: actorId !== null && learnerId !== null && Boolean(q),
+    enabled: actorId !== null && learnerId !== null && generation !== null && Boolean(q || catId),
   })
+  const memory = useListMemory(
+    `${actorId}:${learnerId}:${generation}`,
+    'search',
+    params.toString(),
+    results.isSuccess,
+  )
   const search = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -32,6 +41,7 @@ export function SearchPage() {
     const category = String(form.get('cat') ?? '')
     if (term) next.set('q', term)
     if (category) next.set('cat', category)
+    memory.reset()
     setParams(next)
   }
   const goPage = (next: number) => {
@@ -40,6 +50,7 @@ export function SearchPage() {
     setParams(query)
   }
   const reset = () => {
+    memory.reset()
     searchForm.current?.reset()
     setParams(new URLSearchParams())
   }
@@ -91,20 +102,20 @@ export function SearchPage() {
       {categories.error ? (
         <StateBlock
           title="분야를 불러오지 못했어요."
-          text={categories.error.message}
+          error={categories.error}
           action={<Button onClick={() => void categories.refetch()}>다시 시도</Button>}
         />
       ) : null}
       {isPending ? (
         <StateBlock title="사용자를 불러오는 중이에요." />
       ) : error ? (
-        <StateBlock title="사용자 정보를 불러오지 못했어요." text={error.message} />
+        <StateBlock title="사용자 정보를 불러오지 못했어요." error={error} />
       ) : learnerId === null ? (
         <StateBlock title="학습자를 선택해 주세요." />
-      ) : !q ? (
+      ) : !q && !catId ? (
         <StateBlock
-          title="검색어를 입력해 주세요."
-          text="제목 → 태그 → 핵심 정리 순으로 일치하는 공개 콘텐츠를 보여 줘요."
+          title="검색어를 입력하거나 분야를 선택해 주세요."
+          text="검색어가 없어도 분야를 선택하면 해당 분야의 공개 영상을 둘러볼 수 있어요."
           action={
             <>
               <Button
@@ -124,13 +135,14 @@ export function SearchPage() {
       ) : results.error ? (
         <StateBlock
           title="검색 결과를 불러오지 못했어요."
-          text={results.error.message}
+          error={results.error}
           action={<Button onClick={() => void results.refetch()}>다시 시도</Button>}
         />
       ) : (
         <>
           <p className="sasu-search__summary">
-            검색 결과 {results.data?.total ?? 0}개 · 제목 → 태그 → 핵심 정리 일치순
+            {q ? '검색 결과' : '분야별 영상'} {results.data?.total ?? 0}개 ·{' '}
+            {q ? '제목 → 태그 → 핵심 정리 일치순' : '최근 공개순'}
             {catId
               ? ` · ${categories.data?.items.find((cat) => cat.category_id === catId)?.name ?? '선택한 분야'}`
               : ''}
@@ -150,7 +162,9 @@ export function SearchPage() {
                   <button
                     type="button"
                     className="sasu-result-card"
-                    onClick={() =>
+                    data-list-item={content.content_id}
+                    onClick={() => {
+                      memory.remember(content.content_id)
                       navigate(`/learner/watch/${content.content_id}`, {
                         state: {
                           context: 'SEARCH',
@@ -158,7 +172,7 @@ export function SearchPage() {
                           contentIds: rows.map((row) => row.content_id),
                         },
                       })
-                    }
+                    }}
                   >
                     <span className="sasu-result-card__thumb" aria-hidden="true">
                       {content.tags[0]?.name ?? content.title?.slice(0, 2)}
@@ -229,12 +243,15 @@ function EmptySearchResult({
         action={<Button onClick={onReset}>조건 초기화</Button>}
       />
       {isError ? (
-        <p role="alert">
-          {error.message}{' '}
-          <Button loading={isPending} onClick={() => mutate()}>
-            이용 기록 다시 저장
-          </Button>
-        </p>
+        <StateBlock
+          title="검색 이용 기록을 저장하지 못했어요."
+          error={error}
+          action={
+            <Button loading={isPending} onClick={() => mutate()}>
+              이용 기록 다시 저장
+            </Button>
+          }
+        />
       ) : null}
     </>
   )

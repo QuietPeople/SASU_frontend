@@ -1,16 +1,23 @@
-import { useState } from 'react'
 import { useAdminPages, type AdminCurriculum } from '../../api/admin'
 import { RequestError } from '../../admin/RequestFeedback'
 import { Icon } from '../../admin/Icon'
 import { Button, Spinner } from '../../admin/ui'
 import { SeriesDialog } from '../../admin/SeriesDialog'
 import '../../admin/series.css'
+import { useAdminView } from '../../admin/useAdminView'
+import { adminPage, adminId, adminFilters } from '../../admin/navigation'
 
 export function SeriesBuilderPage() {
   const list = useAdminPages<AdminCurriculum>('/curriculums?view=editor')
-  const [editing, setEditing] = useState<number | 'new' | null>(null)
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const [params, setParams] = useAdminView('series')
+  const rawEdit = params.get('edit')
+  const editing = rawEdit === 'new' ? 'new' : (adminId(rawEdit) ?? null)
+  const search = params.get('q') ?? ''
+  const page = adminPage(params.get('page'))
+  const setEditing = (id: number | 'new' | null) =>
+    setParams(adminFilters(params, { edit: id === null ? '' : String(id) }))
+  const setSearch = (value: string) => setParams(adminFilters(params, { q: value }), true)
+  const setPage = (value: number) => setParams(adminFilters(params, { page: String(value) }))
   const matches = (list.data ?? []).filter((series) =>
     `${series.title} ${series.description ?? ''}`
       .toLocaleLowerCase()
@@ -44,7 +51,6 @@ export function SeriesBuilderPage() {
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
-                setPage(1)
               }}
             />
           </label>
@@ -129,8 +135,21 @@ export function SeriesBuilderPage() {
           />
         )}
       </section>
+      {rawEdit && editing === null && (
+        <RequestError
+          title="올바른 시리즈 편집 주소가 아니에요."
+          action={<Button onClick={() => setEditing(null)}>목록으로</Button>}
+        />
+      )}
       {editing !== null && (
-        <SeriesDialog key={editing} id={editing} onClose={() => setEditing(null)} />
+        <SeriesDialog
+          key={editing}
+          id={editing}
+          onClose={() => setEditing(null)}
+          onSavedId={(id) => {
+            if (editing === 'new') setParams(adminFilters(params, { edit: String(id) }), true)
+          }}
+        />
       )}
     </div>
   )

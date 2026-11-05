@@ -124,11 +124,14 @@ export function StatsContentPicker({ target }: { target?: string }) {
       }}
     >
       <div className="admin-stats__picker-label">
-        <label htmlFor="stats-content">대상 콘텐츠 찾기</label>
+        <label htmlFor="stats-content">통계를 볼 콘텐츠 찾기</label>
         <button type="button" onClick={reset} disabled={!search && !category && status === 'ALL'}>
           조건 초기화
         </button>
       </div>
+      <p className="admin-help">
+        검색어·분야·상태는 콘텐츠 검색 조건이에요. 결과에서 대상을 선택하면 집계 대상이 바뀌어요.
+      </p>
       <div className="admin-stats__picker-controls">
         <div className="admin-stats__picker-search">
           <Icon name="search" size={19} />

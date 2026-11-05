@@ -6,26 +6,35 @@ import { ScreenLoading } from '../app/RouteContent'
 import { Icon, type IconName } from './Icon'
 import { RequestFeedback, RequestError } from './RequestFeedback'
 import './admin.css'
+import './admin-uiux.css'
 
 interface NavItem {
   to: string
   label: string
   icon: IconName
+  group?: string
 }
 
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin/contents', label: '콘텐츠', icon: 'contents' },
-  { to: '/admin/materials', label: '학습자료', icon: 'materials' },
+  { to: '/admin/categories', label: '분야 관리', icon: 'categories', group: 'sub' },
+  { to: '/admin/materials', label: '학습자료', icon: 'materials', group: 'sub' },
   { to: '/admin/series', label: '시리즈', icon: 'series' },
-  { to: '/admin/categories', label: '분야', icon: 'categories' },
   { to: '/admin/stats', label: '통계', icon: 'stats' },
-  { to: '/admin/reset', label: '초기화', icon: 'reset' },
+  { to: '/admin/reset', label: '초기화', icon: 'reset', group: 'tools' },
 ]
+
+const contentSubmenuIds = ADMIN_NAV.filter((item) => item.group === 'sub')
+  .map((item) => `admin-content-submenu-${item.icon}`)
+  .join(' ')
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const session = useSession()
   const location = useLocation()
+  const contentMenuOpen = /^\/admin\/(?:contents|categories|materials)(?:\/|$)/.test(
+    location.pathname,
+  )
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const [mobileOpen, setMobileOpen] = useState(false)
   const drawerRef = useRef<HTMLDialogElement>(null)
@@ -138,19 +147,43 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <div className="admin-nav__panel" id="admin-navigation-panel">
         <p className="admin-nav__caption">워크스페이스</p>
         <nav className="admin-nav__list">
-          {ADMIN_NAV.map((item) => (
+          {ADMIN_NAV.filter(
+            (item) => item.group !== 'tools' && (item.group !== 'sub' || contentMenuOpen),
+          ).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              onClick={() => setMobileOpen(false)}
+              id={item.group === 'sub' ? `admin-content-submenu-${item.icon}` : undefined}
+              onClick={() => {
+                if (item.to !== '/admin/contents') setMobileOpen(false)
+              }}
               aria-label={item.label}
+              aria-expanded={item.to === '/admin/contents' ? contentMenuOpen : undefined}
+              aria-controls={
+                item.to === '/admin/contents' && contentMenuOpen ? contentSubmenuIds : undefined
+              }
               title={compact ? item.label : undefined}
-              className={({ isActive }) => `admin-nav__item ${isActive ? 'admin-is-active' : ''}`}
+              className={({ isActive }) =>
+                `admin-nav__item ${item.group === 'sub' ? 'admin-nav__item--sub' : ''} ${isActive ? 'admin-is-active' : ''}`
+              }
             >
               <Icon name={item.icon} />
               <span className="admin-nav__label">{item.label}</span>
             </NavLink>
           ))}
+        </nav>
+        <nav className="admin-nav__tools" aria-label="운영 도구">
+          <p className="admin-nav__caption">운영 도구</p>
+          <NavLink
+            to="/admin/reset"
+            onClick={() => setMobileOpen(false)}
+            aria-label="초기화"
+            title={compact ? '초기화' : undefined}
+            className={({ isActive }) => `admin-nav__item ${isActive ? 'admin-is-active' : ''}`}
+          >
+            <Icon name="reset" />
+            <span className="admin-nav__label">초기화</span>
+          </NavLink>
         </nav>
         <button
           type="button"

@@ -3,7 +3,13 @@ import { useParams } from 'react-router'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSession } from '../../state/session'
 import { api, type ApiPage, queryString } from '../../api/client'
-import { useAdminQuery, type AdminResponse, type AdminStatistics, type Rate } from '../../api/admin'
+import {
+  useAdminQuery,
+  type AdminResponse,
+  type AdminStatistics,
+  type EditableContent,
+  type Rate,
+} from '../../api/admin'
 import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { StatsContentPicker } from '../../admin/StatsContentPicker'
@@ -136,12 +142,7 @@ function ResponseItem({
       </button>
       {expanded && (
         <div className="admin-stats__response-detail" id={`response-${r.response_id}`}>
-          <p className="admin-stats__detail-label">
-            제출 당시 문항{' '}
-            <span>
-              문항 #{r.question.question_id} · 버전 ID {r.question.question_version_id}
-            </span>
-          </p>
+          <p className="admin-stats__detail-label">제출 당시 문항</p>
           <p className="admin-stats__detail-question">{r.question.question_text}</p>
           <ol className="admin-stats__options">
             {[...r.question.options]
@@ -170,6 +171,13 @@ function ResponseItem({
               <dd>{r.explanation || '등록된 해설이 없어요.'}</dd>
             </div>
           </dl>
+          <details>
+            <summary>내부 식별 정보</summary>
+            <p>
+              응답 #{r.response_id} · 학습자 #{r.user_id} · 문항 #{r.question.question_id} · 버전 #
+              {r.question.question_version_id}
+            </p>
+          </details>
         </div>
       )}
     </li>
@@ -214,6 +222,9 @@ function Statistics({ target }: { target?: string }) {
     placeholderData: keepPreviousData,
   })
   const displayedPage = responses.data?.page ?? page
+  const selectedContent = useAdminQuery<EditableContent>(
+    target ? `/contents/${target}?view=editor` : null,
+  )
   const data = statistics.data
   const delta =
     data?.quiz.first_accuracy.percent != null && data.feed_review.accuracy.percent != null
@@ -228,6 +239,22 @@ function Statistics({ target }: { target?: string }) {
   }
   return (
     <div className="admin-stats__body">
+      <div className="admin-stats-target" role="status">
+        집계 대상:{' '}
+        <strong>
+          {target
+            ? (selectedContent.data?.detail.content.title ?? `콘텐츠 #${target}`)
+            : '전체 콘텐츠'}
+        </strong>
+        <p className="admin-help">
+          아래 통계는 이 대상의 기록을 집계해요. 위 검색 조건은 대상을 찾는 목록에만 적용돼요.
+        </p>
+      </div>
+      <nav className="admin-stats-jumps" aria-label="통계 영역 이동">
+        <a href="#stats-summary">이용 요약</a>
+        <a href="#stats-learning">학습 지표</a>
+        <a href="#stats-responses">응답 상세</a>
+      </nav>
       {statistics.isPending ? (
         <Spinner label="통계를 불러오는 중" />
       ) : statistics.isError ? (
@@ -239,7 +266,7 @@ function Statistics({ target }: { target?: string }) {
       ) : (
         data && (
           <>
-            <ul className="admin-stats__summary" aria-label="시청·이용 반응">
+            <ul id="stats-summary" className="admin-stats__summary" aria-label="시청·이용 반응">
               <li>
                 <span>조회수</span>
                 <strong>
@@ -271,7 +298,7 @@ function Statistics({ target }: { target?: string }) {
                 </p>
               </li>
             </ul>
-            <div className="admin-stats__comparison">
+            <div id="stats-learning" className="admin-stats__comparison">
               <LearningCard
                 title="최초 풀이"
                 subtitle="영상 종료 후 첫 퀴즈 응답"
@@ -367,6 +394,7 @@ function Statistics({ target }: { target?: string }) {
         )
       )}
       <section
+        id="stats-responses"
         className="admin-stats__panel admin-stats__responses"
         aria-busy={responses.isFetching}
       >
