@@ -1,13 +1,65 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { api } from '../../api/client'
 import type { LearnerDashboard } from '../../api/learner'
 import { useSession } from '../../state/session'
 import { Badge, Button, StateBlock } from '../../shared/ui'
+import './dashboard.css'
+
+const GUIDE_VIEWS = ['open', 'collapsed', 'hidden'] as const
+type GuideView = (typeof GUIDE_VIEWS)[number]
+function guideKey(learnerId: number | null) {
+  return `sasu.dash.guide.${learnerId ?? 'anon'}`
+}
+function readGuideView(learnerId: number | null): GuideView {
+  try {
+    const value = localStorage.getItem(guideKey(learnerId))
+    if (value && (GUIDE_VIEWS as readonly string[]).includes(value)) return value as GuideView
+  } catch {
+  }
+  return 'open'
+}
+
+function catsKey(learnerId: number | null) {
+  return `sasu.dash.cats.${learnerId ?? 'anon'}`
+}
+function readCatsOpen(learnerId: number | null): boolean {
+  try {
+    return localStorage.getItem(catsKey(learnerId)) === 'open'
+  } catch {
+    return false
+  }
+}
 
 export function DashboardPage() {
   const { actorId, learnerId, generation, isPending, error, settings } = useSession()
   const navigate = useNavigate()
+
+  const [guideView, setGuideView] = useState<GuideView>(() => readGuideView(learnerId))
+  const [catsOpen, setCatsOpen] = useState<boolean>(() => readCatsOpen(learnerId))
+  useEffect(() => {
+    setGuideView(readGuideView(learnerId))
+    setCatsOpen(readCatsOpen(learnerId))
+  }, [learnerId])
+  const changeGuideView = (next: GuideView) => {
+    setGuideView(next)
+    try {
+      localStorage.setItem(guideKey(learnerId), next)
+    } catch {
+    }
+  }
+  const toggleCats = () => {
+    setCatsOpen((open) => {
+      const next = !open
+      try {
+        localStorage.setItem(catsKey(learnerId), next ? 'open' : 'collapsed')
+      } catch {
+      }
+      return next
+    })
+  }
+
   const dashboard = useQuery({
     queryKey: ['learner', 'dashboard', actorId, learnerId, generation],
     queryFn: ({ signal }) =>
@@ -38,57 +90,6 @@ export function DashboardPage() {
         />
       ) : data ? (
         <>
-          {(() => {
-            const steps = [
-              {
-                label: '영상 끝까지 시청하기',
-                done: data.completed_content_count > 0,
-                to: '/learner/search',
-              },
-              {
-                label: '퀴즈 풀어보기',
-                done: data.answered_count > 0,
-                to: '/learner/search',
-              },
-              {
-                label: '관심 분야 선택하기',
-                done: (settings?.interest_category_ids.length ?? 0) > 0,
-                to: '/learner/settings',
-              },
-            ]
-            const doneCount = steps.filter((step) => step.done).length
-            if (doneCount === steps.length) return null
-            return (
-              <section className="sasu-card sasu-start">
-                <div className="sasu-series__head">
-                  <h2 className="sasu-card__title">SASU 시작하기</h2>
-                  <span className="sasu-chip">
-                    {doneCount} / {steps.length} 완료
-                  </span>
-                </div>
-                <div className="sasu-progress" aria-hidden="true">
-                  <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
-                </div>
-                <ul className="sasu-start__list">
-                  {steps.map((step) => (
-                    <li key={step.label} className={step.done ? 'is-done' : ''}>
-                      <span className="sasu-start__mark" aria-hidden="true">
-                        {step.done ? '✓' : '○'}
-                      </span>
-                      <span className="sasu-start__label">{step.label}</span>
-                      {step.done ? (
-                        <span className="sasu-badge sasu-badge--green">완료</span>
-                      ) : (
-                        <Button size="sm" onClick={() => navigate(step.to)}>
-                          바로가기
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )
-          })()}
           <ul className="sasu-stat-row" aria-label="학습 요약">
             <li className="sasu-stat">
               <span className="sasu-stat__label">시청 완료</span>
@@ -116,56 +117,7 @@ export function DashboardPage() {
           <p className="sasu-help">
             정답률은 최초 퀴즈의 유효 제출 기준이에요. 응답이 없으면 —로 표시해요.
           </p>
-          <section className="sasu-card">
-            <h2 className="sasu-card__title">개념별 상태</h2>
-            {data.category_states.length === 0 ? (
-              <StateBlock title="표시할 개념별 현황이 없어요." />
-            ) : (
-              <table className="sasu-table">
-                <thead>
-                  <tr>
-                    <th>개념</th>
-                    <th>상태</th>
-                    <th aria-label="동작" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.category_states.map((item) => (
-                    <tr key={item.category.category_id}>
-                      <td>{item.category.name}</td>
-                      <td>
-                        <Badge tone={item.state === 'NEEDS_REVIEW' ? 'amber' : 'green'}>
-                          {item.state === 'NEEDS_REVIEW'
-                            ? `복습 필요 · ${item.pending_question_count}문항`
-                            : '미해결 오답 없음'}
-                        </Badge>
-                      </td>
-                      <td className="sasu-table__right">
-                        {item.state === 'NEEDS_REVIEW' ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() =>
-                              navigate(
-                                `/learner/library?tab=wrong&concept=${item.category.category_id}`,
-                              )
-                            }
-                          >
-                            복습하기
-                          </Button>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <p className="sasu-help">
-              미해결 오답이 없다고 해당 개념을 모두 익혔다는 뜻은 아니에요.
-            </p>
-          </section>
+
           <section className="sasu-card">
             <h2 className="sasu-card__title">시리즈 학습 현황</h2>
             {data.curriculums.length === 0 ? (
@@ -186,6 +138,167 @@ export function DashboardPage() {
                   </li>
                 ))}
               </ul>
+            )}
+          </section>
+
+          {(() => {
+            const steps = [
+              {
+                label: '영상 끝까지 시청하기',
+                done: data.completed_content_count > 0,
+                to: '/learner/search',
+              },
+              {
+                label: '퀴즈 풀어보기',
+                done: data.answered_count > 0,
+                to: '/learner/search',
+              },
+              {
+                label: '관심 분야 선택하기',
+                done: (settings?.interest_category_ids.length ?? 0) > 0,
+                to: '/learner/settings',
+              },
+            ]
+            const doneCount = steps.filter((step) => step.done).length
+            if (doneCount === steps.length) return null
+
+            if (guideView === 'hidden')
+              return (
+                <button
+                  type="button"
+                  className="sasu-guide__reopen"
+                  onClick={() => changeGuideView('open')}
+                >
+                  SASU 시작하기 다시 보기 · {doneCount}/{steps.length}
+                </button>
+              )
+
+            const collapsed = guideView === 'collapsed'
+            return (
+              <section className="sasu-card sasu-start">
+                <div className="sasu-guide__head">
+                  <h2 className="sasu-card__title">SASU 시작하기</h2>
+                  <div className="sasu-guide__tools">
+                    <span className="sasu-chip">
+                      {doneCount} / {steps.length} 완료
+                    </span>
+                    <button
+                      type="button"
+                      className="sasu-guide__btn"
+                      aria-expanded={!collapsed}
+                      onClick={() => changeGuideView(collapsed ? 'open' : 'collapsed')}
+                    >
+                      {collapsed ? '펴기' : '접기'}
+                    </button>
+                    <button
+                      type="button"
+                      className="sasu-guide__btn"
+                      onClick={() => changeGuideView('hidden')}
+                    >
+                      숨기기
+                    </button>
+                  </div>
+                </div>
+                {collapsed ? null : (
+                  <>
+                    <div className="sasu-progress" aria-hidden="true">
+                      <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+                    </div>
+                    <ul className="sasu-start__list">
+                      {steps.map((step) => (
+                        <li key={step.label} className={step.done ? 'is-done' : ''}>
+                          <span className="sasu-start__mark" aria-hidden="true">
+                            {step.done ? '✓' : '○'}
+                          </span>
+                          <span className="sasu-start__label">{step.label}</span>
+                          {step.done ? (
+                            <span className="sasu-badge sasu-badge--green">완료</span>
+                          ) : (
+                            <Button size="sm" onClick={() => navigate(step.to)}>
+                              {step.to === '/learner/settings' ? '설정에서 고르기' : '바로가기'}
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </section>
+            )
+          })()}
+
+          <section className="sasu-card">
+            {data.category_states.length === 0 ? (
+              <>
+                <h2 className="sasu-card__title">개념별 상태</h2>
+                <StateBlock title="표시할 개념별 현황이 없어요." />
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="sasu-fold"
+                  aria-expanded={catsOpen}
+                  onClick={toggleCats}
+                >
+                  <span className="sasu-fold__title">개념별 상태</span>
+                  <span className="sasu-fold__meta">
+                    {data.category_states.filter((item) => item.state === 'NEEDS_REVIEW').length > 0
+                      ? `복습 필요 ${data.category_states.filter((item) => item.state === 'NEEDS_REVIEW').length}개 · `
+                      : ''}
+                    전체 {data.category_states.length}개 {catsOpen ? '▴' : '▾'}
+                  </span>
+                </button>
+                {catsOpen ? (
+                  <>
+                    <table className="sasu-table">
+                      <thead>
+                        <tr>
+                          <th>개념</th>
+                          <th>상태</th>
+                          <th aria-label="동작" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.category_states.map((item) => (
+                          <tr key={item.category.category_id}>
+                            <td>{item.category.name}</td>
+                            <td>
+                              {item.state === 'NEEDS_REVIEW' ? (
+                                <Badge tone="amber">
+                                  복습 필요 · {item.pending_question_count}문항
+                                </Badge>
+                              ) : (
+                                <span className="sasu-catstate">미해결 오답 없음</span>
+                              )}
+                            </td>
+                            <td className="sasu-table__right">
+                              {item.state === 'NEEDS_REVIEW' ? (
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() =>
+                                    navigate(
+                                      `/learner/library?tab=wrong&concept=${item.category.category_id}`,
+                                    )
+                                  }
+                                >
+                                  복습하기
+                                </Button>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="sasu-help">
+                      미해결 오답이 없다고 해당 개념을 모두 익혔다는 뜻은 아니에요.
+                    </p>
+                  </>
+                ) : null}
+              </>
             )}
           </section>
         </>

@@ -6,6 +6,7 @@ import { useCategories, type Category, type LearnerSettings } from '../../api/le
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
 import { Button, StateBlock } from '../../shared/ui'
+import './onboarding.css'
 
 export function WelcomePage() {
   const session = useSession()
@@ -114,36 +115,62 @@ function WelcomeForm({
     update.mutate({ actorId, learnerId, picked: [...picked], skip })
   }
   return (
-    <div className="sasu-page sasu-onboard">
+    <div className="sasu-page sasu-onboard sasu-ob">
       <div className="sasu-onboard__box">
-        <p className="sasu-eyebrow">SASU 시작하기</p>
-        <h1 className="sasu-title">관심 있는 분야를 알려주세요</h1>
-        <p className="sasu-sub">나중에 설정에서 바꿀 수 있어요.</p>
+        {/* 안내 */}
+        <header className="sasu-ob__head">
+          <p className="sasu-eyebrow">SASU 시작하기</p>
+          <h1 className="sasu-title">관심 있는 분야를 알려주세요</h1>
+          <p className="sasu-sub">
+            여러 개를 고를 수 있어요. 나중에 설정에서 언제든 바꿀 수 있어요.
+          </p>
+        </header>
+
+        {/* 관심 분야 선택 */}
         {categories.length === 0 ? (
-          <StateBlock title="아직 등록된 분야가 없어요." text="건너뛰고 바로 시작할 수 있어요." />
-        ) : (
-          <div className="sasu-chips" role="group" aria-label="관심 분야">
-            {categories.map((category) => (
-              <button
-                key={category.category_id}
-                type="button"
-                className={`sasu-chip sasu-chip--pick ${picked.includes(category.category_id) ? 'is-on' : ''}`}
-                aria-pressed={picked.includes(category.category_id)}
-                disabled={saving !== null}
-                onClick={() => toggle(category.category_id)}
-              >
-                {picked.includes(category.category_id) ? '✓ ' : ''}
-                {category.name}
-              </button>
-            ))}
+          <div className="sasu-ob__pick">
+            <StateBlock
+              title="아직 등록된 분야가 없어요."
+              text="건너뛰고 바로 시작할 수 있어요."
+            />
           </div>
+        ) : (
+          <section className="sasu-ob__pick">
+            <div className="sasu-ob__pickhead">
+              <span className="sasu-ob__picklabel">관심 분야</span>
+              <span
+                className={`sasu-ob__count ${picked.length ? 'is-on' : ''}`}
+                aria-live="polite"
+              >
+                {picked.length}개 선택됨
+              </span>
+            </div>
+            <div className="sasu-chips" role="group" aria-label="관심 분야">
+              {categories.map((category) => (
+                <button
+                  key={category.category_id}
+                  type="button"
+                  className={`sasu-chip sasu-chip--pick ${picked.includes(category.category_id) ? 'is-on' : ''}`}
+                  aria-pressed={picked.includes(category.category_id)}
+                  disabled={saving !== null}
+                  onClick={() => toggle(category.category_id)}
+                >
+                  {picked.includes(category.category_id) ? '✓ ' : ''}
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
+
         {error ? (
           <p className="sasu-field-error" role="alert">
             {error}
           </p>
         ) : null}
-        <div className="sasu-row sasu-onboard__btns">
+
+        {/* 시작 */}
+        <div className="sasu-ob__actions">
           <Button
             variant="primary"
             onClick={() => void start(false)}
@@ -161,7 +188,10 @@ function WelcomeForm({
             건너뛰기
           </Button>
         </div>
-        <p className="sasu-help">선택한 관심 분야와 안내 완료 여부를 계정에 저장해요.</p>
+
+        <p className="sasu-help sasu-ob__foot">
+          선택한 관심 분야와 안내 완료 여부를 계정에 저장해요.
+        </p>
       </div>
     </div>
   )
