@@ -1,0 +1,111 @@
+.sasu-library > .sasu-field--sm {
+  flex: 0 0 auto;
+  width: min(100%, 240px);
+}
+.sasu-tabs__tab:focus-visible,
+.sasu-result-card:focus-visible {
+  outline: 3px solid #255fdb;
+  outline-offset: 3px;
+}
+.sasu-draft-notice {
+  padding: 12px 16px;
+  border: 1px solid #cbdcf8;
+  border-radius: 12px;
+  background: #f3f7ff;
+  color: #284c79;
+}
+.sasu-series-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+}
+.sasu-series-choice {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #dfe5ef;
+  border-radius: 14px;
+  background: white;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sasu-series-choice.is-on {
+  border-color: #3165e7;
+  background: #f4f7ff;
+}
+.sasu-series-choice:focus-visible {
+  outline: 3px solid #3165e7;
+  outline-offset: 3px;
+}
+.sasu-series-choice p {
+  margin: 0;
+}
+.sasu-series-step__mobile-label {
+  display: none;
+}
+.sasu-flash__stage {
+  max-width: 360px;
+  width: 100%;
+  margin: 16px auto;
+}
+.sasu-flash__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-block: 16px;
+}
+.sasu-review__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block: 16px;
+}
+.sasu-library [role='tabpanel'] {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .sasu-series .sasu-table thead {
+    display: none;
+  }
+  .sasu-series .sasu-table,
+  .sasu-series .sasu-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .sasu-series .sasu-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-block: 12px;
+    padding: 16px;
+    border: 1px solid #dfe5ef;
+    border-radius: 14px;
+  }
+  .sasu-series .sasu-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    word-break: keep-all;
+  }
+  .sasu-series .sasu-table td:first-child,
+  .sasu-series .sasu-table td:last-child {
+    grid-column: 1 / -1;
+  }
+  .sasu-series-step__mobile-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #667085;
+  }
+  .sasu-flash__toolbar > .sasu-btn {
+    flex: 1;
+  }
+}

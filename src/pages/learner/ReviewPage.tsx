@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 import {
-  getWrongAnswers,
   getLearningContent,
   recoverLearningAttempt,
   learningKey,
@@ -14,19 +13,25 @@ import {
 import { ApiError, queryString } from '../../api/client'
 import { useSession } from '../../state/session'
 import { QuizView } from '../../shared/QuizView'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+
+import { reviewTargets } from '../../features/learner-navigation/lists'
+import { reviewCategory, safeLibraryReturn } from '../../features/learner-navigation/state'
+import '../../features/learner-navigation/learner-uiux.css'
 
 function useReviewReturnTo() {
   const location = useLocation()
   const [params] = useSearchParams()
   const returnTo =
     (location.state as { returnTo?: string } | null)?.returnTo ?? params.get('returnTo')
-  return returnTo?.startsWith('/learner/library') ? returnTo : '/learner/library?tab=wrong'
+  return safeLibraryReturn(returnTo, 'wrong')
 }
 
 export function ReviewPage() {
   const backTo = useReviewReturnTo()
-  const { actorId, learnerId, generation, isPending, error, refreshSettings } = useSession()
+  const { actorId, learnerId, generation, isPending, error, backgroundError, refreshSettings } =
+    useSession()
   const { contentId } = useParams()
   const [params] = useSearchParams()
   const identity = useMemo(
@@ -47,7 +52,7 @@ export function ReviewPage() {
       <div className="sasu-page">
         <StateBlock
           title="학습자 정보를 불러오지 못했어요."
-          text={error.message}
+          error={error}
           action={<Button onClick={() => void refreshSettings()}>다시 시도</Button>}
         />
       </div>
@@ -75,10 +80,13 @@ export function ReviewPage() {
     )
   return (
     <>
-      {error ? (
-        <div className="sasu-page" role="alert">
-          <p>학습자 정보를 갱신하지 못했어요. {error.message}</p>
-          <Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>
+      {error || backgroundError ? (
+        <div className="sasu-page">
+          <StateBlock
+            title="학습자 정보를 갱신하지 못했어요."
+            error={error ?? backgroundError}
+            action={<Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>}
+          />
         </div>
       ) : null}
       <WrongReview
@@ -102,6 +110,7 @@ interface ReviewData {
   target?: ReviewTarget
   next?: WrongAnswer
   restoredAttempt?: LearningAttempt
+  nextError?: unknown
 }
 
 function WrongReview({
@@ -116,6 +125,7 @@ function WrongReview({
   const backTo = useReviewReturnTo()
   const [params, setParams] = useSearchParams()
   const [newSessionId] = useState(() => crypto.randomUUID())
+  const category = reviewCategory(params, backTo)
   const scope = `${identity.actorId}:${identity.learnerId}:${identity.generation}`
   const requestedSession = params.get('reviewSession')
   const restore =
@@ -135,7 +145,7 @@ function WrongReview({
   }, [params, setParams, attemptId, scope, backTo])
 
   const wrong = useQuery<ReviewData>({
-    queryKey: learningKey(identity, 'wrong-review', contentId, versionId, attemptId),
+    queryKey: learningKey(identity, 'wrong-review', contentId, versionId, attemptId, category),
     enabled: (query) => query.state.data === undefined,
     queryFn: async ({ signal }) => {
       if (restore) {
@@ -175,35 +185,41 @@ function WrongReview({
             // 비공개로 바뀐 콘텐츠도 서버가 허용한 기존 풀이 결과는 확인할 수 있다.
             if (!(cause instanceof ApiError && cause.status === 404)) throw cause
           }
-          return {
-            target: { question: restoredAttempt.question, contentId, title, categoryName },
-            restoredAttempt,
+          try {
+            const pending = await reviewTargets(
+              identity,
+              contentId,
+              versionId,
+              category,
+              signal,
+              true,
+            )
+            return {
+              target: { question: restoredAttempt.question, contentId, title, categoryName },
+              restoredAttempt,
+              next: pending.next,
+            }
+          } catch (cause) {
+            if (signal.aborted) throw cause
+            return {
+              target: { question: restoredAttempt.question, contentId, title, categoryName },
+              restoredAttempt,
+              nextError: cause,
+            }
           }
         }
       }
-      let page = 1
-      let next: WrongAnswer | undefined
-      while (true) {
-        const result = await getWrongAnswers(identity, page, signal)
-        const target = result.items.find(
-          (item) =>
-            item.content.content_id === contentId &&
-            (versionId === null || item.question.question_version_id === versionId),
-        )
-        next ??= result.items.find((item) => item.content.content_id !== contentId)
-        if (target || !result.has_next)
-          return {
-            target: target
-              ? {
-                  question: target.question,
-                  contentId,
-                  title: target.content.title,
-                  categoryName: target.content.category?.name ?? null,
-                }
-              : undefined,
-            next,
-          }
-        page += 1
+      const { target, next } = await reviewTargets(identity, contentId, versionId, category, signal)
+      return {
+        target: target
+          ? {
+              question: target.question,
+              contentId,
+              title: target.content.title,
+              categoryName: target.content.category?.name ?? null,
+            }
+          : undefined,
+        next,
       }
     },
     retry: false,
@@ -223,7 +239,7 @@ function WrongReview({
       <div className="sasu-page">
         <StateBlock
           title="복습 문항을 불러오지 못했어요."
-          text={wrong.error.message}
+          error={wrong.error}
           action={
             <>
               {!(
@@ -250,15 +266,26 @@ function WrongReview({
       </div>
     )
   return (
-    <OpenedReview
-      key={attemptId}
-      identity={identity}
-      target={wrong.data.target}
-      next={wrong.data.next}
-      attemptId={attemptId}
-      scope={scope}
-      restoredAttempt={wrong.data.restoredAttempt}
-    />
+    <>
+      {wrong.data.nextError ? (
+        <div className="sasu-page">
+          <StateBlock
+            title="다음 복습 대상을 불러오지 못했어요."
+            error={wrong.data.nextError}
+            action={<Button onClick={() => void wrong.refetch()}>다음 대상 다시 확인</Button>}
+          />
+        </div>
+      ) : null}
+      <OpenedReview
+        key={attemptId}
+        identity={identity}
+        target={wrong.data.target}
+        next={wrong.data.next}
+        attemptId={attemptId}
+        scope={scope}
+        restoredAttempt={wrong.data.restoredAttempt}
+      />
+    </>
   )
 }
 
@@ -278,6 +305,9 @@ function OpenedReview({
   restoredAttempt?: LearningAttempt
 }) {
   const backTo = useReviewReturnTo()
+  const location = useLocation()
+  const [params] = useSearchParams()
+  const category = reviewCategory(params, backTo)
   const sourceTo = `/learner/watch/${target.contentId}${queryString({ from: 'wrong', questionVersionId: target.question.question_version_id, returnTo: backTo, reviewSession: attemptId, reviewScope: scope })}`
   return (
     <div className="sasu-page sasu-review">
@@ -286,12 +316,16 @@ function OpenedReview({
           ← 보관함으로
         </Link>
         <span className="sasu-sub">
-          오답 복습 · {target.title ?? `콘텐츠 ${target.contentId}`} · {target.categoryName}
+          오답 복습 · {target.title ?? `영상 ${target.contentId}`} · {target.categoryName}
         </span>
       </div>
       <section className="sasu-card">
-        <p>
-          <Link className="sasu-link" to={sourceTo}>
+        <p className="sasu-review__secondary">
+          <Link
+            className="sasu-link"
+            to={sourceTo}
+            state={{ context: 'REVIEW', returnTo: `${location.pathname}${location.search}` }}
+          >
             원본 영상 보기
           </Link>
         </p>
@@ -301,13 +335,13 @@ function OpenedReview({
           responsePath="WRONG_NOTE"
           attemptId={attemptId}
           restoredAttempt={restoredAttempt}
-          context={`원본 영상: ${target.title ?? `콘텐츠 ${target.contentId}`}`}
-          footer={(result) => (
+          context={`원본 영상: ${target.title ?? `영상 ${target.contentId}`}`}
+          footer={() => (
             <div className="sasu-row">
-              {result === 'CORRECT' && next ? (
+              {next ? (
                 <Link
                   className="sasu-btn sasu-btn--primary"
-                  to={`/learner/review/${next.content.content_id}?questionVersionId=${next.question.question_version_id}`}
+                  to={`/learner/review/${next.content.content_id}${queryString({ questionVersionId: next.question.question_version_id, category, returnTo: backTo })}`}
                   state={{ returnTo: backTo }}
                 >
                   다음 복습 →
