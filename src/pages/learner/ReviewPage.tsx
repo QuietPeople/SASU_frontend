@@ -186,14 +186,7 @@ function WrongReview({
             if (!(cause instanceof ApiError && cause.status === 404)) throw cause
           }
           try {
-            const pending = await reviewTargets(
-              identity,
-              contentId,
-              versionId,
-              category,
-              signal,
-              true,
-            )
+            const pending = await reviewTargets(identity, contentId, versionId, category, signal)
             return {
               target: { question: restoredAttempt.question, contentId, title, categoryName },
               restoredAttempt,

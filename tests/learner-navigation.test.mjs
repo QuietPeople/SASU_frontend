@@ -239,17 +239,80 @@ test('복습 대상과 다음 문제는 같은 분야의 전체 페이지에서 
   assert.equal(requests.length, 2)
 })
 
-test('이미 제출한 풀이를 복구한 경우에는 다음 미해결 문항을 바로 선택한다', async () => {
+test('해결된 문항이 목록에서 빠진 뒤에는 첫 미해결 문항으로 이어간다', async () => {
   let calls = 0
   globalThis.fetch = async (url) => {
     calls += 1
     assert.equal(new URL(url, 'http://local').searchParams.has('category_id'), false)
     return Response.json(
-      page(1, [{ question: { question_version_id: 2 }, content: { content_id: 2 } }], true),
+      page(1, [{ question: { question_version_id: 2 }, content: { content_id: 2 } }]),
     )
   }
-  const result = await lists.reviewTargets(identity, 1, 1, undefined, undefined, true)
+  const result = await lists.reviewTargets(identity, 1, 1, undefined)
   assert.equal(result.target, undefined)
   assert.equal(result.next.content.content_id, 2)
   assert.equal(calls, 1)
+})
+
+const wrongItem = (id, version = id) => ({
+  question: { question_version_id: version },
+  content: { content_id: id },
+})
+
+test('건너뛰기로 미해결 문항이 유지되어도 모든 문항을 순서대로 방문한다', async () => {
+  globalThis.fetch = async () =>
+    Response.json(
+      page(
+        1,
+        [1, 2, 3].map((id) => wrongItem(id)),
+      ),
+    )
+  const visited = [1]
+  for (let step = 0; step < 4; step += 1) {
+    const current = visited.at(-1)
+    const result = await lists.reviewTargets(identity, current, current, 8)
+    assert.equal(result.target.content.content_id, current)
+    visited.push(result.next.content.content_id)
+  }
+  assert.deepEqual(visited, [1, 2, 3, 1, 2])
+})
+
+test('앞 페이지에 다른 문항이 있어도 현재 문항 뒤의 다음 페이지로 진행한다', async () => {
+  const requested = []
+  globalThis.fetch = async (url) => {
+    const query = new URL(url, 'http://local').searchParams
+    const number = Number(query.get('page'))
+    requested.push(number)
+    assert.equal(query.get('category_id'), '8')
+    return Response.json(page(number, [wrongItem(number)], number < 3))
+  }
+  const result = await lists.reviewTargets(identity, 2, 2, 8)
+  assert.equal(result.target.content.content_id, 2)
+  assert.equal(result.next.content.content_id, 3)
+  assert.deepEqual(requested, [1, 2, 3])
+})
+
+test('마지막 문항 다음에는 앞 페이지의 미해결 문항으로 돌아간다', async () => {
+  globalThis.fetch = async (url) => {
+    const number = Number(new URL(url, 'http://local').searchParams.get('page'))
+    return Response.json(page(number, [wrongItem(number)], number < 3))
+  }
+  const result = await lists.reviewTargets(identity, 3, 3, 8)
+  assert.equal(result.target.content.content_id, 3)
+  assert.equal(result.next.content.content_id, 1)
+})
+
+test('현재 문항만 남거나 목록이 비어 있으면 다음 복습을 제시하지 않는다', async () => {
+  for (const items of [[wrongItem(1)], []]) {
+    globalThis.fetch = async () => Response.json(page(1, items))
+    const result = await lists.reviewTargets(identity, 1, 1, undefined)
+    assert.equal(result.next, undefined)
+  }
+})
+
+test('다른 버전의 같은 콘텐츠를 다음 복습으로 선택하지 않는다', async () => {
+  globalThis.fetch = async () => Response.json(page(1, [wrongItem(1, 2), wrongItem(3)]))
+  const result = await lists.reviewTargets(identity, 1, 1, undefined)
+  assert.equal(result.target, undefined)
+  assert.equal(result.next.content.content_id, 3)
 })
