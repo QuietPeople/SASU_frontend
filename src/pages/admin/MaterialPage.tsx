@@ -4,9 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidateQuestionChange } from '../../api/queryInvalidation'
 import { api } from '../../api/client'
 import {
-  useAdminPages,
   useAdminQuery,
-  type AdminContent,
   type AdminQuestion,
   type QuestionType,
   type QuestionVersion,
@@ -14,7 +12,7 @@ import {
 import { useSession } from '../../state/session'
 import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
-import { AutocompleteInput } from '../../admin/AutocompleteInput'
+import { ContentTargetPicker } from '../../admin/ContentTargetPicker'
 import { Badge, Button, Spinner } from '../../admin/ui'
 import { useToast } from '../../admin/useToast'
 import {
@@ -46,13 +44,11 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
   const { actorId } = useSession()
   const navigate = useNavigate()
   const { show, node } = useToast()
-  const [search, setSearch] = useState('')
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [destination, setDestination] = useState<string | null>(null)
   const confirmation = useRef<HTMLDialogElement>(null)
   const stayButton = useRef<HTMLButtonElement>(null)
-  const contents = useAdminPages<AdminContent>('/contents?status=ALL', !embedded)
   const current = useAdminQuery<AdminQuestion | null>(
     id ? `/contents/${id}/question?view=editor` : null,
   )
@@ -61,18 +57,10 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
       ? `/questions/${current.data.question_id}/versions/${current.data.question_version_id}`
       : null,
   )
-  const error = (embedded ? null : contents.error) ?? (id ? (current.error ?? version.error) : null)
-  const pending =
-    (!embedded && contents.isPending) ||
-    (!!id && (current.isPending || (!!current.data && version.isPending)))
+  const error = id ? (current.error ?? version.error) : null
+  const pending = !!id && (current.isPending || (!!current.data && version.isPending))
   const hasData =
-    (embedded || contents.data !== undefined) &&
-    (!id || (current.data !== undefined && (current.data === null || version.data !== undefined)))
-  const selected = contents.data?.find((content) => String(content.content_id) === id)
-  const contentOptions = (contents.data ?? []).map((content) => ({
-    id: String(content.content_id),
-    label: `${content.title || `제목 없음 #${content.content_id}`} · ${content.status === 'PUBLISHED' ? '공개' : '임시저장'} · 퀴즈 ${content.has_quiz ? '등록' : '미등록'}`,
-  }))
+    !id || (current.data !== undefined && (current.data === null || version.data !== undefined))
   const move = (path: string) => {
     if (busy) return
     if (dirty) setDestination(path)
@@ -120,43 +108,7 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
               콘텐츠의 퀴즈를 작성하면 질문과 정답이 복습 카드로 연결돼요.
             </p>
           </header>
-          <section className="admin-card admin-material__target">
-            <label className="admin-field__label" htmlFor="material-content-search">
-              대상 콘텐츠
-            </label>
-            <fieldset disabled={busy} className="admin-material__fieldset">
-              <AutocompleteInput
-                id="material-content-search"
-                placeholder="콘텐츠 제목으로 검색"
-                listLabel="콘텐츠 검색 결과"
-                showAll
-                value={search}
-                onChange={setSearch}
-                invalid={false}
-                options={contentOptions}
-                onSelect={(option) => {
-                  if (option.id !== id) move(`/admin/materials/${option.id}`)
-                  setSearch('')
-                }}
-              />
-            </fieldset>
-            {search.trim() &&
-              contents.data &&
-              !contentOptions.some((option) =>
-                option.label.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
-              ) && <p className="admin-help">검색 결과가 없어요.</p>}
-            {selected && (
-              <div className="admin-material__selected">
-                <strong>{selected.title || `제목 없음 #${selected.content_id}`}</strong>
-                <div className="admin-row">
-                  <Badge>{selected.status === 'PUBLISHED' ? '공개' : '임시저장'}</Badge>
-                  <Badge tone={selected.has_quiz ? 'green' : 'neutral'}>
-                    퀴즈 {selected.has_quiz ? '등록' : '미등록'}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </section>
+          <ContentTargetPicker target={id} disabled={busy} onSelect={move} />
         </>
       )}
       {error && (
@@ -170,7 +122,6 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
           action={
             <Button
               onClick={() => {
-                if (!embedded) void contents.refetch()
                 if (id) void current.refetch()
                 if (current.data) void version.refetch()
               }}
@@ -287,6 +238,7 @@ function QuestionEditor({
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [attempted, setAttempted] = useState(false)
   const [previewMode, setPreviewMode] = useState<'quiz' | 'card'>('quiz')
+  const [previewVisible, setPreviewVisible] = useState(true)
   const flashcardStyle = useFlashcardStyle()
   const errors = questionErrors(draft)
   const visibleError = (field: string) => (attempted || touched[field] ? errors[field] : undefined)
@@ -482,13 +434,23 @@ function QuestionEditor({
             )}
           </label>
         </fieldset>
-        <MaterialPreview
-          key={signature}
-          draft={draft}
-          cardStyle={flashcardStyle}
-          mode={previewMode}
-          setMode={setPreviewMode}
-        />
+        <div>
+          <Button
+            aria-expanded={previewVisible}
+            onClick={() => setPreviewVisible((value) => !value)}
+          >
+            {previewVisible ? '미리보기 접기' : '미리보기 열기'}
+          </Button>
+          {previewVisible && (
+            <MaterialPreview
+              key={signature}
+              draft={draft}
+              cardStyle={flashcardStyle}
+              mode={previewMode}
+              setMode={setPreviewMode}
+            />
+          )}
+        </div>
       </div>
       <div className="admin-row admin-material__actions">
         <Button
