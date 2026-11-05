@@ -5,7 +5,8 @@ import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
 import './onboarding.css'
 
 export function WelcomePage() {
@@ -22,7 +23,7 @@ export function WelcomePage() {
       <div className="sasu-page">
         <StateBlock
           title="관심 분야를 불러오지 못했어요."
-          text={(session.error ?? categories.error)?.message}
+          error={session.error ?? categories.error}
           action={
             <Button
               onClick={() => {
@@ -103,11 +104,6 @@ function WelcomeForm({
     },
   })
   const saving = update.isPending ? (update.variables.skip ? 'skip' : 'start') : null
-  const error = update.isError
-    ? update.error instanceof Error
-      ? update.error.message
-      : '관심 분야를 저장하지 못했어요. 다시 시도해 주세요.'
-    : ''
   const start = (skip: boolean) => {
     if (savingRef.current || actorId === null || learnerId === null || (!skip && !picked.length))
       return
@@ -129,19 +125,13 @@ function WelcomeForm({
         {/* 관심 분야 선택 */}
         {categories.length === 0 ? (
           <div className="sasu-ob__pick">
-            <StateBlock
-              title="아직 등록된 분야가 없어요."
-              text="건너뛰고 바로 시작할 수 있어요."
-            />
+            <StateBlock title="아직 등록된 분야가 없어요." text="건너뛰고 바로 시작할 수 있어요." />
           </div>
         ) : (
           <section className="sasu-ob__pick">
             <div className="sasu-ob__pickhead">
               <span className="sasu-ob__picklabel">관심 분야</span>
-              <span
-                className={`sasu-ob__count ${picked.length ? 'is-on' : ''}`}
-                aria-live="polite"
-              >
+              <span className={`sasu-ob__count ${picked.length ? 'is-on' : ''}`} aria-live="polite">
                 {picked.length}개 선택됨
               </span>
             </div>
@@ -163,10 +153,8 @@ function WelcomeForm({
           </section>
         )}
 
-        {error ? (
-          <p className="sasu-field-error" role="alert">
-            {error}
-          </p>
+        {update.isError ? (
+          <StateBlock title="관심 분야를 저장하지 못했어요." error={update.error} />
         ) : null}
 
         {/* 시작 */}

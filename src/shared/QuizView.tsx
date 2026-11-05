@@ -16,6 +16,7 @@ import {
   type ResponsePath,
 } from '../api/learning'
 import { Button } from './ui'
+import { LearnerState } from '../features/learner-navigation/LearnerState'
 
 interface QuizViewProps {
   identity: LearningIdentity
@@ -185,30 +186,35 @@ function AttemptView({
       </ul>
       {attempt.isPending ? <p role="status">문항을 준비하고 있어요.</p> : null}
       {attempt.isError ? (
-        <div role="alert">
-          <p>{attempt.error.message}</p>
-          {requiresNewQuestion ? (
-            <>
-              <p>현재 목록에서 문항을 다시 선택해 주세요.</p>
-              {onUnavailable ? <Button onClick={onUnavailable}>다음 영상으로</Button> : null}
-              <Link
-                className="sasu-link"
-                to={
-                  responsePath === 'WRONG_NOTE' ? '/learner/library?tab=wrong' : '/learner/search'
-                }
-              >
-                {responsePath === 'WRONG_NOTE' ? '현재 오답 목록 확인' : '현재 콘텐츠 목록 확인'}
-              </Link>
-            </>
-          ) : (
-            <Button onClick={() => void attempt.refetch()}>다시 불러오기</Button>
-          )}
-        </div>
+        <LearnerState
+          title="문항을 준비하지 못했어요."
+          error={attempt.error}
+          action={
+            requiresNewQuestion ? (
+              <>
+                <p>현재 목록에서 문항을 다시 선택해 주세요.</p>
+                {onUnavailable ? <Button onClick={onUnavailable}>다음 영상으로</Button> : null}
+                <Link
+                  className="sasu-link"
+                  to={
+                    responsePath === 'WRONG_NOTE' ? '/learner/library?tab=wrong' : '/learner/search'
+                  }
+                >
+                  {responsePath === 'WRONG_NOTE' ? '현재 오답 목록 확인' : '현재 콘텐츠 목록 확인'}
+                </Link>
+              </>
+            ) : (
+              <Button onClick={() => void attempt.refetch()}>다시 불러오기</Button>
+            )
+          }
+        />
       ) : null}
       {submission.isError ? (
-        <p className="sasu-quiz__error" role="alert">
-          {submission.error.message} 같은 답으로 다시 제출할 수 있어요.
-        </p>
+        <LearnerState
+          title="답을 제출하지 못했어요."
+          error={submission.error}
+          action={<p>아래 ‘같은 답 다시 제출’ 버튼으로 다시 시도할 수 있어요.</p>}
+        />
       ) : null}
       {!response && attempt.isSuccess ? (
         <div className="sasu-row sasu-quiz__actions">

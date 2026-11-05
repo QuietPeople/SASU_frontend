@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { api } from '../../api/client'
 import type { LearnerDashboard } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Badge, Button, StateBlock } from '../../shared/ui'
+import { Badge, Button } from '../../shared/ui'
+import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
 import './dashboard.css'
 
 const GUIDE_VIEWS = ['open', 'collapsed', 'hidden'] as const
@@ -17,6 +18,7 @@ function readGuideView(learnerId: number | null): GuideView {
     const value = localStorage.getItem(guideKey(learnerId))
     if (value && (GUIDE_VIEWS as readonly string[]).includes(value)) return value as GuideView
   } catch {
+    // 저장소 접근이 제한되면 기본 표시 상태를 사용한다.
   }
   return 'open'
 }
@@ -33,31 +35,32 @@ function readCatsOpen(learnerId: number | null): boolean {
 }
 
 export function DashboardPage() {
+  const { learnerId } = useSession()
+  return <DashboardContent key={learnerId ?? 'anon'} />
+}
+
+function DashboardContent() {
   const { actorId, learnerId, generation, isPending, error, settings } = useSession()
   const navigate = useNavigate()
 
   const [guideView, setGuideView] = useState<GuideView>(() => readGuideView(learnerId))
   const [catsOpen, setCatsOpen] = useState<boolean>(() => readCatsOpen(learnerId))
-  useEffect(() => {
-    setGuideView(readGuideView(learnerId))
-    setCatsOpen(readCatsOpen(learnerId))
-  }, [learnerId])
   const changeGuideView = (next: GuideView) => {
     setGuideView(next)
     try {
       localStorage.setItem(guideKey(learnerId), next)
     } catch {
+      // 영구 저장이 실패해도 현재 화면의 선택은 유지한다.
     }
   }
   const toggleCats = () => {
-    setCatsOpen((open) => {
-      const next = !open
-      try {
-        localStorage.setItem(catsKey(learnerId), next ? 'open' : 'collapsed')
-      } catch {
-      }
-      return next
-    })
+    const next = !catsOpen
+    setCatsOpen(next)
+    try {
+      localStorage.setItem(catsKey(learnerId), next ? 'open' : 'collapsed')
+    } catch {
+      // 영구 저장이 실패해도 현재 화면의 선택은 유지한다.
+    }
   }
 
   const dashboard = useQuery({
@@ -77,7 +80,7 @@ export function DashboardPage() {
       {isPending ? (
         <StateBlock title="사용자를 불러오는 중이에요." />
       ) : error ? (
-        <StateBlock title="사용자 정보를 불러오지 못했어요." text={error.message} />
+        <StateBlock title="사용자 정보를 불러오지 못했어요." error={error} />
       ) : learnerId === null ? (
         <StateBlock title="학습자를 선택해 주세요." />
       ) : dashboard.isPending ? (
@@ -85,7 +88,7 @@ export function DashboardPage() {
       ) : dashboard.error ? (
         <StateBlock
           title="학습 현황을 불러오지 못했어요."
-          text={dashboard.error.message}
+          error={dashboard.error}
           action={<Button onClick={() => void dashboard.refetch()}>다시 시도</Button>}
         />
       ) : data ? (
@@ -230,8 +233,8 @@ export function DashboardPage() {
           <section className="sasu-card">
             {data.category_states.length === 0 ? (
               <>
-                <h2 className="sasu-card__title">개념별 상태</h2>
-                <StateBlock title="표시할 개념별 현황이 없어요." />
+                <h2 className="sasu-card__title">분야별 상태</h2>
+                <StateBlock title="표시할 분야별 현황이 없어요." />
               </>
             ) : (
               <>
@@ -241,7 +244,7 @@ export function DashboardPage() {
                   aria-expanded={catsOpen}
                   onClick={toggleCats}
                 >
-                  <span className="sasu-fold__title">개념별 상태</span>
+                  <span className="sasu-fold__title">분야별 상태</span>
                   <span className="sasu-fold__meta">
                     {data.category_states.filter((item) => item.state === 'NEEDS_REVIEW').length > 0
                       ? `복습 필요 ${data.category_states.filter((item) => item.state === 'NEEDS_REVIEW').length}개 · `
@@ -254,7 +257,7 @@ export function DashboardPage() {
                     <table className="sasu-table">
                       <thead>
                         <tr>
-                          <th>개념</th>
+                          <th>분야</th>
                           <th>상태</th>
                           <th aria-label="동작" />
                         </tr>
@@ -294,7 +297,7 @@ export function DashboardPage() {
                       </tbody>
                     </table>
                     <p className="sasu-help">
-                      미해결 오답이 없다고 해당 개념을 모두 익혔다는 뜻은 아니에요.
+                      미해결 오답이 없다고 해당 분야를 모두 익혔다는 뜻은 아니에요.
                     </p>
                   </>
                 ) : null}
