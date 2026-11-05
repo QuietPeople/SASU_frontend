@@ -2,8 +2,6 @@ import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invalidateContentChange } from '../../api/queryInvalidation'
 import { api, type ApiPage } from '../../api/client'
 import {
   adminError,
@@ -29,8 +27,6 @@ import {
   tagInputError,
   tagSearchPath,
   resolveContentTag,
-  resolveContentTags,
-  contentMetadataBody,
   contentFieldError,
   type TextField,
   addContentTag,
@@ -44,6 +40,8 @@ import { VideoUploadFeedback } from '../../admin/VideoUploadFeedback'
 import { UploadNeedsReviewError } from '../../admin/uploadRecovery'
 import '../../admin/content-editor.css'
 import { useContentDraft } from '../../admin/useContentDraft'
+import { useContentSave } from '../../admin/useContentSave'
+import type { SaveStage } from '../../admin/contentSave'
 import { Field, SectionHeading } from '../../admin/ContentFields'
 
 export function ContentFormPage({ embedded }: { embedded?: ContentSubview } = {}) {
@@ -96,7 +94,6 @@ interface EditorDraft {
 }
 // 화면 이동 동안만 보존한다. 사용자·기록 세대별로 분리하며 파일을 서버나 브라우저 저장소에 자동 업로드하지 않는다.
 const editorDrafts = new Map<string, EditorDraft>()
-type SaveStage = 'tags' | 'metadata' | 'video' | 'publish'
 const stageLabels: Record<SaveStage, string> = {
   tags: '태그 확인 중',
   metadata: '콘텐츠 정보 저장 중',
@@ -113,7 +110,6 @@ function ContentEditor({
 }) {
   const { actorId, generation } = useSession()
   const navigate = useNavigate()
-  const cache = useQueryClient()
   const { show, node } = useToast()
   const categories = useAdminQuery<{ items: AdminCategory[] }>('/categories')
   const policy = useAdminQuery<VideoPolicy>('/contents/video-policy')
@@ -144,7 +140,6 @@ function ContentEditor({
     setBaseline,
     dirty: textDirty,
   } = useContentDraft(seed)
-  const [stage, setStage] = useState<SaveStage | null>(null)
   const videoUpload = useVideoUpload({
     actorId,
     generation,
@@ -162,20 +157,29 @@ function ContentEditor({
   const dragDepth = useRef(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const savingRef = useRef(false)
-  const saveMutation = useMutation({
-    mutationFn: persistContent,
-    onSettled: () => {
-      savingRef.current = false
-      setStage(null)
+  const contentSave = useContentSave({
+    upload: videoUpload.upload,
+    onTags: (resolved) => {
+      setTags(resolved)
+      setTagDraft('')
+    },
+    onSaved: setSaved,
+    onBaseline: setBaseline,
+    onVideoSaved: () => {
+      setFile(null)
+      setPreviewError(false)
+      if (fileRef.current) fileRef.current.value = ''
+    },
+    onWarning: setWarning,
+    onSuccess: (current, publish) => {
+      setShowFieldErrors(false)
+      show(publish ? '공개했어요.' : '저장했어요.')
+      editorDrafts.delete(draftKey)
+      if (!initial && !embedded)
+        navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
     },
   })
-  const busy = saveMutation.isPending
-    ? saveMutation.variables?.publish
-      ? 'publish'
-      : 'save'
-    : null
-  const requestError = saveMutation.error
+  const { savingRef, busy, stage, error: requestError } = contentSave
   const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
   const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
     ...tags,
@@ -339,129 +343,17 @@ function ContentEditor({
       focusField('video')
       return
     }
-    savingRef.current = true
-    saveMutation.mutate({ publish, actorId, confirmedSaved })
-  }
-  async function persistContent({
-    publish,
-    actorId,
-    confirmedSaved,
-  }: {
-    publish: boolean
-    actorId: number
-    confirmedSaved?: EditableContent
-  }) {
     setError('')
     setWarning('')
-    let current = confirmedSaved ?? saved
-    let completedMetadata = false
-    let tagsChanged = false
-    const operation: { stage: SaveStage } = { stage: 'tags' }
-    const startStage = (next: SaveStage) => {
-      operation.stage = next
-      setStage(next)
-    }
-    try {
-      startStage('tags')
-      const uniqueTags = await resolveContentTags(tags, async (name) => {
-        const tag = await api<AdminTag>('/tags', { method: 'POST', actorId, body: { name } })
-        tagsChanged = true
-        return tag
-      })
-      setTags(uniqueTags)
-      setTagDraft('')
-      startStage('metadata')
-      current = await api<EditableContent>(
-        current ? `/contents/${current.detail.content.content_id}` : '/contents',
-        {
-          method: current ? 'PATCH' : 'POST',
-          actorId,
-          body: contentMetadataBody(form, uniqueTags),
-        },
-      )
-      setSaved(current)
-      setBaseline(contentSignature(form, uniqueTags))
-      completedMetadata = true
-      if (file) {
-        startStage('video')
-        const uploaded = await videoUpload.upload({
-          contentId: current.detail.content.content_id,
-          file,
-          expectedMediaRevision: (confirmedSaved ?? saved)?.detail.content.media_revision,
-        })
-        current = {
-          ...current,
-          detail: { ...current.detail, content: { ...current.detail.content, ...uploaded } },
-          missing_for_publish: current.missing_for_publish.filter((field) => field !== 'video'),
-        }
-        setSaved(current)
-        setFile(null)
-        setPreviewError(false)
-        if (fileRef.current) fileRef.current.value = ''
-        try {
-          current = await api<EditableContent>(
-            `/contents/${current.detail.content.content_id}?view=editor`,
-            { actorId },
-          )
-          setSaved(current)
-        } catch {
-          setWarning('영상은 저장됐어요. 최신 정보를 다시 불러와 주세요.')
-        }
-      }
-      if (publish) {
-        startStage('publish')
-        current = await api<EditableContent>(
-          `/contents/${current.detail.content.content_id}/publish`,
-          { method: 'POST', actorId },
-        )
-        setSaved(current)
-      }
-      cache.setQueryData(
-        [
-          'admin',
-          actorId,
-          generation,
-          `/contents/${current.detail.content.content_id}?view=editor`,
-        ],
-        current,
-      )
-      await invalidateContentChange(cache, {
-        contentId: current.detail.content.content_id,
-        tagsChanged,
-      })
-      setShowFieldErrors(false)
-      show(publish ? '공개했어요.' : '저장했어요.')
-      editorDrafts.delete(draftKey)
-      if (!initial && !embedded)
-        navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
-      return current
-    } catch (cause) {
-      const prefix = completedMetadata
-        ? operation.stage === 'video'
-          ? '콘텐츠 정보는 저장됐지만 영상 업로드에 실패했어요. 선택한 파일은 유지돼요. '
-          : operation.stage === 'publish'
-            ? '콘텐츠는 저장됐지만 공개에 실패했어요. '
-            : ''
-        : ''
-      if (current) {
-        cache.setQueryData(
-          [
-            'admin',
-            actorId,
-            generation,
-            `/contents/${current.detail.content.content_id}?view=editor`,
-          ],
-          current,
-        )
-      }
-      if (completedMetadata || tagsChanged)
-        await invalidateContentChange(cache, {
-          contentId: completedMetadata ? current?.detail.content.content_id : undefined,
-          tagsChanged,
-        })
-      if (cause instanceof UploadNeedsReviewError) throw cause
-      throw new Error(`${prefix}${adminError(cause)}`, { cause })
-    }
+    contentSave.save({
+      publish,
+      actorId,
+      generation,
+      form,
+      tags,
+      file,
+      saved: confirmedSaved ?? saved,
+    })
   }
   return (
     <div className="admin-page admin-editor">
@@ -547,7 +439,10 @@ function ContentEditor({
           ))}
         </nav>
       )}
-      <fieldset disabled={busy !== null || videoUpload.recovery !== null} className="admin-editor__fieldset">
+      <fieldset
+        disabled={busy !== null || videoUpload.recovery !== null}
+        className="admin-editor__fieldset"
+      >
         <legend className="admin-sr">콘텐츠 작성</legend>
         <div className="admin-editor__grid">
           <div className="admin-editor__column admin-editor__column--basic">
@@ -1031,7 +926,7 @@ function ContentEditor({
               setPreviewError(false)
               if (fileRef.current) fileRef.current.value = ''
               videoUpload.dismissRecovery()
-              saveMutation.reset()
+              contentSave.reset()
             }}
           />
           {busy && stage === 'video' && !videoUpload.recovery && (
