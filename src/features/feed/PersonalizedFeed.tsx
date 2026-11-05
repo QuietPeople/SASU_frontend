@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { ApiError } from '../../api/client'
 import {
   getFeed,
   getFeedCandidate,
@@ -14,18 +13,28 @@ import {
   getLearningContent,
   getLearningQuestion,
   learningKey,
-  recoverLearningAttempt,
   type LearningIdentity,
-  type LearningResponse,
   type WatchResult,
 } from '../../api/learning'
 import { ContentViewer } from '../content-viewer/ContentViewer'
-import { QuizView } from '../../shared/QuizView'
+import { SwipeViewport, type SwipeItem } from '../content-viewer/SwipeViewport'
+import { SwipeScene } from '../content-viewer/SwipeScene'
+import { feedSlides } from './feedSlides'
+import { LEARNING_PRELOAD_STALE_MS } from '../content-viewer/preloadPolicy'
+import { SwipeEndPreview, BufferedVideo } from '../content-viewer/BufferedVideo'
+import { FeedCardPreview } from './FeedCardPreview'
+import { FLASHCARD_STYLES } from '../../admin/useFlashcardStyle'
+import { VideoLoading, VideoLoadingFrame } from '../content-viewer/VideoLoading'
+import { createViewerSession, type ViewerSession } from '../content-viewer/viewerSession'
+import { FeedReviewCard } from './FeedReviewCard'
 import { Button, StateBlock } from '../../shared/ui'
 import { useSession } from '../../state/session'
 import {
   readFeedSession,
   writeFeedSession,
+  createFeedCard,
+  updateFeedCard,
+  cardBetween,
   type FeedSession,
   type PendingFeedReview,
 } from './session'
@@ -66,12 +75,7 @@ function FeedLoader({ identity, interval }: { identity: LearningIdentity; interv
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   })
-  if (feed.isPending)
-    return (
-      <div className="sasu-page">
-        <StateBlock title="추천 영상을 불러오는 중이에요." />
-      </div>
-    )
+  if (feed.isPending) return <VideoLoadingFrame />
   if (!feed.data)
     return (
       <div className="sasu-page">
@@ -127,9 +131,17 @@ function FeedFlow({
   const [error, setError] = useState('')
   const moving = useRef(false)
   const mounted = useRef(true)
-  const navigationTime = useRef(0)
+  const [preparedCard, setPreparedCard] = useState<PendingFeedReview | null>(null)
+  const [styleSeed] = useState(() => Math.floor(Math.random() * FLASHCARD_STYLES.length))
+  const styleFor = (id: string) =>
+    FLASHCARD_STYLES[
+      [...id].reduce(
+        (hash, char) => (hash + char.charCodeAt(0)) % FLASHCARD_STYLES.length,
+        styleSeed,
+      )
+    ]
+  const [playback] = useState(createViewerSession)
   const candidateRequest = useRef<AbortController | null>(null)
-  const appliedResponse = useRef<number | null>(null)
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -171,13 +183,28 @@ function FeedFlow({
   const index = items.findIndex((item) => item.content.content_id === currentId)
   const nextId = items[index + 1]?.content.content_id ?? null
   const previousId = items[index < 0 ? items.length - 1 : index - 1]?.content.content_id
-  const advance = async () => {
-    if (moving.current || !mounted.current) return
+  const prepareAdvance = async (): Promise<(() => void) | false> => {
+    if (moving.current || !mounted.current) return false
     moving.current = true
     setBusy(true)
     setError('')
     try {
       const current = stateRef.current
+      const inserted =
+        cardBetween(current, currentId, nextId) ??
+        (preparedCard?.previousContentId === currentId && preparedCard.nextContentId === nextId
+          ? preparedCard
+          : undefined)
+      if (inserted) {
+        return () =>
+          update((previous) => ({
+            ...previous,
+            pending: inserted,
+            cards: previous.cards.some((card) => card.id === inserted.id)
+              ? previous.cards
+              : [...previous.cards, inserted],
+          }))
+      }
       if (current.count >= interval && current.completed.length > current.evaluatedAt) {
         const controller = new AbortController()
         candidateRequest.current = controller
@@ -187,84 +214,108 @@ function FeedFlow({
           current.retry,
           controller.signal,
         )
-        if (!mounted.current) return
+        if (!mounted.current) return false
         if (result.candidate) {
-          update((previous) => ({
-            ...previous,
-            pending: {
-              question: result.candidate!,
-              attemptId: crypto.randomUUID(),
-              eventId: crypto.randomUUID(),
-              nextContentId: nextId,
-              shown: false,
-              submission: null,
-            },
-          }))
-          return
+          const card = createFeedCard(result.candidate, currentId, nextId)
+          setPreparedCard(card)
+          return () =>
+            update((previous) => ({
+              ...previous,
+              pending: card,
+              cards: [...previous.cards, card],
+            }))
         }
         // 후보가 없으면 카운터를 유지하고, 새 콘텐츠 완료 후에만 다시 후보를 요청한다.
         update((previous) => ({ ...previous, evaluatedAt: previous.completed.length }))
       }
-      if (mounted.current) setCurrentId(nextId)
+      return () => {
+        if (mounted.current) {
+          setPreparedCard(null)
+          setCurrentId(nextId)
+        }
+      }
     } catch (cause) {
       if (mounted.current && !(cause instanceof Error && cause.name === 'AbortError'))
         setError(cause instanceof Error ? cause.message : '복기 대상을 확인하지 못했어요.')
+      return false
     } finally {
       moving.current = false
       if (mounted.current) setBusy(false)
     }
+  }
+  const advance = async () => {
+    const commit = await prepareAdvance()
+    if (commit) commit()
+    return Boolean(commit)
   }
   const onReady = useCallback(() => {
     update((previous) => {
       const pending = previous.pending
       if (!pending || pending.shown) return previous
       return {
-        ...previous,
+        ...updateFeedCard(previous, pending.id, { shown: true }),
         count: 0,
         evaluatedAt: previous.completed.length,
         shown: [...new Set([...previous.shown, pending.question.question_version_id])],
         retry: previous.retry.filter((id) => id !== pending.question.question_version_id),
-        pending: { ...pending, shown: true },
       }
     })
   }, [update])
-  const onResponse = useCallback(
-    (response: LearningResponse) => {
-      if (appliedResponse.current === response.response_id) return
-      appliedResponse.current = response.response_id
-      update((previous) => {
-        if (previous.pending?.attemptId !== response.attempt_id) return previous
-        const id = response.question.question_version_id
-        return {
-          ...previous,
-          retry:
-            response.result === 'WRONG'
-              ? [...new Set([...previous.retry, id])]
-              : previous.retry.filter((version) => version !== id),
-        }
-      })
+  const onFlip = useCallback(
+    (id: string, flipped: boolean) => {
+      update((previous) => updateFeedCard(previous, id, { flipped }))
     },
     [update],
   )
-  const onSubmission = useCallback(
-    (optionId: number | null) => {
-      update((previous) =>
-        !previous.pending || previous.pending.submission !== null
-          ? previous
-          : {
-              ...previous,
-              pending: { ...previous.pending, submission: { optionId } },
-            },
-      )
-    },
-    [update],
-  )
-  const finishReview = () => {
-    const next = stateRef.current.pending?.nextContentId ?? null
+  const finishReview = (direction: 'next' | 'previous') => {
+    const card = stateRef.current.pending
+    const next =
+      direction === 'next' ? (card?.nextContentId ?? null) : (card?.previousContentId ?? currentId)
     update((previous) => ({ ...previous, pending: null }))
     setCurrentId(items.some((item) => item.content.content_id === next) ? next : null)
     setError('')
   }
+  const goPrevious = () => {
+    const card = cardBetween(stateRef.current, previousId ?? null, currentId)
+    if (card) update((previous) => ({ ...previous, pending: card }))
+    else if (previousId !== undefined) setCurrentId(previousId)
+  }
+
+  const cardPreview = (card: PendingFeedReview) => (
+    <FeedCardPreview key={card.id} identity={identity} card={card} style={styleFor(card.id)} />
+  )
+  const slides = feedSlides(
+    items.map((item) => item.content.content_id),
+    preparedCard && !state.cards.some((card) => card.id === preparedCard.id)
+      ? [...state.cards, preparedCard]
+      : state.cards,
+    state.pending,
+  )
+  const activeKey = state.pending
+    ? `review:${state.pending.id}`
+    : currentId === null
+      ? 'end'
+      : `video:${currentId}`
+  const scrollItems: SwipeItem[] = slides.map((slide) => ({
+    key: slide.key,
+    ...(slide.kind === 'video'
+      ? {
+          renderVideo: (mediaHost, activeContent, active) => (
+            <BufferedVideo
+              identity={identity}
+              contentId={slide.contentId}
+              content={items.find((item) => item.content.content_id === slide.contentId)?.content}
+              active={active}
+              mediaHost={mediaHost}
+            >
+              {activeContent}
+            </BufferedVideo>
+          ),
+        }
+      : {
+          preview: slide.kind === 'review' ? cardPreview(slide.card) : <SwipeEndPreview />,
+        }),
+  }))
 
   return (
     <>
@@ -287,77 +338,88 @@ function FeedFlow({
           </Button>
         </div>
       ) : null}
-      {state.pending ? (
-        <FeedReview
-          key={state.pending.attemptId}
-          identity={identity}
-          pending={state.pending}
-          onReady={onReady}
-          onResponse={onResponse}
-          onSubmission={onSubmission}
-          onContinue={finishReview}
-        />
-      ) : currentId !== null && index >= 0 ? (
-        <FeedVideo
-          key={currentId}
-          identity={identity}
-          item={items[index]}
-          onWatchReport={(result) => onWatchReport(currentId, result)}
-          onNext={advance}
-          onPrevious={previousId === undefined ? undefined : () => setCurrentId(previousId)}
-          busy={busy}
-          last={nextId === null}
-          navigationTime={navigationTime}
-        />
-      ) : (
-        <div className="sasu-page">
-          <StateBlock
-            title={items.length ? '추천 영상을 모두 확인했어요.' : '아직 공개된 영상이 없어요.'}
-            action={
-              <>
-                <Button onClick={reload}>추천 다시 불러오기</Button>
-                {previousId !== undefined ? (
-                  <Button onClick={() => setCurrentId(previousId)}>이전 영상</Button>
-                ) : null}
-                <Link className="sasu-link" to="/learner/search">
-                  영상 검색하기
-                </Link>
-              </>
-            }
+      <SwipeViewport items={scrollItems} activeKey={activeKey}>
+        {state.pending ? (
+          <FeedReviewCard
+            key={state.pending.id}
+            identity={identity}
+            card={state.pending}
+            style={styleFor(state.pending.id)}
+            onReady={onReady}
+            onFlip={onFlip}
+            onNavigate={finishReview}
           />
-        </div>
-      )}
+        ) : currentId !== null && index >= 0 ? (
+          <FeedVideo
+            key={currentId}
+            playback={playback}
+            identity={identity}
+            item={items[index]}
+            onWatchReport={(result) => onWatchReport(currentId, result)}
+            onNext={advance}
+            prepareNext={prepareAdvance}
+            onPrevious={previousId === undefined ? undefined : goPrevious}
+            busy={busy}
+          />
+        ) : (
+          <SwipeScene
+            media={<SwipeEndPreview />}
+            onNavigate={async (direction) => {
+              if (direction !== 'previous' || previousId === undefined) return false
+              goPrevious()
+              return true
+            }}
+          >
+            <StateBlock
+              title={items.length ? '추천 영상을 모두 확인했어요.' : '아직 공개된 영상이 없어요.'}
+              action={
+                <>
+                  <Button onClick={reload}>추천 다시 불러오기</Button>
+                  {previousId !== undefined ? (
+                    <Button onClick={goPrevious}>이전 항목</Button>
+                  ) : null}
+                  <Link className="sasu-link" to="/learner/search">
+                    영상 검색하기
+                  </Link>
+                </>
+              }
+            />
+          </SwipeScene>
+        )}
+      </SwipeViewport>
     </>
   )
 }
 
 function FeedVideo({
+  playback,
   identity,
   item,
   onNext,
   onPrevious,
   onWatchReport,
   busy,
-  last,
-  navigationTime,
+  prepareNext,
 }: {
   identity: LearningIdentity
   item: FeedItem
-  onNext: () => Promise<void>
+  playback: ViewerSession
+  onNext: () => Promise<boolean>
   onPrevious?: () => void
   onWatchReport: (result: WatchResult) => void
   busy: boolean
-  last: boolean
-  navigationTime: { current: number }
+  prepareNext: () => Promise<(() => void) | false>
 }) {
   const id = item.content.content_id
   const detail = useQuery({
     queryKey: learningKey(identity, 'content', id),
     queryFn: ({ signal }) => getLearningContent(identity, id, signal),
+    staleTime: LEARNING_PRELOAD_STALE_MS,
   })
   const question = useQuery({
     queryKey: learningKey(identity, 'question', id),
     queryFn: ({ signal }) => getLearningQuestion(identity, id, signal),
+    staleTime: LEARNING_PRELOAD_STALE_MS,
   })
   const position = useMutation({
     scope: { id: `feed-position:${identity.learnerId}:${identity.generation}` },
@@ -370,9 +432,14 @@ function FeedVideo({
 
   if (detail.isPending)
     return (
-      <div className="sasu-page">
-        <StateBlock title="영상을 불러오는 중이에요." />
-      </div>
+      <SwipeScene
+        panelPending
+        media={
+          <div className="sasu-player">
+            <VideoLoading />
+          </div>
+        }
+      />
     )
   if (
     !detail.data ||
@@ -381,7 +448,19 @@ function FeedVideo({
     !detail.data.content.video_duration
   )
     return (
-      <div className="sasu-page">
+      <SwipeScene
+        media={
+          <div className="sasu-player swipe-preview__end">
+            <p>현재 영상을 불러올 수 없어요.</p>
+          </div>
+        }
+        onNavigate={async (direction) => {
+          if (direction === 'next') return onNext()
+          if (!onPrevious) return false
+          onPrevious()
+          return true
+        }}
+      >
         <StateBlock
           title="현재 영상을 불러올 수 없어요."
           text={detail.error?.message}
@@ -394,7 +473,7 @@ function FeedVideo({
             </>
           }
         />
-      </div>
+      </SwipeScene>
     )
   return (
     <>
@@ -411,6 +490,7 @@ function FeedVideo({
         </div>
       ) : null}
       <ContentViewer
+        playback={playback}
         key={detail.data.content.media_revision}
         identity={identity}
         detail={detail.data}
@@ -424,117 +504,9 @@ function FeedVideo({
         onNext={onNext}
         onPrevious={onPrevious}
         onWatchReport={onWatchReport}
-        navigationTime={navigationTime}
+        prepareNext={prepareNext}
         navigationPending={busy}
-        nextLabel={last ? '피드 마치기' : '다음 ↓'}
       />
     </>
-  )
-}
-
-function FeedReview({
-  identity,
-  pending,
-  onReady,
-  onResponse,
-  onSubmission,
-  onContinue,
-}: {
-  identity: LearningIdentity
-  pending: PendingFeedReview
-  onReady: () => void
-  onResponse: (response: LearningResponse) => void
-  onSubmission: (optionId: number | null) => void
-  onContinue: () => void
-}) {
-  const recovery = useQuery({
-    queryKey: learningKey(identity, 'feed-attempt-recovery', pending.attemptId),
-    queryFn: async ({ signal }) => {
-      try {
-        const result = await recoverLearningAttempt(identity, pending.attemptId, signal)
-        if (
-          result.user_id !== identity.learnerId ||
-          result.record_generation !== identity.generation ||
-          result.response_path !== 'FEED_REVIEW' ||
-          result.question.question_version_id !== pending.question.question_version_id
-        ) {
-          throw new ApiError(
-            409,
-            'REVIEW_SESSION_MISMATCH',
-            '이 복기와 저장된 풀이가 일치하지 않아요.',
-          )
-        }
-        return result
-      } catch (cause) {
-        if (cause instanceof ApiError && cause.code === 'ATTEMPT_NOT_FOUND') return null
-        throw cause
-      }
-    },
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
-  const source = useQuery({
-    queryKey: learningKey(identity, 'content', pending.question.content_id),
-    queryFn: ({ signal }) => getLearningContent(identity, pending.question.content_id, signal),
-  })
-  if (recovery.isPending)
-    return (
-      <div className="sasu-page">
-        <StateBlock title="복기 풀이를 확인하는 중이에요." />
-      </div>
-    )
-  if (recovery.isError)
-    return (
-      <div className="sasu-page">
-        <StateBlock
-          title="복기 풀이를 불러오지 못했어요."
-          text={recovery.error.message}
-          action={
-            <>
-              <Button onClick={() => void recovery.refetch()}>다시 시도</Button>
-              <Button onClick={onContinue}>복기 닫기</Button>
-            </>
-          }
-        />
-      </div>
-    )
-  return (
-    <div className="sasu-page sasu-review">
-      <header className="sasu-page__head">
-        <p className="sasu-eyebrow">피드 복기</p>
-        <h1 className="sasu-title">이전에 본 내용을 떠올려 보세요</h1>
-        <p className="sasu-sub">{source.data?.content.title ?? '이전에 학습한 영상'}</p>
-      </header>
-      <section className="sasu-card">
-        <QuizView
-          identity={identity}
-          question={pending.question}
-          responsePath="FEED_REVIEW"
-          attemptId={pending.attemptId}
-          eventId={pending.eventId}
-          restoredAttempt={recovery.data?.submitted ? recovery.data : undefined}
-          initialSubmission={pending.submission}
-          onSubmission={onSubmission}
-          onReady={onReady}
-          onResponse={onResponse}
-          onUnavailable={onContinue}
-          footer={() => (
-            <Button variant="primary" onClick={onContinue}>
-              {pending.nextContentId === null ? '피드 마치기' : '다음 영상 →'}
-            </Button>
-          )}
-        />
-        <p>
-          <Link
-            className="sasu-link"
-            to={`/learner/watch/${pending.question.content_id}?from=review`}
-            state={{ context: 'REVIEW', returnTo: '/learner/feed' }}
-          >
-            원본 영상 보기
-          </Link>
-        </p>
-      </section>
-    </div>
   )
 }

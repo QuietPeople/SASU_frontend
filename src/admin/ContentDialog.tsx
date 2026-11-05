@@ -1,8 +1,7 @@
+import { ContentFormPage, MaterialPage, StatsPage } from '../app/lazyPages'
+import { RouteContent } from '../app/RouteContent'
 import { useEffect, useRef, useState } from 'react'
 import type { AdminContent } from '../api/admin'
-import { ContentFormPage } from '../pages/admin/ContentFormPage'
-import { MaterialPage } from '../pages/admin/MaterialPage'
-import { StatsPage } from '../pages/admin/StatsPage'
 import type { ContentSubview, ContentSubviewKind } from './contentSubview'
 import { RequestFeedback } from './RequestFeedback'
 import { Icon } from './Icon'
@@ -128,13 +127,15 @@ export function ContentDialog({
       )}
       <div ref={bodyRef} className="admin-content-dialog__body">
         <RequestFeedback key={view}>
-          {view === 'edit' ? (
-            <ContentFormPage embedded={embedded} />
-          ) : view === 'materials' ? (
-            <MaterialPage embedded={embedded} />
-          ) : (
-            <StatsPage embedded={embedded} />
-          )}
+          <RouteContent key={view}>
+            {view === 'edit' ? (
+              <ContentFormPage embedded={embedded} />
+            ) : view === 'materials' ? (
+              <MaterialPage embedded={embedded} />
+            ) : (
+              <StatsPage embedded={embedded} />
+            )}
+          </RouteContent>
         </RequestFeedback>
       </div>
     </dialog>

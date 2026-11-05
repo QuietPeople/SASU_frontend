@@ -39,7 +39,9 @@ import {
   type ContentTag,
   type PublishField,
 } from '../../admin/contentEditor'
-import { uploadVideo, type VideoUploadProgress } from '../../admin/uploadVideo'
+import { useVideoUpload } from '../../admin/useVideoUpload'
+import { VideoUploadFeedback } from '../../admin/VideoUploadFeedback'
+import { UploadNeedsReviewError } from '../../admin/uploadRecovery'
 import '../../admin/content-editor.css'
 import { useContentDraft } from '../../admin/useContentDraft'
 import { Field, SectionHeading } from '../../admin/ContentFields'
@@ -143,7 +145,12 @@ function ContentEditor({
     dirty: textDirty,
   } = useContentDraft(seed)
   const [stage, setStage] = useState<SaveStage | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null)
+  const videoUpload = useVideoUpload({
+    actorId,
+    generation,
+    contentId: seed.saved?.detail.content.content_id,
+  })
+  const uploadProgress = videoUpload.progress
   const [error, setError] = useState('')
   const [warning, setWarning] = useState('')
   const [showFieldErrors, setShowFieldErrors] = useState(false)
@@ -161,7 +168,6 @@ function ContentEditor({
     onSettled: () => {
       savingRef.current = false
       setStage(null)
-      setUploadProgress(null)
     },
   })
   const busy = saveMutation.isPending
@@ -191,8 +197,9 @@ function ContentEditor({
       return !!tagError || !!((touched.tags || showFieldErrors) && missing.includes(key))
     return !!fieldError(key)
   }
-  const videoStatus =
-    uploadProgress?.phase === 'processing'
+  const videoStatus = videoUpload.recovery
+    ? '영상 저장 결과 확인 중…'
+    : uploadProgress?.phase === 'processing'
       ? '영상 확인 및 저장 중…'
       : uploadProgress?.percent != null
         ? `업로드 중 ${uploadProgress.percent}%`
@@ -200,16 +207,23 @@ function ContentEditor({
   const activeStageLabel = stage === 'video' ? videoStatus : stage ? stageLabels[stage] : ''
   const reviewedError = fieldError('reviewed')
   const cautionInvalid = form.caution && !!fieldError('cautionText')
-  const publishDisabled = !saved || missing.length > 0 || busy !== null || actorId === null
+  const publishDisabled =
+    !saved ||
+    missing.length > 0 ||
+    busy !== null ||
+    actorId === null ||
+    videoUpload.recovery !== null
   const publishHint = busy
     ? '처리가 끝날 때까지 기다려 주세요'
-    : actorId === null
-      ? '관리자 사용자를 선택해 주세요'
-      : missing.length
-        ? '필수 항목을 채워주세요'
-        : !saved
-          ? '먼저 임시저장해 주세요'
-          : undefined
+    : videoUpload.recovery
+      ? '영상 저장 결과를 먼저 확인해 주세요'
+      : actorId === null
+        ? '관리자 사용자를 선택해 주세요'
+        : missing.length
+          ? '필수 항목을 채워주세요'
+          : !saved
+            ? '먼저 임시저장해 주세요'
+            : undefined
   const set = <K extends keyof ContentFields>(key: K, value: ContentFields[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
     setError('')
@@ -283,8 +297,8 @@ function ContentEditor({
       setWarning(`저장된 영상 정보를 다시 불러오지 못했어요. ${adminError(cause)}`)
     }
   }
-  const save = (publish: boolean) => {
-    if (savingRef.current || actorId === null) return
+  const save = (publish: boolean, confirmedSaved?: EditableContent) => {
+    if (savingRef.current || actorId === null || (videoUpload.recovery && !confirmedSaved)) return
     if (tagDraft.trim()) {
       setError(
         '입력 중인 태그가 있어요. 추가 버튼이나 Enter로 확정하거나 입력을 지운 뒤 저장해 주세요.',
@@ -326,13 +340,20 @@ function ContentEditor({
       return
     }
     savingRef.current = true
-    saveMutation.mutate({ publish, actorId })
+    saveMutation.mutate({ publish, actorId, confirmedSaved })
   }
-  async function persistContent({ publish, actorId }: { publish: boolean; actorId: number }) {
-    setUploadProgress(null)
+  async function persistContent({
+    publish,
+    actorId,
+    confirmedSaved,
+  }: {
+    publish: boolean
+    actorId: number
+    confirmedSaved?: EditableContent
+  }) {
     setError('')
     setWarning('')
-    let current = saved
+    let current = confirmedSaved ?? saved
     let completedMetadata = false
     let tagsChanged = false
     const operation: { stage: SaveStage } = { stage: 'tags' }
@@ -363,12 +384,10 @@ function ContentEditor({
       completedMetadata = true
       if (file) {
         startStage('video')
-        const uploaded = await uploadVideo({
+        const uploaded = await videoUpload.upload({
           contentId: current.detail.content.content_id,
-          actorId,
           file,
-          expectedMediaRevision: saved?.detail.content.media_revision,
-          onProgress: setUploadProgress,
+          expectedMediaRevision: (confirmedSaved ?? saved)?.detail.content.media_revision,
         })
         current = {
           ...current,
@@ -440,6 +459,7 @@ function ContentEditor({
           contentId: completedMetadata ? current?.detail.content.content_id : undefined,
           tagsChanged,
         })
+      if (cause instanceof UploadNeedsReviewError) throw cause
       throw new Error(`${prefix}${adminError(cause)}`, { cause })
     }
   }
@@ -484,7 +504,7 @@ function ContentEditor({
           </p>
         </header>
       )}
-      {requestError && (
+      {requestError && !(requestError instanceof UploadNeedsReviewError) && (
         <RequestError
           title="콘텐츠 저장·공개 실패"
           error={requestError.cause ?? requestError}
@@ -527,7 +547,7 @@ function ContentEditor({
           ))}
         </nav>
       )}
-      <fieldset disabled={busy !== null} className="admin-editor__fieldset">
+      <fieldset disabled={busy !== null || videoUpload.recovery !== null} className="admin-editor__fieldset">
         <legend className="admin-sr">콘텐츠 작성</legend>
         <div className="admin-editor__grid">
           <div className="admin-editor__column admin-editor__column--basic">
@@ -967,16 +987,22 @@ function ContentEditor({
             <>
               <Spinner label={activeStageLabel} />
               <strong>{activeStageLabel}</strong>
-              <span>완료될 때까지 이 화면을 유지해 주세요.</span>
+              <span>
+                {stage === 'video'
+                  ? '요청을 중단하면 영상 저장 결과를 별도로 확인해요.'
+                  : '완료될 때까지 이 화면을 유지해 주세요.'}
+              </span>
             </>
           ) : (
             <>
               <strong>
-                {dirty
-                  ? '저장하지 않은 변경이 있어요'
-                  : saved
-                    ? '현재 내용이 저장돼 있어요'
-                    : '새 콘텐츠를 작성하고 있어요'}
+                {videoUpload.recovery
+                  ? '영상 저장 결과를 확인해 주세요'
+                  : dirty
+                    ? '저장하지 않은 변경이 있어요'
+                    : saved
+                      ? '현재 내용이 저장돼 있어요'
+                      : '새 콘텐츠를 작성하고 있어요'}
               </strong>
               <span>
                 {!saved
@@ -989,6 +1015,30 @@ function ContentEditor({
           )}
         </div>
         <div className="admin-editor__save-actions">
+          <VideoUploadFeedback
+            upload={videoUpload}
+            busy={busy !== null}
+            fileName={file?.name}
+            contentTitle={form.title}
+            onRetry={(latest) => {
+              setSaved(latest)
+              videoUpload.dismissRecovery()
+              save(false, latest)
+            }}
+            onUseCurrent={(latest) => {
+              setSaved(latest)
+              setFile(null)
+              setPreviewError(false)
+              if (fileRef.current) fileRef.current.value = ''
+              videoUpload.dismissRecovery()
+              saveMutation.reset()
+            }}
+          />
+          {busy && stage === 'video' && !videoUpload.recovery && (
+            <Button onClick={videoUpload.cancel}>
+              {uploadProgress?.phase === 'processing' ? '응답 대기 종료' : '업로드 요청 취소'}
+            </Button>
+          )}
           <Button
             disabled={!saved || busy !== null}
             onClick={() => {
@@ -1011,7 +1061,7 @@ function ContentEditor({
             variant={saved ? 'default' : 'primary'}
             onClick={() => void save(false)}
             loading={busy === 'save'}
-            disabled={busy !== null || actorId === null}
+            disabled={busy !== null || actorId === null || videoUpload.recovery !== null}
           >
             {saved ? '변경 저장' : '임시저장'}
           </Button>

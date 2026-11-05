@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router'
 import type { ReactNode } from 'react'
 import { LearnerSidebarLayout } from './LearnerSidebarLayout'
 import { useSession } from '../state/session'
-import { Button, Spinner, StateBlock } from '../shared/ui'
+import { Button, StateBlock } from '../shared/ui'
+import { ScreenLoading } from '../app/RouteContent'
 import '../styles/sasu-pages.css'
 
 // 공통 레이아웃: 왼쪽 내비게이션 + 본문(화면 설계서 1-1·1-2).
@@ -53,7 +54,7 @@ export function AppLayout({ role, children }: { role: 'learner' | 'admin'; child
         </div>
       ) : null}
       {session.isPending ? (
-        <Spinner label="사용자 정보 불러오는 중" />
+        <ScreenLoading label="사용자 정보 불러오는 중" />
       ) : session.error &&
         (session.actorId === null || (role === 'learner' && !session.settings)) ? (
         <StateBlock

@@ -1,7 +1,8 @@
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSession } from '../state/session'
-import { Button, Spinner, StateBlock } from './ui'
+import { Button, StateBlock } from './ui'
+import { ScreenLoading } from '../app/RouteContent'
 import { Icon, type IconName } from './Icon'
 import { RequestFeedback, RequestError } from './RequestFeedback'
 import './admin.css'
@@ -253,7 +254,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             />
           ) : null}
           {session.isPending ? (
-            <Spinner label="사용자 정보 불러오는 중" />
+            <ScreenLoading label="사용자 정보 불러오는 중" />
           ) : session.error && session.actorId === null ? (
             <RequestError
               title="서버 정보를 불러오지 못했습니다."

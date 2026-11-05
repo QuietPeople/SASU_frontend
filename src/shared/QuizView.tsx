@@ -21,6 +21,7 @@ interface QuizViewProps {
   identity: LearningIdentity
   question: LearningQuestion
   responsePath: ResponsePath
+  appearance?: 'default' | 'material-preview'
   context?: string
   attemptId?: string
   restoredAttempt?: LearningAttempt
@@ -47,6 +48,7 @@ function AttemptView({
   identity,
   question,
   responsePath,
+  appearance = 'default',
   context,
   footer,
   attemptId: providedAttemptId,
@@ -58,6 +60,7 @@ function AttemptView({
   onResponse,
   onUnavailable,
 }: QuizViewProps) {
+  const materialPreview = appearance === 'material-preview'
   const queryClient = useQueryClient()
   const [newAttemptId] = useState(() => crypto.randomUUID())
   const attemptId = providedAttemptId ?? newAttemptId
@@ -121,6 +124,7 @@ function AttemptView({
   }, [attempt.data, response, onReady, onResponse])
   const locked = Boolean(response) || submittedChoice !== null
   const displayedQuestion = response?.question ?? attempt.data?.question ?? question
+  const selectedOptionId = response ? response.selected_option_id : picked
   const submit = (optionId: number | null) => {
     if (!attempt.isSuccess || submission.isPending || response) return
     const choice = submittedChoice ?? { optionId }
@@ -140,15 +144,15 @@ function AttemptView({
     ].includes(attempt.error.code)
 
   return (
-    <div className="sasu-quiz">
+    <div className={`sasu-quiz${materialPreview ? ' sasu-quiz--material-preview' : ''}`}>
       {context ? <p className="sasu-quiz__context">{context}</p> : null}
       <p className="sasu-quiz__q">{displayedQuestion.question_text}</p>
       <ul className="sasu-quiz__choices" role="radiogroup" aria-label="보기">
         {displayedQuestion.options.map((option) => {
-          const isPicked = (response?.selected_option_id ?? picked) === option.option_id
+          const isPicked = selectedOptionId === option.option_id
           const isCorrect =
             response &&
-            response.result !== 'SKIP' &&
+            (materialPreview || response.result !== 'SKIP') &&
             response.correct_option_id === option.option_id
           return (
             <li key={option.option_id}>
@@ -164,12 +168,16 @@ function AttemptView({
                 }}
               >
                 <span className="sasu-choice__letter" aria-hidden="true">
-                  {displayedQuestion.question_type === 'OX'
-                    ? option.option_text
-                    : String.fromCharCode(64 + option.option_order)}
+                  {materialPreview
+                    ? option.option_order
+                    : displayedQuestion.question_type === 'OX'
+                      ? option.option_text
+                      : String.fromCharCode(64 + option.option_order)}
                 </span>
                 <span className="sasu-choice__text">{option.option_text}</span>
-                {isCorrect ? <span className="sasu-choice__mark">✓ 정답</span> : null}
+                {isCorrect ? (
+                  <span className="sasu-choice__mark">{materialPreview ? '정답' : '✓ 정답'}</span>
+                ) : null}
               </button>
             </li>
           )
@@ -203,19 +211,19 @@ function AttemptView({
         </p>
       ) : null}
       {!response && attempt.isSuccess ? (
-        <div className="sasu-row">
+        <div className="sasu-row sasu-quiz__actions">
           {submittedChoice === null ? (
             <Button onClick={() => submit(null)} disabled={submission.isPending}>
               건너뛰기
             </Button>
           ) : null}
           <Button
-            variant="primary"
+            variant={materialPreview ? 'default' : 'primary'}
             loading={submission.isPending}
             disabled={submittedChoice === null && picked === null}
             onClick={() => submit(picked)}
           >
-            {submission.isError ? '같은 답 다시 제출' : '제출'}
+            {submission.isError ? '같은 답 다시 제출' : materialPreview ? '정답 확인' : '제출'}
           </Button>
         </div>
       ) : null}
@@ -226,12 +234,18 @@ function AttemptView({
         >
           <p className="sasu-result__title">
             {response.result === 'CORRECT'
-              ? '✓ 정답이에요'
+              ? materialPreview
+                ? '정답이에요'
+                : '✓ 정답이에요'
               : response.result === 'WRONG'
-                ? '다시 확인해 보세요'
+                ? materialPreview
+                  ? '정답을 확인해 보세요'
+                  : '다시 확인해 보세요'
                 : '건너뛰었어요'}
           </p>
-          {response.result === 'SKIP' ? (
+          {materialPreview ? (
+            <p className="sasu-result__exp">{response.explanation}</p>
+          ) : response.result === 'SKIP' ? (
             <p>건너뛴 기록을 저장했어요. 오답으로 기록하지 않아요.</p>
           ) : (
             <>
