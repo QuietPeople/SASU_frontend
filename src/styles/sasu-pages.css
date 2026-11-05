@@ -259,10 +259,22 @@ body.sasu-reset-base {
   background: var(--sasu-line-soft);
   color: var(--sasu-sub);
 }
-.sasu-badge--green { background: var(--sasu-green-soft); color: var(--sasu-green); }
-.sasu-badge--blue { background: var(--sasu-brand-soft); color: var(--sasu-brand-ink); }
-.sasu-badge--amber { background: var(--sasu-amber-soft); color: var(--sasu-amber); }
-.sasu-badge--red { background: var(--sasu-red-soft); color: var(--sasu-red); }
+.sasu-badge--green {
+  background: var(--sasu-green-soft);
+  color: var(--sasu-green);
+}
+.sasu-badge--blue {
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+}
+.sasu-badge--amber {
+  background: var(--sasu-amber-soft);
+  color: var(--sasu-amber);
+}
+.sasu-badge--red {
+  background: var(--sasu-red-soft);
+  color: var(--sasu-red);
+}
 
 .sasu-chip {
   display: inline-flex;
@@ -477,7 +489,9 @@ body.sasu-reset-base {
   border-top-color: #fff;
 }
 @keyframes sasu-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .sasu-toast {
   position: fixed;
@@ -1402,7 +1416,6 @@ body.sasu-reset-base {
   }
 }
 
-
 /* ===== 영상 좋아요·저장 액션 버튼 ===== */
 .sasu-actions {
   display: flex;
@@ -1420,7 +1433,9 @@ body.sasu-reset-base {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 .sasu-action--icon-only {
   padding: 9px 12px;
@@ -1440,7 +1455,10 @@ body.sasu-reset-base {
   stroke: currentColor;
   stroke-width: 2;
   stroke-linejoin: round;
-  transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease,
+    transform 0.2s ease;
 }
 .sasu-action--like.is-on {
   border-color: var(--sasu-red);
@@ -1462,12 +1480,16 @@ body.sasu-reset-base {
   animation: sasu-tick 0.22s ease;
 }
 @keyframes sasu-tick {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.12); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-
-
 
 /* ===== 학습 패널 하단 출처·검토일 ===== */
 .sasu-lp__body {
@@ -1591,8 +1613,12 @@ body.sasu-reset-base {
   animation: sasu-shimmer 1.2s ease-in-out infinite;
 }
 @keyframes sasu-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .sasu-skeleton li {
@@ -1605,25 +1631,57 @@ body.sasu-reset-base {
   touch-action: pan-x;
 }
 @keyframes sasu-enter-below {
-  from { transform: translateY(34px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(34px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 @keyframes sasu-enter-above {
-  from { transform: translateY(-34px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 @keyframes sasu-exit-up {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(-34px); opacity: 0; }
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
 }
 @keyframes sasu-exit-down {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(34px); opacity: 0; }
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(34px);
+    opacity: 0;
+  }
 }
-.sasu-feed__main.is-enter-below { animation: sasu-enter-below 0.22s ease-out; }
-.sasu-feed__main.is-enter-above { animation: sasu-enter-above 0.22s ease-out; }
-.sasu-feed__main.is-exit-up { animation: sasu-exit-up 0.16s ease-in forwards; }
-.sasu-feed__main.is-exit-down { animation: sasu-exit-down 0.16s ease-in forwards; }
+.sasu-feed__main.is-enter-below {
+  animation: sasu-enter-below 0.22s ease-out;
+}
+.sasu-feed__main.is-enter-above {
+  animation: sasu-enter-above 0.22s ease-out;
+}
+.sasu-feed__main.is-exit-up {
+  animation: sasu-exit-up 0.16s ease-in forwards;
+}
+.sasu-feed__main.is-exit-down {
+  animation: sasu-exit-down 0.16s ease-in forwards;
+}
 .sasu-swipehint {
   margin: 8px 0 0;
   text-align: center;
@@ -1694,7 +1752,9 @@ body.sasu-reset-base {
   justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(4px);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 .sasu-ov__btn:hover:not(:disabled) {
   background: rgba(15, 23, 42, 0.8);
@@ -1709,7 +1769,9 @@ body.sasu-reset-base {
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
-  transition: fill 0.2s ease, transform 0.2s ease;
+  transition:
+    fill 0.2s ease,
+    transform 0.2s ease;
 }
 .sasu-ov__btn--like.is-on {
   color: #f87171;
@@ -1842,7 +1904,9 @@ body.sasu-reset-base {
   padding: 10px 12px;
   font-size: 13.5px;
   font-weight: 600;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .sasu-lp__related-list a:hover {
   border-color: var(--sasu-brand);
@@ -1990,7 +2054,10 @@ body.sasu-reset-base {
   font-size: 12.5px;
   font-weight: 700;
   text-decoration: none;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 }
 .sasu-feed__nav .sasu-link:hover,
 .sasu-feed__nav .sasu-btn:hover:not(:disabled) {
@@ -2007,7 +2074,9 @@ body.sasu-reset-base {
   border-radius: 10px;
   padding: 13px;
   gap: 11px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .sasu-choice:not(:disabled):hover {
   border-color: var(--sasu-brand);
@@ -2146,18 +2215,28 @@ body.sasu-reset-base {
   font-size: 10px;
 }
 @keyframes sasu-toast-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sasu-toast { animation: none; }
+  .sasu-toast {
+    animation: none;
+  }
 }
 
 .sasu-result-card {
   border-width: 1.5px;
   border-radius: 10px;
   padding: 13px 14px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .sasu-result-card:not(.sasu-result-card--static):hover {
   border-color: var(--sasu-brand);
