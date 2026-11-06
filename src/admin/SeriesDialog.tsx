@@ -1,3 +1,9 @@
+import { Skeleton } from '../shared/Skeleton'
+import { FeedbackProvider } from '../shared/FeedbackProvider'
+import { ImeInput } from '../shared/ImeInput'
+import { usePaginationScroll } from '../shared/usePaginationScroll'
+import { Thumbnail } from '../shared/Thumbnail'
+import { ThumbnailEditor } from './ThumbnailEditor'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -11,12 +17,14 @@ import {
   type CurriculumDetail,
 } from '../api/admin'
 import { useSession } from '../state/session'
+import { isEditConflict } from './editVersion'
+import { EditConflictNotice } from './EditConflictNotice'
 import { RequestError } from './RequestFeedback'
-import { FeedbackProvider } from '../shared/FeedbackProvider'
 import { AutocompleteInput } from './AutocompleteInput'
 import { SegmentedControl } from './SegmentedControl'
 import { Icon } from './Icon'
-import { Button, Spinner } from './ui'
+import { AdminPagination } from './AdminPagination'
+import { Button } from './ui'
 import { useToast } from './useToast'
 import {
   addSeriesStep,
@@ -83,6 +91,7 @@ export function SeriesDialog({
       className="admin-series-dialog"
       aria-labelledby="series-dialog-title"
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return
         event.preventDefault()
         if (confirmClose) setConfirmClose(false)
         else requestClose()
@@ -141,6 +150,7 @@ export function SeriesDialog({
                 ? '최신 정보를 불러오지 못했어요. 작성 중인 내용은 유지돼요.'
                 : '시리즈 정보를 불러오지 못했어요.'
             }
+            variant={ready ? 'toast' : 'screen'}
             error={error}
             action={
               <Button
@@ -167,7 +177,7 @@ export function SeriesDialog({
         ) : (
           !error && (
             <div className="admin-series-dialog__loading">
-              <Spinner />
+              <Skeleton variant="form" />
             </div>
           )
         )}
@@ -213,6 +223,9 @@ function SeriesEditor({
   const [touched, setTouched] = useState(false)
   const nameError = seriesNameError(fields.name)
   const requestError = saveMutation.error
+  const editConflict = isEditConflict(requestError)
+  const [reloaded, setReloaded] = useState<CurriculumDetail>()
+  const currentDetail = reloaded ?? initial
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL')
   const [category, setCategory] = useState('')
@@ -259,8 +272,14 @@ function SeriesEditor({
     setSession(next)
   }
   const candidateScope = `${actorId}:${generation}`
+  const { attach: paginationRef, preserve: preservePaginationScroll } =
+    usePaginationScroll<HTMLUListElement>(`${candidateScope}:${search}:${status}:${categoryId}`)
+  const changePage = (next: number) => {
+    preservePaginationScroll()
+    setPage(next)
+  }
   const list = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: search.trim() || undefined, status, category_id: categoryId || undefined, page, size: 10 })}`,
+    `/contents${queryString({ q: search.trim() || undefined, status, category_id: categoryId || undefined, page, size: 5 })}`,
   )
   const categoryList = useAdminQuery<{ items: AdminCategory[] }>('/categories')
   useEffect(() => {
@@ -270,14 +289,16 @@ function SeriesEditor({
     rememberedCandidates.set(candidateScope, next)
   }, [candidateScope, list.data])
   useEffect(() => {
-    if (!busy && savedId !== null) onSavedId?.(savedId)
-  }, [busy, savedId, onSavedId])
+    if (!busy && !dirty && !requestError && savedId !== null) onSavedId?.(savedId)
+  }, [busy, dirty, requestError, savedId, onSavedId])
   const candidates = list.data?.items ?? []
   const byId = new Map(rememberedCandidates.get(candidateScope))
   for (const content of candidates) byId.set(content.content_id, content)
-  for (const step of initial?.steps ?? [])
+  for (const step of currentDetail?.steps ?? [])
     if (step.content && !byId.has(step.content_id)) byId.set(step.content_id, step.content)
-  const availability = new Map(initial?.steps.map((step) => [step.content_id, step.available]))
+  const availability = new Map(
+    currentDetail?.steps.map((step) => [step.content_id, step.available]),
+  )
   const warnings = (id: number) => stepWarnings(byId.get(id), availability.get(id))
   const attentionCount = fields.order.filter((id) => warnings(id).length).length
   const watchableCount = fields.order.filter((id) => {
@@ -286,8 +307,6 @@ function SeriesEditor({
   }).length
   const categories = categoryList.data?.items ?? []
   const filtered = candidates
-  const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 10))
-  const currentPage = page
   const label = (id: number) => byId.get(id)?.title || `제목 없음 #${id}`
   const add = (id: number) => {
     update({ order: addSeriesStep(fields.order, id) })
@@ -313,16 +332,30 @@ function SeriesEditor({
     } catch (cause) {
       const infoSaved = latest.savedId !== null && latest.savedInfo === seriesInfo(latest.fields)
       const prefix =
-        infoSaved && seriesDirty(latest)
+        infoSaved &&
+        (latest.pendingSteps || latest.savedOrder !== JSON.stringify(latest.fields.order))
           ? '기본 정보는 저장됐어요. 현재 순서를 유지한 채 단계 저장을 다시 시도할 수 있어요. '
-          : ''
+          : infoSaved && latest.thumbnailFile
+            ? '시리즈 구성은 저장됐지만 썸네일 저장에 실패했어요. 선택한 이미지는 유지돼요. 변경사항 저장을 눌러 다시 시도해 주세요. '
+            : ''
       if (latest !== session)
         await invalidateCurriculumChange(cache, { curriculumId: latest.savedId ?? undefined })
       throw new Error(`${prefix}${adminError(cause)}`, { cause })
     }
   }
+  const reloadAfterConflict = async () => {
+    if (savedId === null || actorId === null) return
+    const latest = await api<CurriculumDetail>(`/curriculums/${savedId}?view=editor`, { actorId })
+    const next = initialSeries(latest)
+    setReloaded(latest)
+    setSession(next)
+    writeDraft(next)
+    setTouched(false)
+    saveMutation.reset()
+  }
   const save = () => {
-    if (saving.current || actorId === null || !dirty) return
+    if (editConflict) return
+    if (busy || saving.current || actorId === null || !dirty) return
     setTouched(true)
     if (nameError) {
       titleInput.current?.focus()
@@ -341,8 +374,9 @@ function SeriesEditor({
           {restored && dirty && <span>작성 중이던 내용을 복원했어요.</span>}
           {savedId && <span>시리즈 #{savedId}</span>}
         </div>
-        <fieldset disabled={busy} className="admin-series__fieldset">
-          <section className="admin-series__info">
+        <div className="admin-series__overview">
+          <fieldset disabled={busy} className="admin-series__info">
+            <legend className="admin-sr">시리즈 기본 정보</legend>
             <label className="admin-field">
               <span className="admin-series__field-label">
                 <span>시리즈명</span>
@@ -365,7 +399,7 @@ function SeriesEditor({
                 <span>{[...fields.name.trim()].length} / 100</span>
               </span>
             </label>
-            <label className="admin-field">
+            <label className="admin-field admin-series__description-field">
               <span className="admin-series__field-label">
                 <span>설명</span>
                 <span>선택</span>
@@ -378,7 +412,23 @@ function SeriesEditor({
                 onChange={(event) => update({ description: event.target.value })}
               />
             </label>
-          </section>
+          </fieldset>
+          <ThumbnailEditor
+            resource="curriculums"
+            id={savedId}
+            file={session.thumbnailFile}
+            fallbackUrl={byId.get(fields.order[0])?.thumbnail_url}
+            disabled={busy || editConflict || actorId === null}
+            onChange={(thumbnailFile) => {
+              if (saving.current) return
+              const next = { ...session, thumbnailFile }
+              writeDraft(next)
+              setSession(next)
+              saveMutation.reset()
+            }}
+          />
+        </div>
+        <fieldset disabled={busy} className="admin-series__fieldset">
           <div className="admin-series__mobile-switch">
             <SegmentedControl
               label="시리즈 구성 영역"
@@ -403,13 +453,13 @@ function SeriesEditor({
               <div className="admin-series__filters">
                 <label className="admin-series__search">
                   <Icon name="search" size={17} />
-                  <input
+                  <ImeInput
                     type="search"
                     aria-label="추가할 콘텐츠 검색"
                     placeholder="제목·태그·핵심 내용 검색"
                     value={search}
-                    onChange={(event) => {
-                      setSearch(event.target.value)
+                    onValueChange={(value) => {
+                      setSearch(value)
                       setPage(1)
                     }}
                   />
@@ -455,10 +505,11 @@ function SeriesEditor({
                   }}
                 />
               </div>
-              {list.isPending && <Spinner />}
+              {list.isPending && <Skeleton variant="list" />}
               {list.isError && (
                 <RequestError
                   title="콘텐츠 후보를 불러오지 못했어요."
+                  variant={list.data ? 'toast' : 'screen'}
                   error={list.error}
                   action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
                 />
@@ -470,35 +521,43 @@ function SeriesEditor({
                   action={<Button onClick={() => void categoryList.refetch()}>다시 시도</Button>}
                 />
               )}
-              <ul className="admin-series__candidate-list">
-                {filtered.map((content) => {
-                  const added = fields.order.includes(content.content_id)
-                  return (
-                    <li key={content.content_id} className={added ? 'is-added' : ''}>
-                      <div>
-                        <strong>{content.title || `제목 없음 #${content.content_id}`}</strong>
-                        <p>
-                          {content.category?.name ?? '분야 없음'}
-                          <span>·</span>
-                          {content.status === 'PUBLISHED' ? '공개' : '임시저장'}
-                          <span>·</span>
-                          {content.has_quiz ? '퀴즈 있음' : '퀴즈 없음'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="admin-series__add"
-                        aria-label={`${label(content.content_id)} ${added ? '추가됨' : '추가'}`}
-                        disabled={added}
-                        onClick={() => add(content.content_id)}
-                      >
-                        <Icon name={added ? 'check' : 'plus'} size={17} />
-                        <span>{added ? '추가됨' : '추가'}</span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+              <div className="admin-series__candidate-scroll">
+                <ul ref={paginationRef} className="admin-series__candidate-list">
+                  {filtered.map((content) => {
+                    const added = fields.order.includes(content.content_id)
+                    return (
+                      <li key={content.content_id} className={added ? 'is-added' : ''}>
+                        <div>
+                          <div className="sasu-thumbnail-row">
+                            <Thumbnail
+                              src={content.thumbnail_url}
+                              refreshKey={list.dataUpdatedAt}
+                            />
+                            <strong>{content.title || `제목 없음 #${content.content_id}`}</strong>
+                          </div>
+                          <p>
+                            {content.category?.name ?? '분야 없음'}
+                            <span>·</span>
+                            {content.status === 'PUBLISHED' ? '공개' : '임시저장'}
+                            <span>·</span>
+                            {content.has_quiz ? '퀴즈 있음' : '퀴즈 없음'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-series__add"
+                          aria-label={`${label(content.content_id)} ${added ? '추가됨' : '추가'}`}
+                          disabled={added}
+                          onClick={() => add(content.content_id)}
+                        >
+                          <Icon name={added ? 'check' : 'plus'} size={17} />
+                          <span>{added ? '추가됨' : '추가'}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
               {!list.isPending && !list.isError && !filtered.length && (
                 <div className="admin-series__empty">
                   <Icon name="search" size={25} />
@@ -526,28 +585,17 @@ function SeriesEditor({
                   )}
                 </div>
               )}
-              {pages > 1 && (
-                <nav className="admin-series__pagination" aria-label="콘텐츠 후보 페이지">
-                  <button
-                    type="button"
-                    aria-label="이전 후보 페이지"
-                    disabled={currentPage === 1 || list.isFetching}
-                    onClick={() => setPage(currentPage - 1)}
-                  >
-                    <Icon name="chevronLeft" size={17} />
-                  </button>
-                  <span>
-                    {currentPage} / {pages}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="다음 후보 페이지"
-                    disabled={!list.data?.has_next || list.isFetching}
-                    onClick={() => setPage(currentPage + 1)}
-                  >
-                    <Icon name="chevronRight" size={17} />
-                  </button>
-                </nav>
+              {list.data && list.data.total > 0 && (
+                <AdminPagination
+                  page={list.data.page}
+                  size={5}
+                  total={list.data.total}
+                  hasNext={list.data.has_next}
+                  disabled={list.isFetching}
+                  compact
+                  label="콘텐츠 후보 페이지"
+                  onChange={changePage}
+                />
               )}
             </section>
             <section className="admin-series__panel admin-series__order" aria-label="학습 순서">
@@ -627,7 +675,13 @@ function SeriesEditor({
                         {String(index + 1).padStart(2, '0')}
                       </span>
                       <div className="admin-series__step-content">
-                        <strong>{label(id)}</strong>
+                        <div className="sasu-thumbnail-row">
+                          <Thumbnail
+                            src={byId.get(id)?.thumbnail_url}
+                            refreshKey={list.dataUpdatedAt}
+                          />
+                          <strong>{label(id)}</strong>
+                        </div>
                         <span>{byId.get(id)?.category?.name ?? '분야 없음'}</span>
                         {warnings(id).map((warning) => (
                           <p className="admin-series__step-warning" key={warning}>
@@ -678,7 +732,8 @@ function SeriesEditor({
         <p className="admin-series__announcement" role="status" aria-live="polite">
           {announcement}
         </p>
-        {requestError && (
+        {editConflict && <EditConflictNotice onReload={reloadAfterConflict} />}
+        {requestError && !editConflict && (
           <RequestError
             title="시리즈 저장 실패"
             error={requestError.cause ?? requestError}
@@ -724,7 +779,7 @@ function SeriesEditor({
           <Button
             variant="primary"
             loading={busy}
-            disabled={actorId === null || !dirty}
+            disabled={busy || editConflict || actorId === null || !dirty}
             onClick={() => void save()}
           >
             {savedId === null ? '시리즈 만들기' : '변경사항 저장'}
