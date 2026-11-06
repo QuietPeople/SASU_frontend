@@ -1,3 +1,4 @@
+import { Skeleton } from '../../shared/Skeleton'
 import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
@@ -6,21 +7,22 @@ import { useCategories, type Category, type LearnerSettings } from '../../api/le
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
 import { Button } from '../../learner/ui'
+import { InterestCategoryPicker } from '../../learner/InterestCategoryPicker'
 import { LearnerState as StateBlock } from '../../learner/LearnerState'
-import './onboarding.css'
+import '../../learner/learning-preferences.css'
 
 export function WelcomePage() {
   const session = useSession()
   const categories = useCategories(session.actorId, session.generation)
   if (session.isPending || (session.actorId !== null && categories.isPending))
     return (
-      <div className="sasu-page">
-        <StateBlock title="관심 분야를 불러오는 중이에요." />
+      <div className="sasu-page learner-welcome learner-preferences__loading">
+        <Skeleton variant="form" label="관심 분야를 불러오는 중" />
       </div>
     )
   if (session.error || categories.error)
     return (
-      <div className="sasu-page">
+      <div className="sasu-page learner-welcome">
         <StateBlock
           title="관심 분야를 불러오지 못했어요."
           error={session.error ?? categories.error}
@@ -39,7 +41,7 @@ export function WelcomePage() {
     )
   if (!session.settings || session.learnerId === null)
     return (
-      <div className="sasu-page">
+      <div className="sasu-page learner-welcome">
         <StateBlock title="학습자를 선택해 주세요." />
       </div>
     )
@@ -111,61 +113,37 @@ function WelcomeForm({
     update.mutate({ actorId, learnerId, picked: [...picked], skip })
   }
   return (
-    <div className="sasu-page sasu-onboard sasu-ob">
-      <div className="sasu-onboard__box">
-        {/* 안내 */}
-        <header className="sasu-ob__head">
+    <div className="sasu-page learner-welcome">
+      <div className="learner-welcome__card">
+        <header className="learner-welcome__head">
+          <span className="learner-welcome__mark" aria-hidden="true">
+            S
+          </span>
           <p className="sasu-eyebrow">SASU 시작하기</p>
-          <h1 className="sasu-title">관심 있는 분야를 알려주세요</h1>
-          <p className="sasu-sub">
-            여러 개를 고를 수 있어요. 나중에 설정에서 언제든 바꿀 수 있어요.
-          </p>
+          <h1 className="sasu-title">어떤 분야에 관심이 있나요?</h1>
+          <p className="sasu-sub">관심 분야를 골라주시면, 나에게 맞는 학습 영상을 추천해 드려요.</p>
         </header>
-
-        {/* 관심 분야 선택 */}
-        {categories.length === 0 ? (
-          <div className="sasu-ob__pick">
-            <StateBlock title="아직 등록된 분야가 없어요." text="건너뛰고 바로 시작할 수 있어요." />
-          </div>
-        ) : (
-          <section className="sasu-ob__pick">
-            <div className="sasu-ob__pickhead">
-              <span className="sasu-ob__picklabel">관심 분야</span>
-              <span className={`sasu-ob__count ${picked.length ? 'is-on' : ''}`} aria-live="polite">
-                {picked.length}개 선택됨
-              </span>
-            </div>
-            <div className="sasu-chips" role="group" aria-label="관심 분야">
-              {categories.map((category) => (
-                <button
-                  key={category.category_id}
-                  type="button"
-                  className={`sasu-chip sasu-chip--pick ${picked.includes(category.category_id) ? 'is-on' : ''}`}
-                  aria-pressed={picked.includes(category.category_id)}
-                  disabled={saving !== null}
-                  onClick={() => toggle(category.category_id)}
-                >
-                  {picked.includes(category.category_id) ? '✓ ' : ''}
-                  {category.name}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+        <section className="learner-welcome__interests">
+          <InterestCategoryPicker
+            categories={categories}
+            value={picked}
+            onToggle={toggle}
+            disabled={saving !== null}
+          />
+        </section>
 
         {update.isError ? (
-          <StateBlock title="관심 분야를 저장하지 못했어요." error={update.error} />
+          <StateBlock variant="toast" title="관심 분야를 저장하지 못했어요." error={update.error} />
         ) : null}
 
-        {/* 시작 */}
-        <div className="sasu-ob__actions">
+        <div className="learner-welcome__actions">
           <Button
             variant="primary"
             onClick={() => void start(false)}
             disabled={!picked.length || saving !== null}
             loading={saving === 'start'}
           >
-            선택하고 시작
+            선택하고 시작하기
           </Button>
           <Button
             variant="ghost"
@@ -177,8 +155,10 @@ function WelcomeForm({
           </Button>
         </div>
 
-        <p className="sasu-help sasu-ob__foot">
-          선택한 관심 분야와 안내 완료 여부를 계정에 저장해요.
+        <p className="learner-welcome__foot">
+          {categories.length
+            ? '관심 분야는 설정에서 언제든 바꿀 수 있어요.'
+            : '분야 선택을 건너뛰고 바로 시작할 수 있어요.'}
         </p>
       </div>
     </div>
