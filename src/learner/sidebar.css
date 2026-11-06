@@ -1,13 +1,14 @@
 .learner-shell {
+  --sasu-sidebar-width: 232px;
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: var(--sasu-sidebar-width) minmax(0, 1fr);
   min-height: 100dvh;
   background: var(--sasu-bg);
   color: var(--sasu-ink);
   transition: grid-template-columns 200ms ease;
 }
 .learner-shell--collapsed {
-  grid-template-columns: 80px minmax(0, 1fr);
+  --sasu-sidebar-width: 80px;
 }
 .learner-nav,
 .learner-mobile-header {
@@ -217,6 +218,7 @@
 }
 @media (max-width: 760px) {
   .learner-shell {
+    --sasu-sidebar-width: 0px;
     display: block;
   }
   .learner-mobile-header {

@@ -1,3 +1,4 @@
+import { Skeleton } from '../shared/Skeleton'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
@@ -16,7 +17,8 @@ import {
   type ResponsePath,
 } from '../api/learning'
 import { Button } from './ui'
-import { LearnerState } from '../features/learner-navigation/LearnerState'
+import { LearnerState } from './LearnerState'
+import './quiz-view.css'
 
 interface QuizViewProps {
   identity: LearningIdentity
@@ -184,10 +186,11 @@ function AttemptView({
           )
         })}
       </ul>
-      {attempt.isPending ? <p role="status">문항을 준비하고 있어요.</p> : null}
+      {attempt.isPending ? <Skeleton variant="text" label="문항 준비 중" /> : null}
       {attempt.isError ? (
         <LearnerState
           title="문항을 준비하지 못했어요."
+          variant="toast"
           error={attempt.error}
           action={
             requiresNewQuestion ? (
@@ -200,7 +203,9 @@ function AttemptView({
                     responsePath === 'WRONG_NOTE' ? '/learner/library?tab=wrong' : '/learner/search'
                   }
                 >
-                  {responsePath === 'WRONG_NOTE' ? '현재 오답 목록 확인' : '현재 콘텐츠 목록 확인'}
+                  {responsePath === 'WRONG_NOTE'
+                    ? '다시 풀 문제 목록 확인'
+                    : '현재 콘텐츠 목록 확인'}
                 </Link>
               </>
             ) : (
@@ -212,6 +217,7 @@ function AttemptView({
       {submission.isError ? (
         <LearnerState
           title="답을 제출하지 못했어요."
+          variant="toast"
           error={submission.error}
           action={<p>아래 ‘같은 답 다시 제출’ 버튼으로 다시 시도할 수 있어요.</p>}
         />

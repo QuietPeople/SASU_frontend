@@ -5,12 +5,12 @@ import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { useToast } from '../../shared/useToast'
 
 import { clearView, readView, writeView } from '../../features/learner-navigation/state'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 const MIN_INTERVAL = 1
 const MAX_INTERVAL = 20

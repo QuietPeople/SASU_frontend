@@ -7,6 +7,7 @@ export interface LearningIdentity {
 }
 
 export interface LearningContent {
+  thumbnail_url: string | null
   content_id: number
   title: string | null
   category: { category_id: number; name: string } | null

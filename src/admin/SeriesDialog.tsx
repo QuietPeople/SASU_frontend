@@ -11,7 +11,8 @@ import {
   type CurriculumDetail,
 } from '../api/admin'
 import { useSession } from '../state/session'
-import { RequestError, RequestFeedback } from './RequestFeedback'
+import { RequestError } from './RequestFeedback'
+import { FeedbackProvider } from '../shared/FeedbackProvider'
 import { AutocompleteInput } from './AutocompleteInput'
 import { SegmentedControl } from './SegmentedControl'
 import { Icon } from './Icon'
@@ -132,7 +133,7 @@ export function SeriesDialog({
           </div>
         </div>
       )}
-      <RequestFeedback>
+      <FeedbackProvider>
         {error && (
           <RequestError
             title={
@@ -170,7 +171,7 @@ export function SeriesDialog({
             </div>
           )
         )}
-      </RequestFeedback>
+      </FeedbackProvider>
     </dialog>
   )
 }

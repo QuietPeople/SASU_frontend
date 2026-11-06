@@ -1,4 +1,4 @@
-import { RequestFeedback } from './RequestFeedback'
+import { FeedbackProvider } from '../shared/FeedbackProvider'
 import { useEffect, useRef, useState } from 'react'
 import type { AdminCategory } from '../api/admin'
 import { CategoryManager } from './CategoryManager'
@@ -62,9 +62,9 @@ export function CategoryDialog({
             <Icon name="close" />
           </button>
         </header>
-        <RequestFeedback>
+        <FeedbackProvider>
           <CategoryManager onCreated={onCreated} onBusyChange={setBusy} onDirtyChange={setDirty} />
-        </RequestFeedback>
+        </FeedbackProvider>
         {confirmClose && (
           <div className="admin-editor__notice" role="alert">
             <p>저장하지 않은 분야 입력을 버리고 닫을까요? 콘텐츠 작성 내용은 유지돼요.</p>

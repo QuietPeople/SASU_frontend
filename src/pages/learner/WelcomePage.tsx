@@ -5,8 +5,8 @@ import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import './onboarding.css'
 
 export function WelcomePage() {

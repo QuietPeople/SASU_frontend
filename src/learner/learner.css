@@ -1,124 +1,31 @@
-/* SASU 화면 공통 스타일.
-   화면 설계서 1-2에 따라 데스크톱은 좌측 내비 + 본문, 좁은 화면(960px 미만)은
-   내비를 상단으로 접고 학습 패널을 영상 아래로 내린다. 색만으로 상태를 구분하지 않도록
-   배지·결과에 텍스트와 아이콘을 함께 쓴다. 색·폰트는 후속 UI 작업에서 바뀔 수 있다. */
-
-:root {
-  --sasu-bg: #f1f5f9;
-  --sasu-surface: #ffffff;
-  --sasu-ink: #0f172a;
-  --sasu-sub: #475569;
-  --sasu-muted: #64748b;
-  --sasu-line: #d8e0ea;
-  --sasu-line-soft: #e8eef4;
-  --sasu-brand: #2563eb;
-  --sasu-brand-ink: #1d4ed8;
-  --sasu-brand-soft: #e8f0fe;
-  --sasu-green: #15803d;
-  --sasu-green-soft: #dcfce7;
-  --sasu-amber: #b45309;
-  --sasu-amber-soft: #fef3c7;
-  --sasu-red: #b91c1c;
-  --sasu-red-soft: #fee2e2;
-  --sasu-radius: 12px;
-  --sasu-radius-sm: 8px;
-  --sasu-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-
-body.sasu-reset-base {
-  background: var(--sasu-bg);
-}
+@import './theme.css';
 
 /* ===== 셸: 좌측 내비 + 본문 ===== */
-.sasu-shell {
-  display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
-  min-height: 100dvh;
-  background: var(--sasu-bg);
-  color: var(--sasu-ink);
-}
-.sasu-nav {
-  position: sticky;
-  top: 0;
-  align-self: start;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 20px 14px;
-  background: var(--sasu-surface);
-  border-right: 1px solid var(--sasu-line);
-}
-.sasu-nav__brand {
-  border: 0;
-  background: none;
-  text-align: left;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: var(--sasu-brand-ink);
-  padding: 4px 8px 16px;
-  cursor: pointer;
-}
-.sasu-nav__list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sasu-nav__item {
-  display: block;
-  padding: 10px 12px;
-  border-radius: var(--sasu-radius-sm);
-  color: var(--sasu-sub);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-}
-.sasu-nav__item:hover {
-  background: var(--sasu-line-soft);
-}
-.sasu-nav__item.is-active {
-  background: var(--sasu-brand-soft);
-  color: var(--sasu-brand-ink);
-}
-.sasu-nav__switch {
-  margin-top: auto;
-  border: 1px solid var(--sasu-line);
-  background: var(--sasu-surface);
-  color: var(--sasu-sub);
-  border-radius: var(--sasu-radius-sm);
-  padding: 10px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.sasu-nav__switch:hover {
-  background: var(--sasu-line-soft);
-}
-.sasu-content {
+:where(.learner-shell) .sasu-content {
   min-width: 0;
   padding: 28px clamp(16px, 4vw, 40px);
 }
 
 /* ===== 페이지 공통 ===== */
-.sasu-page {
+:where(.learner-shell) .sasu-page {
   max-width: 1120px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-.sasu-page__head {
+:where(.learner-shell) .sasu-page__head {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.sasu-page__head--row {
+:where(.learner-shell) .sasu-page__head--row {
   flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
 }
-.sasu-eyebrow {
+:where(.learner-shell) .sasu-eyebrow {
   margin: 0;
   font-size: 12px;
   font-weight: 700;
@@ -126,30 +33,30 @@ body.sasu-reset-base {
   text-transform: uppercase;
   color: var(--sasu-brand);
 }
-.sasu-title {
+:where(.learner-shell) .sasu-title {
   margin: 0;
   font-size: 26px;
   font-weight: 800;
   line-height: 1.25;
 }
-.sasu-title--sm {
+:where(.learner-shell) .sasu-title--sm {
   font-size: 20px;
 }
-.sasu-sub {
+:where(.learner-shell) .sasu-sub {
   margin: 0;
   color: var(--sasu-sub);
   font-size: 14px;
 }
-.sasu-muted {
+:where(.learner-shell) .sasu-muted {
   color: var(--sasu-muted);
   font-size: 13px;
 }
-.sasu-help {
+:where(.learner-shell) .sasu-help {
   margin: 0;
   color: var(--sasu-muted);
   font-size: 12.5px;
 }
-.sasu-link {
+:where(.learner-shell) .sasu-link {
   border: 0;
   background: none;
   padding: 0;
@@ -157,10 +64,10 @@ body.sasu-reset-base {
   font-weight: 600;
   cursor: pointer;
 }
-.sasu-link:hover {
+:where(.learner-shell) .sasu-link:hover {
   text-decoration: underline;
 }
-.sasu-sr {
+:where(.learner-shell) .sasu-sr {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -173,7 +80,7 @@ body.sasu-reset-base {
 }
 
 /* ===== 카드 ===== */
-.sasu-card {
+:where(.learner-shell) .sasu-card {
   background: var(--sasu-surface);
   border: 1px solid var(--sasu-line);
   border-radius: var(--sasu-radius);
@@ -183,19 +90,19 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 12px;
 }
-.sasu-card__title {
+:where(.learner-shell) .sasu-card__title {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
 }
-.sasu-hr {
+:where(.learner-shell) .sasu-hr {
   border: 0;
   border-top: 1px solid var(--sasu-line-soft);
   margin: 4px 0;
 }
 
 /* ===== 버튼 ===== */
-.sasu-btn {
+:where(.learner-shell) .sasu-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -209,46 +116,46 @@ body.sasu-reset-base {
   cursor: pointer;
   white-space: nowrap;
 }
-.sasu-btn:hover:not(:disabled) {
+:where(.learner-shell) .sasu-btn:hover:not(:disabled) {
   background: var(--sasu-line-soft);
 }
-.sasu-btn:disabled {
+:where(.learner-shell) .sasu-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.sasu-btn--sm {
+:where(.learner-shell) .sasu-btn--sm {
   padding: 6px 10px;
   font-size: 13px;
 }
-.sasu-btn--primary {
+:where(.learner-shell) .sasu-btn--primary {
   background: var(--sasu-brand);
   border-color: var(--sasu-brand);
   color: #fff;
 }
-.sasu-btn--primary:hover:not(:disabled) {
+:where(.learner-shell) .sasu-btn--primary:hover:not(:disabled) {
   background: var(--sasu-brand-ink);
 }
-.sasu-btn--ghost {
+:where(.learner-shell) .sasu-btn--ghost {
   border-color: transparent;
   background: transparent;
   color: var(--sasu-sub);
 }
-.sasu-btn--danger {
+:where(.learner-shell) .sasu-btn--danger {
   background: var(--sasu-red);
   border-color: var(--sasu-red);
   color: #fff;
 }
-.sasu-btn--danger:hover:not(:disabled) {
+:where(.learner-shell) .sasu-btn--danger:hover:not(:disabled) {
   background: #991b1b;
 }
-.sasu-btn--light {
+:where(.learner-shell) .sasu-btn--light {
   background: rgba(255, 255, 255, 0.92);
   border-color: transparent;
   color: var(--sasu-ink);
 }
 
 /* ===== 배지·칩 ===== */
-.sasu-badge {
+:where(.learner-shell) .sasu-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -259,24 +166,24 @@ body.sasu-reset-base {
   background: var(--sasu-line-soft);
   color: var(--sasu-sub);
 }
-.sasu-badge--green {
+:where(.learner-shell) .sasu-badge--green {
   background: var(--sasu-green-soft);
   color: var(--sasu-green);
 }
-.sasu-badge--blue {
+:where(.learner-shell) .sasu-badge--blue {
   background: var(--sasu-brand-soft);
   color: var(--sasu-brand-ink);
 }
-.sasu-badge--amber {
+:where(.learner-shell) .sasu-badge--amber {
   background: var(--sasu-amber-soft);
   color: var(--sasu-amber);
 }
-.sasu-badge--red {
+:where(.learner-shell) .sasu-badge--red {
   background: var(--sasu-red-soft);
   color: var(--sasu-red);
 }
 
-.sasu-chip {
+:where(.learner-shell) .sasu-chip {
   display: inline-flex;
   align-items: center;
   padding: 5px 12px;
@@ -286,31 +193,31 @@ body.sasu-reset-base {
   font-size: 13px;
   font-weight: 600;
 }
-.sasu-chips {
+:where(.learner-shell) .sasu-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.sasu-chip--pick {
+:where(.learner-shell) .sasu-chip--pick {
   border: 1px solid var(--sasu-line);
   background: var(--sasu-surface);
   cursor: pointer;
 }
-.sasu-chip--pick.is-on {
+:where(.learner-shell) .sasu-chip--pick.is-on {
   background: var(--sasu-brand-soft);
   border-color: var(--sasu-brand);
   color: var(--sasu-brand-ink);
 }
 
 /* ===== 탭 ===== */
-.sasu-tabs {
+:where(.learner-shell) .sasu-tabs {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
   background: var(--sasu-line-soft);
   border-radius: 999px;
 }
-.sasu-tabs__tab {
+:where(.learner-shell) .sasu-tabs__tab {
   border: 0;
   background: transparent;
   padding: 7px 16px;
@@ -320,65 +227,65 @@ body.sasu-reset-base {
   color: var(--sasu-sub);
   cursor: pointer;
 }
-.sasu-tabs__tab.is-active {
+:where(.learner-shell) .sasu-tabs__tab.is-active {
   background: var(--sasu-surface);
   color: var(--sasu-brand-ink);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
 
 /* ===== 폼·입력 ===== */
-.sasu-row {
+:where(.learner-shell) .sasu-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
-.sasu-row--tight {
+:where(.learner-shell) .sasu-row--tight {
   gap: 8px;
 }
-.sasu-field {
+:where(.learner-shell) .sasu-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   flex: 1;
   min-width: 0;
 }
-.sasu-field--sm {
+:where(.learner-shell) .sasu-field--sm {
   flex: 0 0 180px;
 }
-.sasu-field--block {
+:where(.learner-shell) .sasu-field--block {
   width: 100%;
 }
-.sasu-field--inline {
+:where(.learner-shell) .sasu-field--inline {
   flex-direction: row;
   align-items: center;
   gap: 8px;
 }
-.sasu-field__label {
+:where(.learner-shell) .sasu-field__label {
   font-size: 13px;
   font-weight: 700;
   color: var(--sasu-sub);
 }
-.sasu-field__req {
+:where(.learner-shell) .sasu-field__req {
   color: var(--sasu-red);
 }
-.sasu-field__hint,
-.sasu-field-hint {
+:where(.learner-shell) .sasu-field__hint,
+:where(.learner-shell) .sasu-field-hint {
   font-size: 12px;
   color: var(--sasu-muted);
   margin: 0;
 }
-.sasu-field-error {
+:where(.learner-shell) .sasu-field-error {
   margin: 0;
   font-size: 12.5px;
   color: var(--sasu-red);
   font-weight: 600;
 }
-.sasu-field.is-error .sasu-input,
-.sasu-input.is-error {
+:where(.learner-shell) .sasu-field.is-error .sasu-input,
+:where(.learner-shell) .sasu-input.is-error {
   border-color: var(--sasu-red);
 }
-.sasu-input {
+:where(.learner-shell) .sasu-input {
   width: 100%;
   border: 1px solid var(--sasu-line);
   background: var(--sasu-surface);
@@ -387,55 +294,55 @@ body.sasu-reset-base {
   font-size: 14px;
   color: var(--sasu-ink);
 }
-.sasu-input:focus {
+:where(.learner-shell) .sasu-input:focus {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 1px;
 }
-.sasu-input--area {
+:where(.learner-shell) .sasu-input--area {
   resize: vertical;
 }
-.sasu-input--num {
+:where(.learner-shell) .sasu-input--num {
   width: 90px;
   flex: 0 0 auto;
 }
 
 /* ===== 테이블 ===== */
-.sasu-table-wrap {
+:where(.learner-shell) .sasu-table-wrap {
   overflow-x: auto;
 }
-.sasu-table {
+:where(.learner-shell) .sasu-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13.5px;
 }
-.sasu-table th,
-.sasu-table td {
+:where(.learner-shell) .sasu-table th,
+:where(.learner-shell) .sasu-table td {
   text-align: left;
   padding: 10px 8px;
   border-bottom: 1px solid var(--sasu-line-soft);
   vertical-align: top;
 }
-.sasu-table th {
+:where(.learner-shell) .sasu-table th {
   font-size: 12px;
   color: var(--sasu-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.sasu-table__right {
+:where(.learner-shell) .sasu-table__right {
   text-align: right;
 }
-.sasu-table__title {
+:where(.learner-shell) .sasu-table__title {
   font-weight: 700;
   display: block;
 }
-.sasu-table__tags,
-.sasu-table__sub {
+:where(.learner-shell) .sasu-table__tags,
+:where(.learner-shell) .sasu-table__sub {
   display: block;
   font-size: 12px;
   color: var(--sasu-muted);
   margin-top: 2px;
 }
-.sasu-table__actions {
+:where(.learner-shell) .sasu-table__actions {
   display: inline-flex;
   gap: 6px;
   justify-content: flex-end;
@@ -443,7 +350,7 @@ body.sasu-reset-base {
 }
 
 /* ===== 상태 블록·스피너·토스트 ===== */
-.sasu-empty {
+:where(.learner-shell) .sasu-empty {
   text-align: center;
   padding: 40px 16px;
   background: var(--sasu-surface);
@@ -454,28 +361,28 @@ body.sasu-reset-base {
   gap: 8px;
   align-items: center;
 }
-.sasu-empty__title {
+:where(.learner-shell) .sasu-empty__title {
   margin: 0;
   font-weight: 700;
   font-size: 16px;
 }
-.sasu-empty__text {
+:where(.learner-shell) .sasu-empty__text {
   margin: 0;
   color: var(--sasu-muted);
   font-size: 13.5px;
 }
-.sasu-empty__action {
+:where(.learner-shell) .sasu-empty__action {
   display: flex;
   gap: 8px;
   margin-top: 6px;
 }
-.sasu-loading {
+:where(.learner-shell) .sasu-loading {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--sasu-muted);
 }
-.sasu-spinner {
+:where(.learner-shell) .sasu-spinner {
   width: 16px;
   height: 16px;
   border: 2px solid var(--sasu-line);
@@ -484,7 +391,7 @@ body.sasu-reset-base {
   display: inline-block;
   animation: sasu-spin 0.7s linear infinite;
 }
-.sasu-spinner--light {
+:where(.learner-shell) .sasu-spinner--light {
   border-color: rgba(255, 255, 255, 0.4);
   border-top-color: #fff;
 }
@@ -493,7 +400,7 @@ body.sasu-reset-base {
     transform: rotate(360deg);
   }
 }
-.sasu-toast {
+:where(.learner-shell) .sasu-toast {
   position: fixed;
   left: 50%;
   bottom: 28px;
@@ -507,12 +414,12 @@ body.sasu-reset-base {
   box-shadow: var(--sasu-shadow);
   z-index: 60;
 }
-.sasu-toast--error {
+:where(.learner-shell) .sasu-toast--error {
   background: var(--sasu-red);
 }
 
 /* ===== 확인 대화상자 ===== */
-.sasu-modal {
+:where(.learner-shell) .sasu-modal {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.45);
@@ -522,25 +429,25 @@ body.sasu-reset-base {
   padding: 16px;
   z-index: 80;
 }
-.sasu-modal__box {
+:where(.learner-shell) .sasu-modal__box {
   background: var(--sasu-surface);
   border-radius: var(--sasu-radius);
   padding: 22px;
   width: min(440px, 100%);
   box-shadow: var(--sasu-shadow);
 }
-.sasu-modal__title {
+:where(.learner-shell) .sasu-modal__title {
   margin: 0 0 12px;
   font-size: 18px;
 }
-.sasu-modal__body {
+:where(.learner-shell) .sasu-modal__body {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 14px;
   color: var(--sasu-sub);
 }
-.sasu-modal__foot {
+:where(.learner-shell) .sasu-modal__foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -548,7 +455,7 @@ body.sasu-reset-base {
 }
 
 /* ===== 통계·대시보드 타일 ===== */
-.sasu-stat-row {
+:where(.learner-shell) .sasu-stat-row {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -556,7 +463,7 @@ body.sasu-reset-base {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
-.sasu-stat {
+:where(.learner-shell) .sasu-stat {
   background: var(--sasu-surface);
   border: 1px solid var(--sasu-line);
   border-radius: var(--sasu-radius);
@@ -565,27 +472,27 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 4px;
 }
-.sasu-stat__label {
+:where(.learner-shell) .sasu-stat__label {
   font-size: 13px;
   color: var(--sasu-muted);
   font-weight: 600;
 }
-.sasu-stat__value {
+:where(.learner-shell) .sasu-stat__value {
   font-size: 26px;
   font-weight: 800;
 }
-.sasu-stat__sub {
+:where(.learner-shell) .sasu-stat__sub {
   font-size: 12px;
   color: var(--sasu-muted);
 }
-.sasu-stat__big {
+:where(.learner-shell) .sasu-stat__big {
   font-size: 30px;
   font-weight: 800;
   margin: 0;
 }
 
 /* ===== 결과 목록 카드(검색·보관함) ===== */
-.sasu-result-list {
+:where(.learner-shell) .sasu-result-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -593,7 +500,7 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 10px;
 }
-.sasu-result-card {
+:where(.learner-shell) .sasu-result-card {
   width: 100%;
   display: flex;
   gap: 12px;
@@ -605,13 +512,13 @@ body.sasu-reset-base {
   padding: 12px 14px;
   cursor: pointer;
 }
-.sasu-result-card--static {
+:where(.learner-shell) .sasu-result-card--static {
   cursor: default;
 }
-.sasu-result-card:not(.sasu-result-card--static):hover {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static):hover {
   border-color: var(--sasu-brand);
 }
-.sasu-result-card__thumb {
+:where(.learner-shell) .sasu-result-card__thumb {
   flex: 0 0 56px;
   height: 56px;
   border-radius: var(--sasu-radius-sm);
@@ -625,41 +532,41 @@ body.sasu-reset-base {
   text-align: center;
   padding: 4px;
 }
-.sasu-result-card__body {
+:where(.learner-shell) .sasu-result-card__body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.sasu-result-card__title {
+:where(.learner-shell) .sasu-result-card__title {
   font-weight: 700;
 }
-.sasu-result-card__meta {
+:where(.learner-shell) .sasu-result-card__meta {
   font-size: 12.5px;
   color: var(--sasu-muted);
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.sasu-result-card__summary {
+:where(.learner-shell) .sasu-result-card__summary {
   font-size: 13px;
   color: var(--sasu-sub);
 }
-.sasu-result-card__actions {
+:where(.learner-shell) .sasu-result-card__actions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
 /* ===== 검색 ===== */
-.sasu-search__bar {
+:where(.learner-shell) .sasu-search__bar {
   display: flex;
   gap: 10px;
   align-items: flex-end;
   flex-wrap: wrap;
 }
-.sasu-search__summary {
+:where(.learner-shell) .sasu-search__summary {
   margin: 0;
   font-size: 13px;
   color: var(--sasu-sub);
@@ -667,50 +574,19 @@ body.sasu-reset-base {
 }
 
 /* ===== 진행 막대 ===== */
-.sasu-progress {
+:where(.learner-shell) .sasu-progress {
   height: 8px;
   border-radius: 999px;
   background: var(--sasu-line-soft);
   overflow: hidden;
 }
-.sasu-progress span {
+:where(.learner-shell) .sasu-progress span {
   display: block;
   height: 100%;
   background: var(--sasu-brand);
 }
-.sasu-series__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-.sasu-series__criteria p {
-  margin: 0;
-  color: var(--sasu-sub);
-  font-size: 13.5px;
-}
-
-/* ===== 온보딩(L01) ===== */
-.sasu-onboard {
-  min-height: 70dvh;
-  justify-content: center;
-}
-.sasu-onboard__box {
-  background: var(--sasu-surface);
-  border: 1px solid var(--sasu-line);
-  border-radius: var(--sasu-radius);
-  padding: 32px;
-  box-shadow: var(--sasu-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.sasu-onboard__btns {
-  margin-top: 4px;
-}
-
 /* ===== 피드(L02) ===== */
-.sasu-feed {
+:where(.learner-shell) .sasu-feed {
   display: grid;
   grid-template-columns: minmax(0, 360px) minmax(320px, 1fr);
   gap: 24px;
@@ -718,35 +594,35 @@ body.sasu-reset-base {
   margin: 0 auto;
   align-items: stretch;
 }
-.sasu-feed--review {
+:where(.learner-shell) .sasu-feed--review {
   grid-template-columns: minmax(0, 1fr);
 }
-.sasu-feed__main {
+:where(.learner-shell) .sasu-feed__main {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
 }
-.sasu-feed__bar {
+:where(.learner-shell) .sasu-feed__bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.sasu-feed__head {
+:where(.learner-shell) .sasu-feed__head {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.sasu-feed__stage {
+:where(.learner-shell) .sasu-feed__stage {
   display: flex;
   justify-content: center;
 }
-.sasu-feed__actions {
+:where(.learner-shell) .sasu-feed__actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.sasu-feed__msg {
+:where(.learner-shell) .sasu-feed__msg {
   margin: 0;
   font-size: 13px;
   color: var(--sasu-brand-ink);
@@ -754,16 +630,16 @@ body.sasu-reset-base {
 }
 
 /* 플레이어 */
-.sasu-player {
+:where(.learner-shell) .sasu-player {
   width: 100%;
   max-width: 300px;
 }
-.sasu-player:focus-visible {
+:where(.learner-shell) .sasu-player:focus-visible {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 3px;
   border-radius: var(--sasu-radius);
 }
-.sasu-player__screen {
+:where(.learner-shell) .sasu-player__screen {
   position: relative;
   aspect-ratio: 9 / 16;
   max-height: 440px;
@@ -775,21 +651,21 @@ body.sasu-reset-base {
   display: flex;
   flex-direction: column;
 }
-.sasu-player__screen.is-failed {
+:where(.learner-shell) .sasu-player__screen.is-failed {
   background: linear-gradient(160deg, #3f1d1d, #4c2626);
 }
-.sasu-player__top {
+:where(.learner-shell) .sasu-player__top {
   display: flex;
   justify-content: space-between;
   padding: 10px 12px;
 }
-.sasu-player__pill {
+:where(.learner-shell) .sasu-player__pill {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   padding: 3px 10px;
   font-size: 11px;
 }
-.sasu-player__art {
+:where(.learner-shell) .sasu-player__art {
   position: absolute;
   inset: 0;
   display: flex;
@@ -798,20 +674,20 @@ body.sasu-reset-base {
   align-items: center;
   gap: 10px;
 }
-.sasu-player__word {
+:where(.learner-shell) .sasu-player__word {
   font-size: 22px;
   font-weight: 800;
 }
-.sasu-player__line {
+:where(.learner-shell) .sasu-player__line {
   width: 60%;
   height: 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.2);
 }
-.sasu-player__line--short {
+:where(.learner-shell) .sasu-player__line--short {
   width: 40%;
 }
-.sasu-player__center {
+:where(.learner-shell) .sasu-player__center {
   position: absolute;
   inset: 0;
   display: flex;
@@ -820,7 +696,7 @@ body.sasu-reset-base {
   align-items: center;
   gap: 10px;
 }
-.sasu-player__big {
+:where(.learner-shell) .sasu-player__big {
   position: absolute;
   inset: 0;
   margin: auto;
@@ -833,10 +709,10 @@ body.sasu-reset-base {
   font-size: 22px;
   cursor: pointer;
 }
-.sasu-player__end {
+:where(.learner-shell) .sasu-player__end {
   font-weight: 700;
 }
-.sasu-player__fail {
+:where(.learner-shell) .sasu-player__fail {
   position: absolute;
   inset: 0;
   display: flex;
@@ -847,7 +723,7 @@ body.sasu-reset-base {
   padding: 20px;
   text-align: center;
 }
-.sasu-player__fail-icon {
+:where(.learner-shell) .sasu-player__fail-icon {
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -857,27 +733,27 @@ body.sasu-reset-base {
   justify-content: center;
   font-weight: 800;
 }
-.sasu-player__fail-title {
+:where(.learner-shell) .sasu-player__fail-title {
   font-weight: 700;
   margin: 0;
 }
-.sasu-player__fail-text {
+:where(.learner-shell) .sasu-player__fail-text {
   margin: 0;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.85);
 }
-.sasu-player__fail-btns {
+:where(.learner-shell) .sasu-player__fail-btns {
   display: flex;
   gap: 8px;
   margin-top: 4px;
 }
-.sasu-player__controls {
+:where(.learner-shell) .sasu-player__controls {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
-.sasu-ctl {
+:where(.learner-shell) .sasu-ctl {
   border: 1px solid var(--sasu-line);
   background: var(--sasu-surface);
   border-radius: var(--sasu-radius-sm);
@@ -885,12 +761,12 @@ body.sasu-reset-base {
   cursor: pointer;
   font-size: 13px;
 }
-.sasu-ctl__time {
+:where(.learner-shell) .sasu-ctl__time {
   font-size: 12px;
   color: var(--sasu-muted);
   font-variant-numeric: tabular-nums;
 }
-.sasu-ctl__bar {
+:where(.learner-shell) .sasu-ctl__bar {
   flex: 1;
   height: 8px;
   border: 0;
@@ -900,21 +776,21 @@ body.sasu-reset-base {
   padding: 0;
   overflow: hidden;
 }
-.sasu-ctl__fill {
+:where(.learner-shell) .sasu-ctl__fill {
   display: block;
   height: 100%;
   background: var(--sasu-brand);
 }
-.sasu-ctl__volume {
+:where(.learner-shell) .sasu-ctl__volume {
   width: 72px;
 }
-.sasu-ctl__speed select {
+:where(.learner-shell) .sasu-ctl__speed select {
   border: 1px solid var(--sasu-line);
   border-radius: var(--sasu-radius-sm);
   padding: 5px 6px;
   font-size: 12px;
 }
-.sasu-react {
+:where(.learner-shell) .sasu-react {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -926,14 +802,14 @@ body.sasu-reset-base {
   font-weight: 600;
   cursor: pointer;
 }
-.sasu-react.is-on {
+:where(.learner-shell) .sasu-react.is-on {
   background: var(--sasu-brand-soft);
   border-color: var(--sasu-brand);
   color: var(--sasu-brand-ink);
 }
 
 /* 학습 패널(우측) */
-.sasu-lp {
+:where(.learner-shell) .sasu-lp {
   background: var(--sasu-surface);
   border: 1px solid var(--sasu-line);
   border-radius: var(--sasu-radius);
@@ -945,21 +821,21 @@ body.sasu-reset-base {
   position: sticky;
   top: 20px;
 }
-.sasu-lp__head {
+:where(.learner-shell) .sasu-lp__head {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.sasu-lp__title {
+:where(.learner-shell) .sasu-lp__title {
   margin: 0;
   font-size: 16px;
 }
-.sasu-lp__tabs {
+:where(.learner-shell) .sasu-lp__tabs {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--sasu-line-soft);
 }
-.sasu-lp__tab {
+:where(.learner-shell) .sasu-lp__tab {
   position: relative;
   border: 0;
   background: none;
@@ -970,11 +846,11 @@ body.sasu-reset-base {
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
-.sasu-lp__tab.is-active {
+:where(.learner-shell) .sasu-lp__tab.is-active {
   color: var(--sasu-brand-ink);
   border-bottom-color: var(--sasu-brand);
 }
-.sasu-lp__dot {
+:where(.learner-shell) .sasu-lp__dot {
   position: absolute;
   top: 6px;
   right: 4px;
@@ -983,23 +859,23 @@ body.sasu-reset-base {
   border-radius: 50%;
   background: var(--sasu-red);
 }
-.sasu-lp__body {
+:where(.learner-shell) .sasu-lp__body {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.sasu-lp__label {
+:where(.learner-shell) .sasu-lp__label {
   font-size: 12px;
   font-weight: 700;
   color: var(--sasu-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.sasu-lp__oneline p {
+:where(.learner-shell) .sasu-lp__oneline p {
   margin: 4px 0 0;
   font-weight: 600;
 }
-.sasu-lp__points {
+:where(.learner-shell) .sasu-lp__points {
   margin: 4px 0 0;
   padding: 0;
   list-style: none;
@@ -1007,12 +883,12 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 6px;
 }
-.sasu-lp__points li {
+:where(.learner-shell) .sasu-lp__points li {
   display: flex;
   gap: 8px;
   font-size: 13.5px;
 }
-.sasu-lp__no {
+:where(.learner-shell) .sasu-lp__no {
   flex: 0 0 20px;
   height: 20px;
   border-radius: 50%;
@@ -1024,48 +900,48 @@ body.sasu-reset-base {
   align-items: center;
   justify-content: center;
 }
-.sasu-lp__related,
-.sasu-lp__reason {
+:where(.learner-shell) .sasu-lp__related,
+:where(.learner-shell) .sasu-lp__reason {
   margin: 4px 0 0;
   font-size: 13px;
   color: var(--sasu-sub);
 }
-.sasu-lp__caution {
+:where(.learner-shell) .sasu-lp__caution {
   background: var(--sasu-amber-soft);
   border-radius: var(--sasu-radius-sm);
   padding: 10px 12px;
 }
-.sasu-lp__caution-title {
+:where(.learner-shell) .sasu-lp__caution-title {
   margin: 0 0 2px;
   font-weight: 700;
   color: var(--sasu-amber);
   font-size: 13px;
 }
-.sasu-lp__caution p {
+:where(.learner-shell) .sasu-lp__caution p {
   margin: 0;
   font-size: 12.5px;
   color: #92400e;
 }
-.sasu-lp__dl {
+:where(.learner-shell) .sasu-lp__dl {
   margin: 0;
   display: grid;
   grid-template-columns: 70px 1fr;
   gap: 6px 10px;
   font-size: 13.5px;
 }
-.sasu-lp__dl dt {
+:where(.learner-shell) .sasu-lp__dl dt {
   color: var(--sasu-muted);
   font-weight: 700;
 }
-.sasu-lp__dl dd {
+:where(.learner-shell) .sasu-lp__dl dd {
   margin: 0;
 }
-.sasu-lp__series {
+:where(.learner-shell) .sasu-lp__series {
   border: 1px solid var(--sasu-line-soft);
   border-radius: var(--sasu-radius-sm);
   padding: 10px 12px;
 }
-.sasu-lp__steps {
+:where(.learner-shell) .sasu-lp__steps {
   margin: 6px 0 0;
   padding: 0;
   list-style: none;
@@ -1074,16 +950,16 @@ body.sasu-reset-base {
   gap: 4px;
   font-size: 13px;
 }
-.sasu-lp__steps li {
+:where(.learner-shell) .sasu-lp__steps li {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.sasu-lp__steps li.is-current {
+:where(.learner-shell) .sasu-lp__steps li.is-current {
   font-weight: 700;
   color: var(--sasu-brand-ink);
 }
-.sasu-lp__ok {
+:where(.learner-shell) .sasu-lp__ok {
   margin-left: auto;
   font-size: 11px;
   color: var(--sasu-green);
@@ -1091,22 +967,22 @@ body.sasu-reset-base {
 }
 
 /* ===== 퀴즈(C01) ===== */
-.sasu-quiz {
+:where(.learner-shell) .sasu-quiz {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.sasu-quiz__context {
+:where(.learner-shell) .sasu-quiz__context {
   margin: 0;
   font-size: 12.5px;
   color: var(--sasu-muted);
 }
-.sasu-quiz__q {
+:where(.learner-shell) .sasu-quiz__q {
   margin: 0;
   font-weight: 700;
   font-size: 15px;
 }
-.sasu-quiz__choices {
+:where(.learner-shell) .sasu-quiz__choices {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1114,7 +990,7 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 8px;
 }
-.sasu-choice {
+:where(.learner-shell) .sasu-choice {
   width: 100%;
   display: flex;
   align-items: center;
@@ -1127,22 +1003,22 @@ body.sasu-reset-base {
   font-size: 14px;
   cursor: pointer;
 }
-.sasu-choice:disabled {
+:where(.learner-shell) .sasu-choice:disabled {
   cursor: default;
 }
-.sasu-choice.is-picked {
+:where(.learner-shell) .sasu-choice.is-picked {
   border-color: var(--sasu-brand);
   background: var(--sasu-brand-soft);
 }
-.sasu-choice.is-answer {
+:where(.learner-shell) .sasu-choice.is-answer {
   border-color: var(--sasu-green);
   background: var(--sasu-green-soft);
 }
-.sasu-choice.is-wrong {
+:where(.learner-shell) .sasu-choice.is-wrong {
   border-color: var(--sasu-red);
   background: var(--sasu-red-soft);
 }
-.sasu-choice__letter {
+:where(.learner-shell) .sasu-choice__letter {
   flex: 0 0 24px;
   height: 24px;
   border-radius: 50%;
@@ -1153,24 +1029,24 @@ body.sasu-reset-base {
   font-size: 12px;
   font-weight: 700;
 }
-.sasu-choice__text {
+:where(.learner-shell) .sasu-choice__text {
   flex: 1;
 }
-.sasu-choice__mark {
+:where(.learner-shell) .sasu-choice__mark {
   font-size: 12px;
   font-weight: 700;
   color: var(--sasu-green);
 }
-.sasu-choice__mark.is-wrong {
+:where(.learner-shell) .sasu-choice__mark.is-wrong {
   color: var(--sasu-red);
 }
-.sasu-quiz__error {
+:where(.learner-shell) .sasu-quiz__error {
   margin: 0;
   font-size: 12.5px;
   color: var(--sasu-red);
   font-weight: 600;
 }
-.sasu-result {
+:where(.learner-shell) .sasu-result {
   border: 1px solid var(--sasu-line);
   border-radius: var(--sasu-radius-sm);
   padding: 12px 14px;
@@ -1178,42 +1054,42 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 8px;
 }
-.sasu-result.is-correct {
+:where(.learner-shell) .sasu-result.is-correct {
   border-color: var(--sasu-green);
   background: var(--sasu-green-soft);
 }
-.sasu-result.is-wrong {
+:where(.learner-shell) .sasu-result.is-wrong {
   border-color: var(--sasu-red);
   background: var(--sasu-red-soft);
 }
-.sasu-result__title {
+:where(.learner-shell) .sasu-result__title {
   margin: 0;
   font-weight: 700;
 }
-.sasu-result__dl {
+:where(.learner-shell) .sasu-result__dl {
   margin: 0;
   display: grid;
   grid-template-columns: 50px 1fr;
   gap: 4px 10px;
   font-size: 13.5px;
 }
-.sasu-result__dl dt {
+:where(.learner-shell) .sasu-result__dl dt {
   color: var(--sasu-muted);
   font-weight: 700;
 }
-.sasu-result__dl dd {
+:where(.learner-shell) .sasu-result__dl dd {
   margin: 0;
 }
-.sasu-result__exp {
+:where(.learner-shell) .sasu-result__exp {
   margin: 0;
   font-size: 13.5px;
 }
-.sasu-result__foot {
+:where(.learner-shell) .sasu-result__foot {
   margin-top: 2px;
 }
 
 /* ===== 복기 카드(C02) ===== */
-.sasu-review-card {
+:where(.learner-shell) .sasu-review-card {
   background: var(--sasu-surface);
   border: 1px solid var(--sasu-brand);
   border-radius: var(--sasu-radius);
@@ -1225,62 +1101,18 @@ body.sasu-reset-base {
   max-width: 560px;
   margin: 0 auto;
 }
-.sasu-review-card__lead {
+:where(.learner-shell) .sasu-review-card__lead {
   margin: 0;
   font-weight: 700;
 }
-.sasu-review-card__src {
+:where(.learner-shell) .sasu-review-card__src {
   margin: 0;
   color: var(--sasu-muted);
   font-size: 13px;
 }
 
-/* ===== 오답 복습·플래시카드 상단 ===== */
-.sasu-review__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.sasu-flash__card {
-  align-items: flex-start;
-}
-.sasu-flash__q {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-}
-.sasu-flash__answer {
-  width: 100%;
-  border-top: 1px solid var(--sasu-line-soft);
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sasu-flash__a {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-}
-
 /* ===== 대시보드·통계 보조 ===== */
-.sasu-dash__series {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.sasu-dash__series li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-.sasu-stats__misc {
+:where(.learner-shell) .sasu-stats__misc {
   margin: 0;
   padding-left: 18px;
   font-size: 13.5px;
@@ -1291,16 +1123,16 @@ body.sasu-reset-base {
 }
 
 /* ===== 폼 2열·콘텐츠 등록 ===== */
-.sasu-form__grid {
+:where(.learner-shell) .sasu-form__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
-.sasu-form__actions {
+:where(.learner-shell) .sasu-form__actions {
   margin-top: 4px;
 }
-.sasu-form__media {
+:where(.learner-shell) .sasu-form__media {
   min-height: 130px;
   border: 1px dashed var(--sasu-line);
   border-radius: var(--sasu-radius-sm);
@@ -1311,14 +1143,14 @@ body.sasu-reset-base {
   font-size: 13px;
   color: var(--sasu-sub);
 }
-.sasu-form__media.is-error {
+:where(.learner-shell) .sasu-form__media.is-error {
   border-color: var(--sasu-red);
 }
-.sasu-form__media-ok {
+:where(.learner-shell) .sasu-form__media-ok {
   color: var(--sasu-brand-ink);
   font-weight: 600;
 }
-.sasu-choices-edit {
+:where(.learner-shell) .sasu-choices-edit {
   border: 0;
   margin: 0;
   padding: 0;
@@ -1326,32 +1158,32 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 8px;
 }
-.sasu-choice-edit {
+:where(.learner-shell) .sasu-choice-edit {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.sasu-choice-edit.is-error .sasu-input {
+:where(.learner-shell) .sasu-choice-edit.is-error .sasu-input {
   border-color: var(--sasu-red);
 }
-.sasu-choice-edit__radio {
+:where(.learner-shell) .sasu-choice-edit__radio {
   flex: 0 0 auto;
 }
-.sasu-card-preview {
+:where(.learner-shell) .sasu-card-preview {
   border: 1px solid var(--sasu-line-soft);
   border-radius: var(--sasu-radius-sm);
   padding: 12px;
 }
-.sasu-card-preview__q,
-.sasu-card-preview__a {
+:where(.learner-shell) .sasu-card-preview__q,
+:where(.learner-shell) .sasu-card-preview__a {
   margin: 4px 0 0;
   font-weight: 600;
 }
-.sasu-card-preview__ver {
+:where(.learner-shell) .sasu-card-preview__ver {
   margin-top: 10px;
 }
-.sasu-pick-list,
-.sasu-order-list {
+:where(.learner-shell) .sasu-pick-list,
+:where(.learner-shell) .sasu-order-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1359,11 +1191,11 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 8px;
 }
-.sasu-order-list {
+:where(.learner-shell) .sasu-order-list {
   counter-reset: step;
 }
-.sasu-pick-list li,
-.sasu-order-list li {
+:where(.learner-shell) .sasu-pick-list li,
+:where(.learner-shell) .sasu-order-list li {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1372,56 +1204,33 @@ body.sasu-reset-base {
   border-bottom: 1px solid var(--sasu-line-soft);
   padding-bottom: 8px;
 }
-.sasu-order-list__btns {
+:where(.learner-shell) .sasu-order-list__btns {
   display: flex;
   gap: 4px;
 }
 
 /* ===== 좁은 화면(960px 미만): 내비 상단, 학습 패널 하단 ===== */
 @media (max-width: 960px) {
-  .sasu-shell {
+  :where(.learner-shell) .sasu-feed {
     grid-template-columns: 1fr;
   }
-  .sasu-nav {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-  }
-  .sasu-nav__brand {
-    padding: 0 8px 0 0;
-  }
-  .sasu-nav__list {
-    flex-direction: row;
-    flex-wrap: wrap;
-    flex: 1;
-  }
-  .sasu-nav__switch {
-    margin: 0;
-  }
-  .sasu-feed {
-    grid-template-columns: 1fr;
-  }
-  .sasu-lp {
+  :where(.learner-shell) .sasu-lp {
     position: static;
   }
-  .sasu-form__grid {
+  :where(.learner-shell) .sasu-form__grid {
     grid-template-columns: 1fr;
   }
-  .sasu-stat-row {
+  :where(.learner-shell) .sasu-stat-row {
     grid-template-columns: 1fr;
   }
 }
 
 /* ===== 영상 좋아요·저장 액션 버튼 ===== */
-.sasu-actions {
+:where(.learner-shell) .sasu-actions {
   display: flex;
   gap: 10px;
 }
-.sasu-action {
+:where(.learner-shell) .sasu-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1437,20 +1246,20 @@ body.sasu-reset-base {
     color 0.2s ease,
     border-color 0.2s ease;
 }
-.sasu-action--icon-only {
+:where(.learner-shell) .sasu-action--icon-only {
   padding: 9px 12px;
 }
-.sasu-action:hover:not(:disabled) {
+:where(.learner-shell) .sasu-action:hover:not(:disabled) {
   border-color: var(--sasu-brand);
 }
-.sasu-action:disabled {
+:where(.learner-shell) .sasu-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.sasu-action__icon {
+:where(.learner-shell) .sasu-action__icon {
   display: inline-flex;
 }
-.sasu-action__icon svg {
+:where(.learner-shell) .sasu-action__icon svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -1460,23 +1269,23 @@ body.sasu-reset-base {
     stroke 0.2s ease,
     transform 0.2s ease;
 }
-.sasu-action--like.is-on {
+:where(.learner-shell) .sasu-action--like.is-on {
   border-color: var(--sasu-red);
   color: var(--sasu-red);
 }
-.sasu-action--like.is-on .sasu-action__icon svg {
+:where(.learner-shell) .sasu-action--like.is-on .sasu-action__icon svg {
   fill: var(--sasu-red);
   stroke: var(--sasu-red);
 }
-.sasu-action--save.is-on {
+:where(.learner-shell) .sasu-action--save.is-on {
   border-color: var(--sasu-brand);
   color: var(--sasu-brand-ink);
 }
-.sasu-action--save.is-on .sasu-action__icon svg {
+:where(.learner-shell) .sasu-action--save.is-on .sasu-action__icon svg {
   fill: var(--sasu-brand);
   stroke: var(--sasu-brand);
 }
-.sasu-action.is-on .sasu-action__icon svg {
+:where(.learner-shell) .sasu-action.is-on .sasu-action__icon svg {
   animation: sasu-tick 0.22s ease;
 }
 @keyframes sasu-tick {
@@ -1492,10 +1301,10 @@ body.sasu-reset-base {
 }
 
 /* ===== 학습 패널 하단 출처·검토일 ===== */
-.sasu-lp__body {
+:where(.learner-shell) .sasu-lp__body {
   flex: 1;
 }
-.sasu-lp__foot {
+:where(.learner-shell) .sasu-lp__foot {
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--sasu-line-soft);
@@ -1505,94 +1314,57 @@ body.sasu-reset-base {
   font-size: 12px;
   color: var(--sasu-muted);
 }
-.sasu-lp__foot-item {
+:where(.learner-shell) .sasu-lp__foot-item {
   display: inline-flex;
   gap: 6px;
   min-width: 0;
   word-break: break-all;
 }
-.sasu-lp__foot-label {
+:where(.learner-shell) .sasu-lp__foot-label {
   font-weight: 700;
   color: var(--sasu-sub);
   flex: 0 0 auto;
 }
-.sasu-lp__related-list {
+:where(.learner-shell) .sasu-lp__related-list {
   margin: 4px 0 0;
   padding-left: 18px;
   font-size: 13px;
 }
 
 /* ===== 시청 메타(조회·시청 상태) ===== */
-.sasu-watchmeta {
+:where(.learner-shell) .sasu-watchmeta {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 /* ===== 보관함 탭 개수 ===== */
-.sasu-tabs__count {
+:where(.learner-shell) .sasu-tabs__count {
   margin-left: 6px;
   font-size: 11px;
   font-weight: 700;
   color: var(--sasu-muted);
 }
-.sasu-tabs__tab.is-active .sasu-tabs__count {
+:where(.learner-shell) .sasu-tabs__tab.is-active .sasu-tabs__count {
   color: var(--sasu-brand-ink);
 }
 
 /* ===== 시작하기 체크리스트 ===== */
-.sasu-start__list {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sasu-start__list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--sasu-line-soft);
-  font-size: 14px;
-}
-.sasu-start__list li:last-child {
-  border-bottom: 0;
-}
-.sasu-start__mark {
-  flex: 0 0 20px;
-  text-align: center;
-  font-weight: 800;
-  color: var(--sasu-muted);
-}
-.sasu-start__list li.is-done .sasu-start__mark {
-  color: var(--sasu-green);
-}
-.sasu-start__label {
-  flex: 1;
-  min-width: 0;
-}
-.sasu-start__list li.is-done .sasu-start__label {
-  color: var(--sasu-muted);
-}
 
 /* ===== 키보드 포커스 표시 ===== */
-.sasu-btn:focus-visible,
-.sasu-action:focus-visible,
-.sasu-tabs__tab:focus-visible,
-.sasu-lp__tab:focus-visible,
-.sasu-chip--pick:focus-visible,
-.sasu-result-card:focus-visible,
-.sasu-nav__item:focus-visible,
-.sasu-nav__switch:focus-visible,
-.sasu-link:focus-visible,
-.sasu-choice:focus-visible {
+:where(.learner-shell) .sasu-btn:focus-visible,
+:where(.learner-shell) .sasu-action:focus-visible,
+:where(.learner-shell) .sasu-tabs__tab:focus-visible,
+:where(.learner-shell) .sasu-lp__tab:focus-visible,
+:where(.learner-shell) .sasu-chip--pick:focus-visible,
+:where(.learner-shell) .sasu-result-card:focus-visible,
+:where(.learner-shell) .sasu-link:focus-visible,
+:where(.learner-shell) .sasu-choice:focus-visible {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 2px;
   border-radius: var(--sasu-radius-sm);
 }
-.sasu-skeleton {
+:where(.learner-shell) .sasu-skeleton {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1600,7 +1372,7 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 10px;
 }
-.sasu-skeleton li {
+:where(.learner-shell) .sasu-skeleton li {
   height: 64px;
   border-radius: var(--sasu-radius);
   background: linear-gradient(
@@ -1621,13 +1393,13 @@ body.sasu-reset-base {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sasu-skeleton li {
+  :where(.learner-shell) .sasu-skeleton li {
     animation: none;
   }
 }
 
 /* ===== 영상 스와이프 전환 ===== */
-.sasu-player {
+:where(.learner-shell) .sasu-player {
   touch-action: pan-x;
 }
 @keyframes sasu-enter-below {
@@ -1670,38 +1442,38 @@ body.sasu-reset-base {
     opacity: 0;
   }
 }
-.sasu-feed__main.is-enter-below {
+:where(.learner-shell) .sasu-feed__main.is-enter-below {
   animation: sasu-enter-below 0.22s ease-out;
 }
-.sasu-feed__main.is-enter-above {
+:where(.learner-shell) .sasu-feed__main.is-enter-above {
   animation: sasu-enter-above 0.22s ease-out;
 }
-.sasu-feed__main.is-exit-up {
+:where(.learner-shell) .sasu-feed__main.is-exit-up {
   animation: sasu-exit-up 0.16s ease-in forwards;
 }
-.sasu-feed__main.is-exit-down {
+:where(.learner-shell) .sasu-feed__main.is-exit-down {
   animation: sasu-exit-down 0.16s ease-in forwards;
 }
-.sasu-swipehint {
+:where(.learner-shell) .sasu-swipehint {
   margin: 8px 0 0;
   text-align: center;
   font-size: 12.5px;
   color: var(--sasu-muted);
 }
 @media (prefers-reduced-motion: reduce) {
-  .sasu-feed__main.is-enter-below,
-  .sasu-feed__main.is-enter-above,
-  .sasu-feed__main.is-exit-up,
-  .sasu-feed__main.is-exit-down {
+  :where(.learner-shell) .sasu-feed__main.is-enter-below,
+  :where(.learner-shell) .sasu-feed__main.is-enter-above,
+  :where(.learner-shell) .sasu-feed__main.is-exit-up,
+  :where(.learner-shell) .sasu-feed__main.is-exit-down {
     animation: none;
   }
 }
 
 /* ===== 영상 안 오버레이(좋아요·저장·조회수·패널 토글) ===== */
-.sasu-player {
+:where(.learner-shell) .sasu-player {
   position: relative;
 }
-.sasu-ov-top {
+:where(.learner-shell) .sasu-ov-top {
   position: absolute;
   top: 10px;
   left: 10px;
@@ -1712,7 +1484,7 @@ body.sasu-reset-base {
   z-index: 2;
   pointer-events: none;
 }
-.sasu-ov-pill {
+:where(.learner-shell) .sasu-ov-pill {
   background: rgba(15, 23, 42, 0.55);
   color: #fff;
   border-radius: 999px;
@@ -1721,10 +1493,10 @@ body.sasu-reset-base {
   font-weight: 700;
   backdrop-filter: blur(4px);
 }
-.sasu-ov-pill--done {
+:where(.learner-shell) .sasu-ov-pill--done {
   background: rgba(21, 128, 61, 0.85);
 }
-.sasu-ov {
+:where(.learner-shell) .sasu-ov {
   position: absolute;
   right: 10px;
   bottom: 56px;
@@ -1734,13 +1506,13 @@ body.sasu-reset-base {
   align-items: center;
   gap: 14px;
 }
-.sasu-ov__item {
+:where(.learner-shell) .sasu-ov__item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
-.sasu-ov__btn {
+:where(.learner-shell) .sasu-ov__btn {
   width: 44px;
   height: 44px;
   border: 0;
@@ -1756,14 +1528,14 @@ body.sasu-reset-base {
     background 0.2s ease,
     color 0.2s ease;
 }
-.sasu-ov__btn:hover:not(:disabled) {
+:where(.learner-shell) .sasu-ov__btn:hover:not(:disabled) {
   background: rgba(15, 23, 42, 0.8);
 }
-.sasu-ov__btn:disabled {
+:where(.learner-shell) .sasu-ov__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.sasu-ov__btn svg {
+:where(.learner-shell) .sasu-ov__btn svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -1773,42 +1545,42 @@ body.sasu-reset-base {
     fill 0.2s ease,
     transform 0.2s ease;
 }
-.sasu-ov__btn--like.is-on {
+:where(.learner-shell) .sasu-ov__btn--like.is-on {
   color: #f87171;
 }
-.sasu-ov__btn--save.is-on {
+:where(.learner-shell) .sasu-ov__btn--save.is-on {
   color: #ffffff;
 }
-.sasu-ov__btn.is-on svg {
+:where(.learner-shell) .sasu-ov__btn.is-on svg {
   fill: currentColor;
   animation: sasu-tick 0.22s ease;
 }
-.sasu-ov__count {
+:where(.learner-shell) .sasu-ov__count {
   font-size: 11px;
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
-.sasu-ov__btn:focus-visible {
+:where(.learner-shell) .sasu-ov__btn:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
-.sasu-feed__nav {
+:where(.learner-shell) .sasu-feed__nav {
   justify-content: center;
 }
 
 /* ===== 학습 패널 접기 ===== */
-.sasu-feed.is-lp-closed {
+:where(.learner-shell) .sasu-feed.is-lp-closed {
   grid-template-columns: minmax(0, 360px);
   justify-content: center;
 }
-.sasu-lp__head {
+:where(.learner-shell) .sasu-lp__head {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
-.sasu-lp__fold {
+:where(.learner-shell) .sasu-lp__fold {
   flex: 0 0 auto;
   border: 1px solid var(--sasu-line);
   background: var(--sasu-surface);
@@ -1819,49 +1591,49 @@ body.sasu-reset-base {
   font-weight: 700;
   cursor: pointer;
 }
-.sasu-lp__fold:hover {
+:where(.learner-shell) .sasu-lp__fold:hover {
   background: var(--sasu-line-soft);
 }
-.sasu-lp__fold:focus-visible {
+:where(.learner-shell) .sasu-lp__fold:focus-visible {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 2px;
 }
 @media (max-width: 960px) {
-  .sasu-feed.is-lp-closed {
+  :where(.learner-shell) .sasu-feed.is-lp-closed {
     grid-template-columns: 1fr;
   }
 }
-.sasu-lp[hidden] {
+:where(.learner-shell) .sasu-lp[hidden] {
   display: none;
 }
 /* ===== 영상 오버레이: 평소 흐리게, 마우스 올리면 또렷하게 ===== */
-.sasu-ov,
-.sasu-ov-top {
+:where(.learner-shell) .sasu-ov,
+:where(.learner-shell) .sasu-ov-top {
   opacity: 0.35;
   transition: opacity 0.2s ease;
 }
-.sasu-player:hover .sasu-ov,
-.sasu-player:hover .sasu-ov-top,
-.sasu-player:focus-within .sasu-ov,
-.sasu-player:focus-within .sasu-ov-top {
+:where(.learner-shell) .sasu-player:hover .sasu-ov,
+:where(.learner-shell) .sasu-player:hover .sasu-ov-top,
+:where(.learner-shell) .sasu-player:focus-within .sasu-ov,
+:where(.learner-shell) .sasu-player:focus-within .sasu-ov-top {
   opacity: 1;
 }
 @media (hover: none) {
-  .sasu-ov,
-  .sasu-ov-top {
+  :where(.learner-shell) .sasu-ov,
+  :where(.learner-shell) .sasu-ov-top {
     opacity: 1;
   }
 }
-.sasu-lp__oneline {
+:where(.learner-shell) .sasu-lp__oneline {
   background: var(--sasu-brand-soft);
   border-left: 3px solid var(--sasu-brand);
   border-radius: var(--sasu-radius-sm);
   padding: 11px 13px;
 }
-.sasu-lp__oneline .sasu-lp__label {
+:where(.learner-shell) .sasu-lp__oneline .sasu-lp__label {
   color: var(--sasu-brand-ink);
 }
-.sasu-lp__oneline p {
+:where(.learner-shell) .sasu-lp__oneline p {
   margin: 5px 0 0;
   font-weight: 700;
   font-size: 14.5px;
@@ -1869,15 +1641,15 @@ body.sasu-reset-base {
   color: var(--sasu-ink);
 }
 
-.sasu-lp__sec {
+:where(.learner-shell) .sasu-lp__sec {
   padding-top: 12px;
   border-top: 1px solid var(--sasu-line-soft);
 }
-.sasu-lp__body > .sasu-lp__sec:first-child {
+:where(.learner-shell) .sasu-lp__body > .sasu-lp__sec:first-child {
   padding-top: 0;
   border-top: 0;
 }
-.sasu-lp__core {
+:where(.learner-shell) .sasu-lp__core {
   margin: 6px 0 0;
   white-space: pre-wrap;
   font-size: 13.5px;
@@ -1885,7 +1657,7 @@ body.sasu-reset-base {
   color: var(--sasu-ink);
 }
 
-.sasu-lp__related-list {
+:where(.learner-shell) .sasu-lp__related-list {
   list-style: none;
   margin: 8px 0 0;
   padding: 0;
@@ -1893,7 +1665,7 @@ body.sasu-reset-base {
   flex-direction: column;
   gap: 8px;
 }
-.sasu-lp__related-list a {
+:where(.learner-shell) .sasu-lp__related-list a {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1908,18 +1680,18 @@ body.sasu-reset-base {
     border-color 0.15s ease,
     background 0.15s ease;
 }
-.sasu-lp__related-list a:hover {
+:where(.learner-shell) .sasu-lp__related-list a:hover {
   border-color: var(--sasu-brand);
   background: var(--sasu-brand-soft);
 }
-.sasu-lp__related-list a:hover .sasu-lp__rel-ic {
+:where(.learner-shell) .sasu-lp__related-list a:hover .sasu-lp__rel-ic {
   background: #fff;
 }
-.sasu-lp__related-list a:focus-visible {
+:where(.learner-shell) .sasu-lp__related-list a:focus-visible {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 2px;
 }
-.sasu-lp__rel-ic {
+:where(.learner-shell) .sasu-lp__rel-ic {
   flex: 0 0 26px;
   height: 26px;
   border-radius: 7px;
@@ -1930,20 +1702,20 @@ body.sasu-reset-base {
   justify-content: center;
   font-size: 12px;
 }
-.sasu-lp__rel-t {
+:where(.learner-shell) .sasu-lp__rel-t {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sasu-lp__rel-go {
+:where(.learner-shell) .sasu-lp__rel-go {
   flex: 0 0 auto;
   color: var(--sasu-muted);
   font-size: 15px;
 }
 
-.sasu-lp__label {
+:where(.learner-shell) .sasu-lp__label {
   display: block;
   font-size: 11.5px;
   font-weight: 800;
@@ -1952,7 +1724,7 @@ body.sasu-reset-base {
   text-transform: none;
 }
 
-.sasu-lp__foot {
+:where(.learner-shell) .sasu-lp__foot {
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--sasu-line-soft);
@@ -1960,39 +1732,39 @@ body.sasu-reset-base {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.sasu-lp__foot-item {
+:where(.learner-shell) .sasu-lp__foot-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.sasu-lp__foot-label {
+:where(.learner-shell) .sasu-lp__foot-label {
   font-size: 11px;
   font-weight: 800;
   color: var(--sasu-muted);
 }
-.sasu-lp__foot-value {
+:where(.learner-shell) .sasu-lp__foot-value {
   margin: 0;
   font-size: 12.5px;
   color: var(--sasu-sub);
   word-break: break-all;
 }
-.sasu-player {
+:where(.learner-shell) .sasu-player {
   max-width: 360px;
   border-radius: 14px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
 }
-.sasu-lp {
+:where(.learner-shell) .sasu-lp {
   align-self: start;
 }
 
-.sasu-ov {
+:where(.learner-shell) .sasu-ov {
   bottom: 86px;
 }
-.sasu-feed__bar {
+:where(.learner-shell) .sasu-feed__bar {
   align-items: center;
 }
-.sasu-backlink {
+:where(.learner-shell) .sasu-backlink {
   border: 0;
   background: none;
   padding: 0;
@@ -2001,16 +1773,16 @@ body.sasu-reset-base {
   color: var(--sasu-muted);
   text-decoration: none;
 }
-.sasu-backlink:hover {
+:where(.learner-shell) .sasu-backlink:hover {
   color: var(--sasu-ink);
   text-decoration: none;
 }
-.sasu-backlink:focus-visible {
+:where(.learner-shell) .sasu-backlink:focus-visible {
   outline: 2px solid var(--sasu-brand);
   outline-offset: 2px;
   border-radius: 4px;
 }
-.sasu-ctxchip {
+:where(.learner-shell) .sasu-ctxchip {
   font-size: 11px;
   font-weight: 800;
   color: var(--sasu-brand-ink);
@@ -2018,7 +1790,7 @@ body.sasu-reset-base {
   border-radius: 999px;
   padding: 3px 10px;
 }
-.sasu-metaline {
+:where(.learner-shell) .sasu-metaline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2026,23 +1798,23 @@ body.sasu-reset-base {
   margin-top: 6px;
   font-size: 13px;
 }
-.sasu-metaline__cat {
+:where(.learner-shell) .sasu-metaline__cat {
   font-weight: 700;
   color: var(--sasu-sub);
 }
-.sasu-metaline__tag {
+:where(.learner-shell) .sasu-metaline__tag {
   background: var(--sasu-line-soft);
   color: var(--sasu-sub);
   border-radius: 999px;
   padding: 2px 9px;
   font-size: 12px;
 }
-.sasu-feed__nav {
+:where(.learner-shell) .sasu-feed__nav {
   justify-content: center;
   gap: 8px;
 }
-.sasu-feed__nav .sasu-link,
-.sasu-feed__nav .sasu-btn {
+:where(.learner-shell) .sasu-feed__nav .sasu-link,
+:where(.learner-shell) .sasu-feed__nav .sasu-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2059,17 +1831,17 @@ body.sasu-reset-base {
     color 0.15s ease,
     background 0.15s ease;
 }
-.sasu-feed__nav .sasu-link:hover,
-.sasu-feed__nav .sasu-btn:hover:not(:disabled) {
+:where(.learner-shell) .sasu-feed__nav .sasu-link:hover,
+:where(.learner-shell) .sasu-feed__nav .sasu-btn:hover:not(:disabled) {
   border-color: var(--sasu-brand);
   color: var(--sasu-brand-ink);
   background: var(--sasu-brand-soft);
   text-decoration: none;
 }
-.sasu-quiz__choices {
+:where(.learner-shell) .sasu-quiz__choices {
   gap: 9px;
 }
-.sasu-choice {
+:where(.learner-shell) .sasu-choice {
   border-width: 1.5px;
   border-radius: 10px;
   padding: 13px;
@@ -2078,11 +1850,11 @@ body.sasu-reset-base {
     border-color 0.15s ease,
     background 0.15s ease;
 }
-.sasu-choice:not(:disabled):hover {
+:where(.learner-shell) .sasu-choice:not(:disabled):hover {
   border-color: var(--sasu-brand);
   background: var(--sasu-brand-soft);
 }
-.sasu-choice__letter {
+:where(.learner-shell) .sasu-choice__letter {
   flex: 0 0 26px;
   height: 26px;
   border: 1.5px solid var(--sasu-line);
@@ -2090,28 +1862,28 @@ body.sasu-reset-base {
   color: var(--sasu-muted);
   font-weight: 800;
 }
-.sasu-choice:not(:disabled):hover .sasu-choice__letter {
+:where(.learner-shell) .sasu-choice:not(:disabled):hover .sasu-choice__letter {
   border-color: var(--sasu-brand);
   color: var(--sasu-brand-ink);
 }
-.sasu-choice.is-answer .sasu-choice__letter {
+:where(.learner-shell) .sasu-choice.is-answer .sasu-choice__letter {
   border-color: var(--sasu-green);
   background: var(--sasu-green);
   color: #fff;
 }
-.sasu-choice.is-wrong .sasu-choice__letter {
+:where(.learner-shell) .sasu-choice.is-wrong .sasu-choice__letter {
   border-color: var(--sasu-red);
   background: var(--sasu-red);
   color: #fff;
 }
-.sasu-choice__mark {
+:where(.learner-shell) .sasu-choice__mark {
   font-size: 11px;
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 999px;
   background: #fff;
 }
-.sasu-result {
+:where(.learner-shell) .sasu-result {
   padding: 0;
   gap: 0;
   overflow: hidden;
@@ -2119,45 +1891,45 @@ body.sasu-reset-base {
   border-radius: 10px;
   background: #fff;
 }
-.sasu-result.is-wrong,
-.sasu-result.is-correct {
+:where(.learner-shell) .sasu-result.is-wrong,
+:where(.learner-shell) .sasu-result.is-correct {
   background: #fff;
 }
-.sasu-result__title {
+:where(.learner-shell) .sasu-result__title {
   margin: 0;
   padding: 11px 13px;
   font-size: 14px;
   font-weight: 800;
 }
-.sasu-result.is-wrong .sasu-result__title {
+:where(.learner-shell) .sasu-result.is-wrong .sasu-result__title {
   background: var(--sasu-red-soft);
   color: var(--sasu-red);
 }
-.sasu-result.is-correct .sasu-result__title {
+:where(.learner-shell) .sasu-result.is-correct .sasu-result__title {
   background: var(--sasu-green-soft);
   color: var(--sasu-green);
 }
-.sasu-result__dl {
+:where(.learner-shell) .sasu-result__dl {
   margin: 12px 13px 0;
   grid-template-columns: 46px 1fr;
   gap: 6px 10px;
 }
-.sasu-result__dl dt {
+:where(.learner-shell) .sasu-result__dl dt {
   font-size: 11.5px;
   font-weight: 800;
   color: var(--sasu-muted);
 }
-.sasu-result__dl dd {
+:where(.learner-shell) .sasu-result__dl dd {
   font-weight: 600;
 }
-.sasu-result__exp {
+:where(.learner-shell) .sasu-result__exp {
   margin: 12px 13px 0;
   background: var(--sasu-line-soft);
   border-radius: 8px;
   padding: 10px 12px;
   line-height: 1.7;
 }
-.sasu-result__exp::before {
+:where(.learner-shell) .sasu-result__exp::before {
   content: '해설';
   display: block;
   font-size: 11px;
@@ -2165,11 +1937,11 @@ body.sasu-reset-base {
   color: var(--sasu-muted);
   margin-bottom: 4px;
 }
-.sasu-result__foot {
+:where(.learner-shell) .sasu-result__foot {
   margin: 12px 13px 13px;
 }
-.sasu-result__foot .sasu-link,
-.sasu-result__foot .sasu-btn {
+:where(.learner-shell) .sasu-result__foot .sasu-link,
+:where(.learner-shell) .sasu-result__foot .sasu-btn {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--sasu-line);
@@ -2181,30 +1953,30 @@ body.sasu-reset-base {
   font-weight: 700;
   text-decoration: none;
 }
-.sasu-result__foot .sasu-link:hover,
-.sasu-result__foot .sasu-btn:hover:not(:disabled) {
+:where(.learner-shell) .sasu-result__foot .sasu-link:hover,
+:where(.learner-shell) .sasu-result__foot .sasu-btn:hover:not(:disabled) {
   background: var(--sasu-line-soft);
   text-decoration: none;
 }
-.sasu-result__foot .sasu-row > *:last-child {
+:where(.learner-shell) .sasu-result__foot .sasu-row > *:last-child {
   background: var(--sasu-brand);
   border-color: var(--sasu-brand);
   color: #fff;
 }
-.sasu-result__foot .sasu-row > *:last-child:hover {
+:where(.learner-shell) .sasu-result__foot .sasu-row > *:last-child:hover {
   background: var(--sasu-brand-ink);
 }
-.sasu-ov-pill--idx {
+:where(.learner-shell) .sasu-ov-pill--idx {
   background: rgba(37, 99, 235, 0.75);
 }
-.sasu-toast {
+:where(.learner-shell) .sasu-toast {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin: 0;
   animation: sasu-toast-in 0.18s ease-out;
 }
-.sasu-toast__ic {
+:where(.learner-shell) .sasu-toast__ic {
   width: 17px;
   height: 17px;
   border-radius: 50%;
@@ -2225,12 +1997,12 @@ body.sasu-reset-base {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sasu-toast {
+  :where(.learner-shell) .sasu-toast {
     animation: none;
   }
 }
 
-.sasu-result-card {
+:where(.learner-shell) .sasu-result-card {
   border-width: 1.5px;
   border-radius: 10px;
   padding: 13px 14px;
@@ -2238,32 +2010,36 @@ body.sasu-reset-base {
     border-color 0.15s ease,
     background 0.15s ease;
 }
-.sasu-result-card:not(.sasu-result-card--static):hover {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static):hover {
   border-color: var(--sasu-brand);
   background: var(--sasu-brand-soft);
 }
-.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb {
   flex: 0 0 46px;
   height: 46px;
   border-radius: 9px;
   font-size: 0;
   padding: 0;
 }
-.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb::before {
+:where(.learner-shell)
+  .sasu-result-card:not(.sasu-result-card--static)
+  .sasu-result-card__thumb::before {
   content: '▶';
   font-size: 16px;
   line-height: 1;
 }
-.sasu-result-card:not(.sasu-result-card--static):hover .sasu-result-card__thumb {
+:where(.learner-shell)
+  .sasu-result-card:not(.sasu-result-card--static):hover
+  .sasu-result-card__thumb {
   background: #fff;
 }
-.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__title {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__title {
   font-size: 14.5px;
 }
-.sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__summary {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__summary {
   display: none;
 }
-.sasu-result-card:not(.sasu-result-card--static)::after {
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static)::after {
   content: '›';
   flex: 0 0 auto;
   color: var(--sasu-muted);

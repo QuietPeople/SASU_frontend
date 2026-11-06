@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PropsWithChildren, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode } from 'react'
 
 // 관리자 UI는 학습자 디자인 작업과 독립적으로 관리한다. 통합 시 공통화 여부를 검토한다.
 
@@ -89,6 +89,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  cancelLabel = '취소',
   onConfirm,
   onCancel,
   busy = false,
@@ -97,52 +98,66 @@ export function ConfirmDialog({
   open: boolean
   title: string
   confirmLabel: string
+  cancelLabel?: string
   onConfirm: () => void
   onCancel: () => void
   busy?: boolean
   danger?: boolean
 }>) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDialogElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const titleId = useId()
+  const descriptionId = useId()
   useEffect(() => {
     if (!open) return undefined
+    const dialog = ref.current!
     const prev = document.activeElement as HTMLElement | null
-    ref.current?.querySelector<HTMLButtonElement>('[data-autofocus]')?.focus()
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !busy) onCancel()
-    }
-    window.addEventListener('keydown', onKey)
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialog.showModal()
+    cancelRef.current?.focus({ preventScroll: true })
     return () => {
-      window.removeEventListener('keydown', onKey)
-      prev?.focus?.()
+      dialog.close()
+      document.body.style.overflow = overflow
+      if (prev?.isConnected) prev.focus({ preventScroll: true })
     }
-  }, [open, busy, onCancel])
+  }, [open])
   if (!open) return null
   return (
-    <div
-      className="admin-modal"
-      role="presentation"
-      onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}
+    <dialog
+      ref={ref}
+      className="admin-modal__box admin-confirm-dialog"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      onCancel={(event) => {
+        if (event.target !== event.currentTarget) return
+        event.preventDefault()
+        if (!busy) onCancel()
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel()
+      }}
     >
-      <div
-        className="admin-modal__box"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-modal-title"
-        ref={ref}
-      >
-        <h2 id="admin-modal-title" className="admin-modal__title">
-          {title}
-        </h2>
-        <div className="admin-modal__body">{children}</div>
-        <div className="admin-modal__foot">
-          <Button onClick={onCancel} disabled={busy}>
-            취소
-          </Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={busy}>
-            {confirmLabel}
-          </Button>
-        </div>
+      <h2 id={titleId} className="admin-modal__title">
+        {title}
+      </h2>
+      <div id={descriptionId} className="admin-modal__body">
+        {children}
       </div>
-    </div>
+      <div className="admin-modal__foot">
+        <button
+          ref={cancelRef}
+          type="button"
+          className="admin-btn"
+          onClick={onCancel}
+          disabled={busy}
+        >
+          {cancelLabel}
+        </button>
+        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={busy}>
+          {confirmLabel}
+        </Button>
+      </div>
+    </dialog>
   )
 }

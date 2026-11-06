@@ -1,0 +1,85 @@
+:where(.learner-shell) .sasu-tabs__tab:focus-visible,
+:where(.learner-shell) .sasu-result-card:focus-visible {
+  outline: 3px solid #255fdb;
+  outline-offset: 3px;
+}
+:where(.learner-shell) .sasu-draft-notice {
+  padding: 12px 16px;
+  border: 1px solid #cbdcf8;
+  border-radius: 12px;
+  background: #f3f7ff;
+  color: #284c79;
+}
+:where(.learner-shell) .sasu-page.sasu-library {
+  max-width: 1000px;
+}
+:where(.learner-shell) .sasu-library [role='tabpanel'] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow-anchor: none;
+}
+:where(.learner-shell) .sasu-library [role='tabpanel'][aria-busy='true'] {
+  min-height: 100dvh;
+}
+.sasu-library__review-body {
+  position: relative;
+}
+.sasu-library__review-body .sasu-result-card__summary {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+.sasu-library__review-badge {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid #efdec0;
+  border-radius: 7px;
+  background: #fff8eb;
+  color: #97692f;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.sasu-library__review-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #d8a351;
+}
+
+:where(.learner-shell) .sasu-library__search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 200px) auto auto;
+  width: 100%;
+  max-width: 900px;
+  align-items: end;
+}
+:where(.learner-shell) .sasu-library__search .sasu-field {
+  min-width: 0;
+  margin: 0;
+}
+@media (max-width: 760px) {
+  :where(.learner-shell) .sasu-library__search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :where(.learner-shell) .sasu-library__search .sasu-field {
+    grid-column: 1 / -1;
+  }
+}

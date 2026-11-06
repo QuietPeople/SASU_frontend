@@ -10,8 +10,8 @@ import {
   type LearningIdentity,
 } from '../../api/learning'
 import { useSession } from '../../state/session'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { Flashcard } from '../../shared/Flashcard'
 import { useFlashcardStyle } from '../../shared/useFlashcardStyle'
 import { locateCard } from '../../features/learner-navigation/lists'
@@ -21,7 +21,7 @@ import {
   safeLibraryReturn,
   writeView,
 } from '../../features/learner-navigation/state'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 export function FlashcardPage() {
   const { actorId, learnerId, generation, isPending, error, refreshSettings } = useSession()

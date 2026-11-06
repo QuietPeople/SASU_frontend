@@ -1,46 +1,9 @@
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import './learner-sidebar.css'
+import { FeedbackProvider } from './FeedbackProvider'
+import './sidebar.css'
 
-interface MenuItem {
-  to: string
-  label: string
-}
-
-const iconPaths: Record<string, ReactNode> = {
-  feed: (
-    <>
-      <rect x="3" y="3" width="18" height="18" rx="4" />
-      <path d="m10 8 6 4-6 4z" />
-    </>
-  ),
-  search: (
-    <>
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m16 16 5 5" />
-    </>
-  ),
-  series: (
-    <>
-      <rect x="8" y="3" width="13" height="5" rx="1.5" />
-      <rect x="8" y="16" width="13" height="5" rx="1.5" />
-      <path d="M3 5v13h5M3 5h5M14 8v8" />
-    </>
-  ),
-  library: (
-    <>
-      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
-      <path d="M9 8h6" />
-    </>
-  ),
-  dashboard: <path d="M4 3v17h17M9 15V9M14 15V5M19 15v-4" />,
-  settings: (
-    <>
-      <path d="M4 7h16M4 17h16" />
-      <circle cx="9" cy="7" r="2" fill="white" />
-      <circle cx="15" cy="17" r="2" fill="white" />
-    </>
-  ),
+const iconPaths = {
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
   expand: <path d="m10 6 6 6-6 6" />,
@@ -53,10 +16,10 @@ const iconPaths: Record<string, ReactNode> = {
   arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
 }
 
-function MenuIcon({ name, size = 20 }: { name: string; size?: number }) {
+function MenuIcon({ name, size = 20 }: { name: keyof typeof iconPaths; size?: number }) {
   return (
     <svg
-      className="learner-nav__icon"
+      className="sidebar-icon"
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -68,24 +31,40 @@ function MenuIcon({ name, size = 20 }: { name: string; size?: number }) {
       aria-hidden="true"
       focusable="false"
     >
-      {iconPaths[name] ?? iconPaths.feed}
+      {iconPaths[name]}
     </svg>
   )
 }
 
-export function LearnerSidebarLayout({
+interface SidebarNavigationState {
+  compact: boolean
+  closeMenu: () => void
+}
+
+export function SidebarLayout({
   children,
-  items,
+  scope,
+  menuLabel,
+  currentMenu,
+  subtitle,
+  caption,
+  navigation,
   switchTo,
   switchLabel,
+  switchAriaLabel = switchLabel,
 }: {
   children: ReactNode
-  items: readonly MenuItem[]
+  scope: 'admin' | 'learner'
+  menuLabel: string
+  currentMenu: string
+  subtitle: string
+  caption: string
+  navigation: (state: SidebarNavigationState) => ReactNode
   switchTo: string
   switchLabel: string
+  switchAriaLabel?: string
 }) {
   const navigate = useNavigate()
-  const location = useLocation()
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const [mobileOpen, setMobileOpen] = useState(false)
   const drawerRef = useRef<HTMLDialogElement>(null)
@@ -93,13 +72,12 @@ export function LearnerSidebarLayout({
   const brandRef = useRef<HTMLButtonElement>(null)
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('sasu.learner.sidebarCollapsed') === 'true'
+      return localStorage.getItem(`sasu.${scope}.sidebarCollapsed`) === 'true'
     } catch {
       return false
     }
   })
   const compact = collapsed && !isMobile
-  const currentMenu = items.find((item) => location.pathname.startsWith(item.to))?.label ?? '학습'
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 760px)')
@@ -147,7 +125,7 @@ export function LearnerSidebarLayout({
     setCollapsed(next)
     if (next) brandRef.current?.focus()
     try {
-      localStorage.setItem('sasu.learner.sidebarCollapsed', String(next))
+      localStorage.setItem(`sasu.${scope}.sidebarCollapsed`, String(next))
     } catch {
       /* 저장소를 사용할 수 없어도 현재 화면의 접기 상태는 유지한다. */
     }
@@ -156,112 +134,98 @@ export function LearnerSidebarLayout({
     setMobileOpen(false)
     navigate(path)
   }
-  const navigation = (
+  const panel = (
     <>
-      <div className="learner-nav__header">
+      <div className={`${scope}-nav__header`}>
         <button
           type="button"
-          className="learner-nav__brand"
+          className={`${scope}-nav__brand`}
           ref={brandRef}
           onClick={compact ? toggleSidebar : () => go('/')}
           aria-label={compact ? '사이드바 펼치기' : 'SASU 홈'}
           title={compact ? '사이드바 펼치기' : 'SASU 홈'}
           aria-expanded={compact ? false : undefined}
-          aria-controls={compact ? 'learner-navigation-panel' : undefined}
+          aria-controls={compact ? `${scope}-navigation-panel` : undefined}
         >
-          <span className="learner-nav__mark" aria-hidden="true">
-            <span className="learner-nav__mark-letter">S</span>
-            <span className="learner-nav__mark-expand">
+          <span className={`${scope}-nav__mark`} aria-hidden="true">
+            <span className={`${scope}-nav__mark-letter`}>S</span>
+            <span className={`${scope}-nav__mark-expand`}>
               <MenuIcon name="expand" size={22} />
             </span>
           </span>
-          <span className="learner-nav__brand-text">
-            SASU<span>LEARNING SPACE</span>
+          <span className={`${scope}-nav__brand-text`}>
+            SASU<span>{subtitle}</span>
           </span>
         </button>
         {!compact && (
           <button
             type="button"
-            className="learner-nav__toggle"
+            className={`${scope}-nav__toggle`}
             ref={closeRef}
             onClick={isMobile ? () => setMobileOpen(false) : toggleSidebar}
             aria-label={isMobile ? '메뉴 닫기' : '사이드바 접기'}
             title={isMobile ? '메뉴 닫기' : '사이드바 접기'}
             aria-expanded={isMobile ? undefined : true}
-            aria-controls={isMobile ? undefined : 'learner-navigation-panel'}
+            aria-controls={isMobile ? undefined : `${scope}-navigation-panel`}
           >
             <MenuIcon name={isMobile ? 'close' : 'panel'} size={18} />
           </button>
         )}
       </div>
-      <div className="learner-nav__panel" id="learner-navigation-panel">
-        <p className="learner-nav__caption">내 학습 공간</p>
-        <nav className="learner-nav__list">
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setMobileOpen(false)}
-              aria-label={item.label}
-              title={compact ? item.label : undefined}
-              className={({ isActive }) => `learner-nav__item${isActive ? ' is-active' : ''}`}
-            >
-              <MenuIcon name={item.to.split('/').at(-1) ?? 'feed'} />
-              <span className="learner-nav__label">{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
+      <div className={`${scope}-nav__panel`} id={`${scope}-navigation-panel`}>
+        <p className={`${scope}-nav__caption`}>{caption}</p>
+        {navigation({ compact, closeMenu: () => setMobileOpen(false) })}
         <button
           type="button"
-          className="learner-nav__switch"
+          className={`${scope}-nav__switch`}
           onClick={() => go(switchTo)}
-          aria-label={`${switchLabel} →`}
-          title={compact ? switchLabel : undefined}
+          aria-label={switchAriaLabel}
+          title={compact ? switchAriaLabel : undefined}
         >
           <MenuIcon name="arrow" size={18} />
-          <span className="learner-nav__label">{switchLabel}</span>
+          <span className={`${scope}-nav__label`}>{switchLabel}</span>
         </button>
       </div>
     </>
   )
   return (
-    <div className={`learner-shell${compact ? ' learner-shell--collapsed' : ''}`}>
+    <div className={`${scope}-shell${compact ? ` ${scope}-shell--collapsed` : ''}`}>
       {isMobile ? (
         <>
-          <header className="learner-mobile-header">
+          <header className={`${scope}-mobile-header`}>
             <button
               type="button"
-              className="learner-mobile-header__menu"
+              className={`${scope}-mobile-header__menu`}
               onClick={() => setMobileOpen(true)}
-              aria-label="학습자 메뉴 열기"
+              aria-label={`${menuLabel} 열기`}
               aria-expanded={mobileOpen}
-              aria-controls="learner-mobile-drawer"
+              aria-controls={`${scope}-mobile-drawer`}
             >
               <MenuIcon name="menu" size={22} />
             </button>
-            <span className="learner-mobile-header__brand">SASU</span>
-            <span className="learner-mobile-header__current">{currentMenu}</span>
+            <span className={`${scope}-mobile-header__brand`}>SASU</span>
+            <span className={`${scope}-mobile-header__current`}>{currentMenu}</span>
           </header>
           <dialog
             ref={drawerRef}
-            id="learner-mobile-drawer"
-            className="learner-mobile-drawer"
-            aria-label="학습자 메뉴"
+            id={`${scope}-mobile-drawer`}
+            className={`${scope}-mobile-drawer`}
+            aria-label={menuLabel}
             onCancel={() => setMobileOpen(false)}
             onClose={() => setMobileOpen(false)}
             onClick={(event) => {
               if (event.target === event.currentTarget) setMobileOpen(false)
             }}
           >
-            <div className="learner-nav">{navigation}</div>
+            <div className={`${scope}-nav`}>{panel}</div>
           </dialog>
         </>
       ) : (
-        <aside className="learner-nav" aria-label="학습자 메뉴">
-          {navigation}
+        <aside className={`${scope}-nav`} aria-label={menuLabel}>
+          {panel}
         </aside>
       )}
-      {children}
+      <FeedbackProvider>{children}</FeedbackProvider>
     </div>
   )
 }

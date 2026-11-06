@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Flashcard } from '../shared/Flashcard'
-import type { FlashcardStyle } from '../shared/useFlashcardStyle'
+import { Flashcard } from './Flashcard'
+import type { FlashcardStyle } from './useFlashcardStyle'
 
 export function FlashcardPreview({
   question,

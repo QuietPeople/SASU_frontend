@@ -13,14 +13,14 @@ import {
   type Flashcard,
 } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Badge, Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Badge, Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { useToast } from '../../shared/useToast'
 
 import { learnerErrorMessage, libraryParams } from '../../features/learner-navigation/state'
 import { useListMemory } from '../../features/learner-navigation/useListMemory'
 import { cardPageKey } from '../../features/learner-navigation/lists'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 type Tab = 'saved' | 'wrong' | 'cards'
 const TABS: { id: Tab; label: string }[] = [

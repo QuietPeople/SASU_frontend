@@ -12,13 +12,13 @@ import {
 } from '../../api/learning'
 import { ApiError, queryString } from '../../api/client'
 import { useSession } from '../../state/session'
-import { QuizView } from '../../shared/QuizView'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { QuizView } from '../../learner/QuizView'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 
 import { reviewTargets } from '../../features/learner-navigation/lists'
 import { reviewCategory, safeLibraryReturn } from '../../features/learner-navigation/state'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 function useReviewReturnTo() {
   const location = useLocation()

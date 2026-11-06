@@ -1,0 +1,168 @@
+.sasu-skeleton {
+  width: 100%;
+  min-width: 0;
+}
+.sasu-skeleton__content {
+  display: grid;
+  gap: 20px;
+}
+.sasu-skeleton__block {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #edf0f5;
+}
+.sasu-skeleton__block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, #ffffffb3 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: sasu-skeleton-shimmer 1.7s ease-in-out infinite;
+}
+.sasu-skeleton__line {
+  height: 12px;
+  max-width: 100%;
+}
+.sasu-skeleton__line--title {
+  width: 45%;
+  height: 21px;
+}
+.sasu-skeleton__line--long {
+  width: 90%;
+}
+.sasu-skeleton__line--medium {
+  width: 65%;
+}
+.sasu-skeleton__line--short {
+  width: 28%;
+}
+.sasu-skeleton__heading {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.sasu-skeleton__row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px;
+  border: 1px solid #eef1f6;
+  border-radius: 14px;
+}
+.sasu-skeleton__row > div {
+  flex: 1;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.sasu-skeleton__thumbnail {
+  width: 88px;
+  aspect-ratio: 9 / 16;
+  flex-shrink: 0;
+}
+.sasu-skeleton__field {
+  display: grid;
+  gap: 12px;
+}
+.sasu-skeleton__input {
+  height: 48px;
+}
+.sasu-skeleton__field:last-child .sasu-skeleton__input {
+  height: 120px;
+}
+.sasu-skeleton__metrics,
+.sasu-skeleton__columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.sasu-skeleton__metrics > div {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid #eef1f6;
+  border-radius: 16px;
+}
+.sasu-skeleton__circle {
+  width: min(120px, 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+.sasu-skeleton__columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.sasu-skeleton__columns > div {
+  display: grid;
+  gap: 16px;
+}
+.sasu-skeleton__cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.sasu-skeleton__card {
+  aspect-ratio: 9 / 16;
+  border-radius: 18px;
+}
+.sasu-skeleton--text .sasu-skeleton__content {
+  gap: 12px;
+}
+.sasu-skeleton--video {
+  height: 100%;
+}
+.sasu-skeleton--video .sasu-skeleton__content {
+  height: 100%;
+}
+.sasu-skeleton__video {
+  height: 100%;
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #e7ebf3;
+}
+.sasu-skeleton__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.sasu-skeleton__video > div {
+  position: absolute;
+  inset: auto 24px 28px;
+  display: grid;
+  gap: 14px;
+}
+.sasu-skeleton__video .sasu-skeleton__line {
+  background: #d8dfed;
+}
+@keyframes sasu-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (max-width: 640px) {
+  .sasu-skeleton__thumbnail {
+    width: 64px;
+  }
+  .sasu-skeleton__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sasu-skeleton__metrics {
+    gap: 8px;
+  }
+  .sasu-skeleton__metrics > div {
+    padding: 16px 8px;
+  }
+  .sasu-skeleton__columns {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sasu-skeleton__block::after {
+    animation: none;
+    display: none;
+  }
+}

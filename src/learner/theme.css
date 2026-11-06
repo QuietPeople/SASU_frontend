@@ -1,0 +1,21 @@
+.learner-shell {
+  --sasu-bg: #f1f5f9;
+  --sasu-surface: #ffffff;
+  --sasu-ink: #0f172a;
+  --sasu-sub: #475569;
+  --sasu-muted: #64748b;
+  --sasu-line: #d8e0ea;
+  --sasu-line-soft: #e8eef4;
+  --sasu-brand: #2563eb;
+  --sasu-brand-ink: #1d4ed8;
+  --sasu-brand-soft: #e8f0fe;
+  --sasu-green: #15803d;
+  --sasu-green-soft: #dcfce7;
+  --sasu-amber: #b45309;
+  --sasu-amber-soft: #fef3c7;
+  --sasu-red: #b91c1c;
+  --sasu-red-soft: #fee2e2;
+  --sasu-radius: 12px;
+  --sasu-radius-sm: 8px;
+  --sasu-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
+}

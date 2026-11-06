@@ -4,10 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { api, queryString, type ApiPage } from '../../api/client'
 import { categoryId, pageNumber, useCategories, type LearnerContent } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { useListMemory } from '../../features/learner-navigation/useListMemory'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 export function SearchPage() {
   const { actorId, learnerId, generation, isPending, error } = useSession()

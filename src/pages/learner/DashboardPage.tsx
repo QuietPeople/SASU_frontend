@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router'
 import { api } from '../../api/client'
 import type { LearnerDashboard } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Badge, Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Badge, Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import './dashboard.css'
 
 const GUIDE_VIEWS = ['open', 'collapsed', 'hidden'] as const

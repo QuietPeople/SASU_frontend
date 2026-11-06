@@ -1,0 +1,37 @@
+:where(.learner-shell) .sasu-result-card .sasu-thumbnail.sasu-result-card__thumb {
+  width: 84px;
+  height: auto;
+  flex: 0 0 84px;
+  aspect-ratio: 9 / 16;
+  padding: 0;
+}
+.learner-shell .sasu-result-card:has(.sasu-thumbnail) {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px;
+}
+.learner-shell .sasu-result-card__title {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .learner-shell .sasu-result-card:has(.sasu-thumbnail) {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .learner-shell .sasu-result-card .sasu-thumbnail.sasu-result-card__thumb {
+    width: 72px;
+    grid-row: span 2;
+  }
+  .learner-shell .sasu-result-card:has(.sasu-thumbnail) .sasu-result-card__actions {
+    grid-column: 2;
+  }
+}
+:where(.learner-shell)
+  .sasu-result-card:not(.sasu-result-card--static)
+  .sasu-thumbnail.sasu-result-card__thumb::before {
+  content: none;
+}
+:where(.learner-shell) .sasu-thumbnail.sasu-result-card__thumb > span {
+  font-size: 11px;
+}

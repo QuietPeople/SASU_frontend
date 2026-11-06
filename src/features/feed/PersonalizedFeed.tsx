@@ -27,7 +27,7 @@ import { FLASHCARD_STYLES } from '../../shared/useFlashcardStyle'
 import { VideoLoading, VideoLoadingFrame } from '../content-viewer/VideoLoading'
 import { createViewerSession, type ViewerSession } from '../content-viewer/viewerSession'
 import { FeedReviewCard } from './FeedReviewCard'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button, StateBlock } from '../../learner/ui'
 import { useSession } from '../../state/session'
 import {
   readFeedSession,

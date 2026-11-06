@@ -21,8 +21,8 @@ import {
   type WatchContext,
   type WatchResult,
 } from '../../api/learning'
-import { QuizView } from '../../shared/QuizView'
-import { Button } from '../../shared/ui'
+import { QuizView } from '../../learner/QuizView'
+import { Button } from '../../learner/ui'
 import { useContentViewer } from './useContentViewer'
 import { FeedVideoPlayer } from './FeedVideoPlayer'
 import { bindVideoPlayback, type PlaybackIntent } from './videoPlayback'

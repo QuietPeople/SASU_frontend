@@ -1,0 +1,82 @@
+.admin-page-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 20px;
+}
+.admin-page-controls > p {
+  margin: 0;
+  color: #738097;
+  font-size: 12px;
+}
+.admin-page-controls > p strong {
+  font-weight: 500;
+  color: #62718a;
+}
+.admin-page-controls > nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+}
+.admin-page-controls button,
+.admin-page-controls nav > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #79869b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.admin-page-controls button {
+  cursor: pointer;
+}
+.admin-page-controls button:hover:not(:disabled) {
+  background: #eff3fb;
+  color: #2859d8;
+}
+.admin-page-controls button[aria-current='page'] {
+  background: #285fe4;
+  color: #fff;
+  box-shadow: 0 2px 5px #285fe426;
+}
+.admin-page-controls button:disabled {
+  color: #c8d0dd;
+  cursor: not-allowed;
+}
+.admin-page-controls button:focus-visible {
+  outline: 2px solid #285fe4;
+  outline-offset: 3px;
+}
+.admin-page-controls--compact {
+  flex-direction: column;
+}
+.admin-page-controls--compact > nav {
+  gap: 2px;
+}
+.admin-page-controls--compact button,
+.admin-page-controls--compact nav > span {
+  width: 28px;
+}
+@media (max-width: 640px) {
+  .admin-page-controls {
+    flex-direction: column;
+  }
+  .admin-page-controls > nav {
+    gap: 2px;
+  }
+  .admin-page-controls button,
+  .admin-page-controls nav > span {
+    width: clamp(24px, 7.5vw, 28px);
+  }
+}

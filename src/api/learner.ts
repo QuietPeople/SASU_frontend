@@ -6,6 +6,7 @@ export interface Category {
   name: string
 }
 export interface LearnerContent {
+  thumbnail_url: string | null
   content_id: number
   title: string | null
   category: Category | null
@@ -48,6 +49,7 @@ export interface Flashcard {
   front: string
 }
 export interface CurriculumSummary {
+  thumbnail_url: string | null
   curriculum_id: number
   title: string
   description: string | null
@@ -82,7 +84,7 @@ export interface LearnerDashboard {
     pending_question_count: number
     state: 'NEEDS_REVIEW' | 'NO_PENDING_WRONG'
   }[]
-  curriculums: CurriculumSummary[]
+  curriculums: Omit<CurriculumSummary, 'thumbnail_url'>[]
 }
 export interface LearnerSettings {
   user_id: number

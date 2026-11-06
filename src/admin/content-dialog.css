@@ -92,9 +92,6 @@
 .admin-content-dialog .admin-editor__savebar {
   bottom: 0;
 }
-.admin-content-dialog .admin-request-errors {
-  padding-bottom: 0;
-}
 .admin-content-dialog .admin-form__actions {
   position: sticky;
   bottom: 0;

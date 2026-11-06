@@ -24,7 +24,7 @@ import {
 import type { CurriculumDetail } from '../../api/learner'
 import type { WatchNavigationState } from '../../features/content-viewer/types'
 import { useSession } from '../../state/session'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button, StateBlock } from '../../learner/ui'
 
 export function FeedPage({ mode }: { mode: 'feed' | 'watch' }) {
   if (mode === 'feed') return <PersonalizedFeed />

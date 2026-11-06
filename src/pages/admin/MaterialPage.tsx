@@ -25,8 +25,8 @@ import {
 } from '../../admin/questionEditor'
 import { SegmentedControl } from '../../admin/SegmentedControl'
 import { QuestionHistory } from '../../admin/QuestionHistory'
-import { FlashcardPreview } from '../../admin/FlashcardPreview'
-import { useFlashcardStyle, type FlashcardStyle } from '../../admin/useFlashcardStyle'
+import { FlashcardPreview } from '../../shared/FlashcardPreview'
+import { useFlashcardStyle, type FlashcardStyle } from '../../shared/useFlashcardStyle'
 import '../../admin/material.css'
 
 const FORMATS: { id: QuestionType; label: string }[] = [

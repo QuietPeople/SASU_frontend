@@ -1,6 +1,6 @@
 import { RouteContent } from './RouteContent'
 import {
-  AppLayout,
+  LearnerLayout,
   AdminLayout,
   FeedPage,
   WelcomePage,
@@ -33,9 +33,9 @@ function Feed({ mode }: { mode: 'feed' | 'watch' }) {
 
 function Learner({ children }: { children: React.ReactNode }) {
   return (
-    <AppLayout role="learner">
+    <LearnerLayout>
       <RouteContent>{children}</RouteContent>
-    </AppLayout>
+    </LearnerLayout>
   )
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { FlashcardPreview } from '../../admin/FlashcardPreview'
-import type { FlashcardStyle } from '../../admin/useFlashcardStyle'
+import { FlashcardPreview } from '../../shared/FlashcardPreview'
+import type { FlashcardStyle } from '../../shared/useFlashcardStyle'
 import {
   getFlashcardAnswer,
   learningKey,

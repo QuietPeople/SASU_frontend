@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { FlashcardPreview } from '../../admin/FlashcardPreview'
-import type { FlashcardStyle } from '../../admin/useFlashcardStyle'
+import { FlashcardPreview } from '../../shared/FlashcardPreview'
+import type { FlashcardStyle } from '../../shared/useFlashcardStyle'
 import { getFlashcardAnswer, learningKey, type LearningIdentity } from '../../api/learning'
 import type { PendingFeedReview } from './session'
 import './feed-review-card.css'

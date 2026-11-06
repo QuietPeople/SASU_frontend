@@ -3,10 +3,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api, queryString, type ApiPage } from '../../api/client'
 import { pageNumber, type CurriculumDetail, type CurriculumSummary } from '../../api/learner'
 import { useSession } from '../../state/session'
-import { Badge, Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
+import { Badge, Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { useListMemory } from '../../features/learner-navigation/useListMemory'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/navigation.css'
 
 export function SeriesPage() {
   const { actorId, learnerId, generation, isPending, error } = useSession()
