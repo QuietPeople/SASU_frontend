@@ -1,3 +1,4 @@
+import { contentStatusLabel, contentStatusTone } from '../../admin/contentStatus'
 import { Skeleton } from '../../shared/Skeleton'
 import { ImeInput } from '../../shared/ImeInput'
 import { Thumbnail } from '../../shared/Thumbnail'
@@ -7,7 +8,9 @@ import { ContentFilter } from '../../admin/ContentFilter'
 import type { ContentSubviewKind } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { useToast } from '../../admin/useToast'
+import { contentDeletedMessage } from '../../admin/contentLifecycle'
 import { type ApiPage } from '../../api/client'
 import { type AdminContent, type AdminCategory, useAdminQuery } from '../../api/admin'
 import { Badge, Button, StateBlock } from '../../admin/ui'
@@ -55,6 +58,18 @@ const PAGE_SIZE = 5
 
 export function ContentListPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { show, node } = useToast()
+  useEffect(() => {
+    const notice = location.state as { contentDeleted?: { pending: boolean } } | null
+    if (notice?.contentDeleted) {
+      show(
+        contentDeletedMessage(notice.contentDeleted.pending),
+        notice.contentDeleted.pending ? 'error' : 'ok',
+      )
+      navigate(location.pathname + location.search, { replace: true, state: null })
+    }
+  }, [location, navigate, show])
   const [params, setParams] = useAdminView('contents')
   const query = params.get('q') ?? '',
     status = adminStatus(params.get('status')),
@@ -84,6 +99,9 @@ export function ContentListPage() {
   )
   const published = useAdminQuery<ApiPage<AdminContent>>(
     adminContentListPath(params, { status: 'PUBLISHED', size: 1 }),
+  )
+  const privateContents = useAdminQuery<ApiPage<AdminContent>>(
+    adminContentListPath(params, { status: 'PRIVATE', size: 1 }),
   )
   const drafts = useAdminQuery<ApiPage<AdminContent>>(
     adminContentListPath(params, { status: 'DRAFT', size: 1 }),
@@ -119,6 +137,14 @@ export function ContentListPage() {
       tone: 'green',
     },
     {
+      value: 'PRIVATE',
+      label: '비공개',
+      description: '학습 기록을 보존해요',
+      count: privateContents.data?.total,
+      icon: 'draft',
+      tone: 'amber',
+    },
+    {
       value: 'DRAFT',
       label: '임시저장',
       description: '작성 중인 콘텐츠',
@@ -139,7 +165,7 @@ export function ContentListPage() {
           <div>
             <p className="admin-eyebrow">관리자 · 콘텐츠</p>
             <h1 className="admin-title">콘텐츠 목록</h1>
-            <p className="admin-sub">임시저장한 콘텐츠는 학습자에게 보이지 않아요.</p>
+            <p className="admin-sub">임시저장·비공개 콘텐츠는 학습자에게 보이지 않아요.</p>
           </div>
           <Button variant="primary" onClick={() => navigate('/admin/contents/new')}>
             <Icon name="plus" size={18} /> 새 콘텐츠
@@ -278,8 +304,8 @@ export function ContentListPage() {
                         </td>
                         <td>{c.category?.name ?? '—'}</td>
                         <td>
-                          <Badge tone={c.status === 'PUBLISHED' ? 'green' : 'neutral'}>
-                            {c.status === 'PUBLISHED' ? '공개' : '임시저장'}
+                          <Badge tone={contentStatusTone(c.status)}>
+                            {contentStatusLabel(c.status)}
                           </Badge>
                         </td>
                         <td className="admin-table__right">
@@ -298,8 +324,8 @@ export function ContentListPage() {
                         <Thumbnail src={content.thumbnail_url} refreshKey={list.dataUpdatedAt} />
                         <h2>{content.title || '제목 없음'}</h2>
                       </div>
-                      <Badge tone={content.status === 'PUBLISHED' ? 'green' : 'neutral'}>
-                        {content.status === 'PUBLISHED' ? '공개' : '임시저장'}
+                      <Badge tone={contentStatusTone(content.status)}>
+                        {contentStatusLabel(content.status)}
                       </Badge>
                     </div>
                     <p className="admin-cl__card-category">
@@ -372,8 +398,13 @@ export function ContentListPage() {
           }
           initialView={panel.view}
           onClose={() => setPanel(null)}
+          onDeleted={(pending) => {
+            setPanel(null)
+            show(contentDeletedMessage(pending), pending ? 'error' : 'ok')
+          }}
         />
       )}
+      {node}
     </>
   )
 }

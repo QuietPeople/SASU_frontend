@@ -10,6 +10,7 @@ export interface AdminCategoryCounts extends AdminCategory {
   total_count: number
   published_count: number
   draft_count: number
+  private_count: number
 }
 export interface AdminTag {
   tag_id: number
@@ -21,7 +22,7 @@ export interface AdminContent {
   title: string | null
   category: AdminCategory | null
   tags: AdminTag[]
-  status: 'DRAFT' | 'PUBLISHED'
+  status: 'DRAFT' | 'PUBLISHED' | 'PRIVATE'
   has_quiz: boolean
   video_url: string | null
   media_revision: string | null

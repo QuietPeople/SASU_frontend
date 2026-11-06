@@ -1,3 +1,4 @@
+import { contentStatusLabel } from './contentStatus'
 import { Skeleton } from '../shared/Skeleton'
 import { ImeInput } from '../shared/ImeInput'
 import { Thumbnail } from '../shared/Thumbnail'
@@ -27,6 +28,7 @@ const PAGE_SIZE = 5
 const STATUSES = [
   { id: 'ALL', label: '전체' },
   { id: 'PUBLISHED', label: '공개' },
+  { id: 'PRIVATE', label: '비공개' },
   { id: 'DRAFT', label: '임시저장' },
 ]
 
@@ -182,7 +184,7 @@ export function ContentTargetPicker({ onSelect }: { onSelect: (content: AdminCon
                     <span className="admin-target-picker__category">
                       {item.category?.name ?? '분야 미지정'}
                     </span>
-                    <span>{item.status === 'PUBLISHED' ? '공개' : '임시저장'}</span>
+                    <span>{contentStatusLabel(item.status)}</span>
                   </div>
                   {item.tags.length > 0 && (
                     <p className="admin-target-picker__tags">

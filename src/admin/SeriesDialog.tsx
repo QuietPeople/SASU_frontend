@@ -1,3 +1,4 @@
+import { contentStatusLabel } from './contentStatus'
 import { Skeleton } from '../shared/Skeleton'
 import { FeedbackProvider } from '../shared/FeedbackProvider'
 import { ImeInput } from '../shared/ImeInput'
@@ -227,7 +228,7 @@ function SeriesEditor({
   const [reloaded, setReloaded] = useState<CurriculumDetail>()
   const currentDetail = reloaded ?? initial
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL')
+  const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT' | 'PRIVATE'>('ALL')
   const [category, setCategory] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -497,6 +498,7 @@ function SeriesEditor({
                   options={[
                     { id: 'ALL', label: '전체' },
                     { id: 'PUBLISHED', label: '공개' },
+                    { id: 'PRIVATE', label: '비공개' },
                     { id: 'DRAFT', label: '임시저장' },
                   ]}
                   onChange={(value) => {
@@ -538,7 +540,7 @@ function SeriesEditor({
                           <p>
                             {content.category?.name ?? '분야 없음'}
                             <span>·</span>
-                            {content.status === 'PUBLISHED' ? '공개' : '임시저장'}
+                            {contentStatusLabel(content.status)}
                             <span>·</span>
                             {content.has_quiz ? '퀴즈 있음' : '퀴즈 없음'}
                           </p>

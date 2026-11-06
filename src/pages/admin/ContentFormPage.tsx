@@ -1,3 +1,5 @@
+import { ContentLifecycleActions } from '../../admin/ContentLifecycleActions'
+import { contentStatusLabel, contentStatusTone } from '../../admin/contentStatus'
 import { Skeleton } from '../../shared/Skeleton'
 import { ContentThumbnailInput } from '../../admin/ContentThumbnailInput'
 import { SegmentedControl } from '../../admin/SegmentedControl'
@@ -201,7 +203,9 @@ function ContentEditor({
         navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
     },
   })
-  const { savingRef, busy, stage, error: requestError } = contentSave
+  const { savingRef, busy: saveBusy, stage, error: requestError } = contentSave
+  const [controlBusy, setControlBusy] = useState(false)
+  const busy = saveBusy ?? (controlBusy ? 'control' : null)
   const editConflict = isEditConflict(requestError)
   const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
   const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
@@ -259,6 +263,11 @@ function ContentEditor({
     setError('')
   }
 
+  const onTitleChange = embedded?.onTitleChange
+  const savedTitle = saved?.detail.content.title
+  useEffect(() => {
+    if (savedTitle !== undefined) onTitleChange?.(savedTitle)
+  }, [savedTitle, onTitleChange])
   const onDirtyChange = embedded?.onDirtyChange
   const onBusyChange = embedded?.onBusyChange
   useEffect(() => {
@@ -453,12 +462,8 @@ function ContentEditor({
           </button>
         )}
         <div className="admin-row">
-          <Badge tone={saved?.detail.content.status === 'PUBLISHED' ? 'green' : 'neutral'}>
-            {saved
-              ? saved.detail.content.status === 'PUBLISHED'
-                ? '공개'
-                : '임시저장'
-              : '작성 중'}
+          <Badge tone={contentStatusTone(saved?.detail.content.status)}>
+            {saved ? contentStatusLabel(saved.detail.content.status) : '작성 중'}
           </Badge>
           {dirty && <span className="admin-editor__unsaved">미저장 변경 있음</span>}
           {saved && !dirty && !busy && (
@@ -885,6 +890,33 @@ function ContentEditor({
                 )}
                 {saved?.detail.content.media_revision && (
                   <p className="admin-help">영상 교체 후에도 기존 학습 기록은 유지돼요.</p>
+                )}
+                {saved && (
+                  <ContentLifecycleActions
+                    content={saved}
+                    disabled={saveBusy !== null || videoUpload.recovery !== null || editConflict}
+                    dirty={dirty || tagDraft.trim().length > 0}
+                    onUpdated={(latest) => {
+                      setSaved(latest)
+                      editorDrafts.delete(draftKey)
+                      show(
+                        latest.detail.content.status === 'PRIVATE'
+                          ? '비공개로 전환했어요.'
+                          : '다시 공개했어요.',
+                      )
+                    }}
+                    onDeleted={(result) => {
+                      editorDrafts.delete(draftKey)
+                      if (embedded?.onDeleted) embedded.onDeleted(result.file_cleanup_pending)
+                      else
+                        navigate('/admin/contents', {
+                          replace: true,
+                          state: { contentDeleted: { pending: result.file_cleanup_pending } },
+                        })
+                    }}
+                    onBusyChange={setControlBusy}
+                    onReload={reloadAfterConflict}
+                  />
                 )}
               </div>
               <div hidden={mediaTab !== 'thumbnail'} role="region" aria-label="썸네일 이미지">

@@ -21,7 +21,7 @@ export interface LearningContent {
   saved: boolean | null
   watch_completed: boolean | null
   has_quiz: boolean
-  status: 'DRAFT' | 'PUBLISHED'
+  status: 'DRAFT' | 'PUBLISHED' | 'PRIVATE'
 }
 
 export interface LearningContentDetail {

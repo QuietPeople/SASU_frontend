@@ -6,6 +6,7 @@ import type { AdminContent } from '../api/admin'
 import type { ContentSubview, ContentSubviewKind } from './contentSubview'
 import { Icon } from './Icon'
 import { Button } from './ui'
+import { lockBodyScroll } from './scrollLock'
 import './content-dialog.css'
 
 const titles: Record<ContentSubviewKind, string> = {
@@ -18,15 +19,18 @@ export function ContentDialog({
   content,
   initialView,
   onClose,
+  onDeleted,
 }: {
   content: AdminContent
   initialView: ContentSubviewKind
   onClose: () => void
+  onDeleted?: (pending: boolean) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const [view, setView] = useState(initialView)
+  const [editorTitle, setEditorTitle] = useState(content.title)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<'close' | 'materials' | null>(null)
@@ -34,13 +38,12 @@ export function ContentDialog({
   useEffect(() => {
     const dialog = dialogRef.current!
     const previousFocus = document.activeElement as HTMLElement | null
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlockScroll = lockBodyScroll()
     dialog.showModal()
     closeRef.current?.focus()
     return () => {
       dialog.close()
-      document.body.style.overflow = overflow
+      unlockScroll()
       previousFocus?.focus({ preventScroll: true })
     }
   }, [])
@@ -66,7 +69,12 @@ export function ContentDialog({
   const embedded: ContentSubview = {
     contentId: content.content_id,
     onClose: () => request('close'),
+    onDeleted: (pending) => {
+      if (onDeleted) onDeleted(pending)
+      else onClose()
+    },
     onOpenMaterials: () => request('materials'),
+    onTitleChange: setEditorTitle,
     onDirtyChange: setDirty,
     onBusyChange: setBusy,
   }
@@ -88,7 +96,9 @@ export function ContentDialog({
       <header className="admin-content-dialog__header">
         <div>
           <p>{titles[view]}</p>
-          <h2 id="content-dialog-title">{content.title || '제목 없음'}</h2>
+          <h2 id="content-dialog-title">
+            {(view === 'edit' ? editorTitle : content.title) || '제목 없음'}
+          </h2>
         </div>
         <button
           ref={closeRef}

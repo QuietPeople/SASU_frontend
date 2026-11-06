@@ -377,6 +377,20 @@ export function CategoryManager({
                                 임시저장 <b>{usage.draft_count}</b>
                               </button>
                             </span>
+                            <span>
+                              <button
+                                type="button"
+                                disabled={busy || !!editor}
+                                aria-label={`${cat.name} 비공개 콘텐츠 보기`}
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/contents?category_id=${cat.category_id}&status=PRIVATE`,
+                                  )
+                                }
+                              >
+                                비공개 <b>{usage.private_count ?? 0}</b>
+                              </button>
+                            </span>
                           </>
                         ) : (
                           <span>

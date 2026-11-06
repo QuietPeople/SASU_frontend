@@ -25,7 +25,7 @@ export function adminId(value: string | null) {
   return Number.isSafeInteger(id) ? id : undefined
 }
 export function adminStatus(value: string | null) {
-  return value === 'DRAFT' || value === 'PUBLISHED' ? value : 'ALL'
+  return value === 'DRAFT' || value === 'PUBLISHED' || value === 'PRIVATE' ? value : 'ALL'
 }
 export function adminFilters(params: URLSearchParams, values: Record<string, string>) {
   const next = new URLSearchParams(params)
