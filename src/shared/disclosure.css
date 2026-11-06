@@ -1,0 +1,46 @@
+.sasu-disclosure-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  list-style: none;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.sasu-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+.sasu-disclosure-summary:hover {
+  background: #7392c10b;
+}
+.sasu-disclosure-summary:focus-visible {
+  outline: 2px solid #9db9ff;
+  outline-offset: 3px;
+}
+.sasu-disclosure-summary__label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sasu-disclosure-summary__meta {
+  flex-shrink: 0;
+  color: #8190a5;
+  font-size: 11px;
+  font-weight: 400;
+}
+.sasu-disclosure-summary > svg {
+  flex-shrink: 0;
+  color: #8190a5;
+  transition: transform 160ms ease;
+}
+details[open] > .sasu-disclosure-summary > svg {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sasu-disclosure-summary > svg {
+    transition: none;
+  }
+}

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
 import { afterEach, test } from 'node:test'
-import { QueryClient } from '@tanstack/react-query'
 
 const hooks = registerHooks({
   resolve(specifier, context, next) {
@@ -15,21 +14,7 @@ const lists = await import('../src/features/learner-navigation/lists.ts')
 hooks.deregister()
 const originalFetch = globalThis.fetch
 const originalStorage = globalThis.sessionStorage
-const clients = []
 const identity = { actorId: 42, learnerId: 42, generation: 3 }
-const client = () => {
-  const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  clients.push(cache)
-  return cache
-}
-const card = (id) => ({
-  question_id: id,
-  question_version_id: id,
-  content_id: id,
-  content_title: `영상 ${id}`,
-  category: { category_id: 8, name: '분야' },
-  front: `질문 ${id}`,
-})
 const page = (number, items, has_next = false) => ({
   items,
   page: number,
@@ -41,7 +26,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch
   if (originalStorage === undefined) delete globalThis.sessionStorage
   else globalThis.sessionStorage = originalStorage
-  for (const cache of clients.splice(0)) cache.clear()
 })
 
 test('보관함은 탭마다 페이지를 분리하고 돌아올 때 해당 페이지를 복원한다', () => {
@@ -88,6 +72,48 @@ test('복귀 주소는 실제 보관함 경로만 허용하고 비슷한 외부 
   )
   for (const value of ['https://example.com', '//example.com', '/learner/library-other'])
     assert.equal(state.safeLibraryReturn(value, 'wrong'), '/learner/library?tab=wrong')
+})
+
+test('기존 카드 주소는 보관함 카드 탭의 검색 조건과 페이지로 연결한다', () => {
+  const returnTo = '/learner/library?tab=cards&page=3&concept=8&q=엑셀'
+  const path = state.flashcardLibraryPath(
+    new URLSearchParams({ returnTo, category: '9', q: '다른 검색' }),
+  )
+  const actual = new URL(path, 'http://local')
+  assert.equal(actual.pathname, '/learner/library')
+  assert.equal(actual.searchParams.get('tab'), 'cards')
+  assert.equal(actual.searchParams.get('page'), '3')
+  assert.equal(actual.searchParams.get('concept'), '8')
+  assert.equal(actual.searchParams.get('q'), '엑셀')
+})
+
+test('기존 카드 주소에 보관함 복귀 정보가 없으면 검색어와 분야를 카드 탭에 전달한다', () => {
+  const path = state.flashcardLibraryPath(
+    new URLSearchParams({
+      returnTo: 'https://example.com',
+      category: '8',
+      q: '  엑셀  ',
+    }),
+  )
+  const actual = new URL(path, 'http://local')
+  assert.equal(actual.pathname, '/learner/library')
+  assert.equal(actual.searchParams.get('tab'), 'cards')
+  assert.equal(actual.searchParams.get('concept'), '8')
+  assert.equal(actual.searchParams.get('q'), '엑셀')
+  assert.equal(actual.searchParams.has('returnTo'), false)
+})
+
+test('기존 카드 주소는 다른 보관함 탭의 페이지와 카드 탭의 페이지를 혼동하지 않는다', () => {
+  const path = state.flashcardLibraryPath(
+    new URLSearchParams({
+      returnTo: '/learner/library?tab=saved&page=4&cards_page=2&concept=8',
+    }),
+  )
+  const query = new URL(path, 'http://local').searchParams
+  assert.equal(query.get('tab'), 'cards')
+  assert.equal(query.get('page'), '2')
+  assert.equal(query.get('saved_page'), '4')
+  assert.equal(query.get('concept'), '8')
 })
 
 test('저장소 제한과 잘못된 JSON이 화면 조작을 중단하지 않는다', () => {
@@ -148,74 +174,6 @@ test('연결 실패 안내와 서버의 일반 입력 안내를 구분한다', (
   assert.equal(state.learnerErrorMessage(validation), validation.message)
 })
 
-test('보관함에서 받은 뒤쪽 카드 페이지는 첫 페이지를 재조회하지 않는다', async () => {
-  const cache = client()
-  cache.setQueryData(lists.cardPageKey(identity, undefined, 2), page(2, [card(21), card(22)]))
-  globalThis.fetch = async () => assert.fail('캐시된 페이지를 다시 요청함')
-  assert.equal((await lists.locateCard(cache, identity, undefined, 2, 21)).page, 2)
-  assert.equal((await lists.locateCard(cache, identity, undefined, 2, 22)).page, 2)
-})
-
-test('깊은 카드 주소를 찾은 뒤 다음 카드에서는 탐색한 페이지를 재사용한다', async () => {
-  const cache = client()
-  const requests = []
-  globalThis.fetch = async (url, options) => {
-    requests.push(url)
-    const query = new URL(url, 'http://local').searchParams
-    assert.equal(query.get('category_id'), '8')
-    assert.equal(options.headers.get('X-Actor-Id'), '42')
-    const number = Number(query.get('page'))
-    return Response.json(
-      page(number, number === 1 ? [card(1)] : [card(21), card(22)], number === 1),
-    )
-  }
-  assert.equal((await lists.locateCard(cache, identity, 8, 1, 21)).page, 2)
-  assert.equal((await lists.locateCard(cache, identity, 8, 1, 22)).page, 2)
-  assert.equal(requests.length, 2)
-})
-
-test('카드 선택 요청의 취소가 공유 페이지 캐시의 조회를 중단하지 않는다', async () => {
-  const cache = client()
-  const controller = new AbortController()
-  let release
-  let entered
-  const started = new Promise((resolve) => {
-    entered = resolve
-  })
-  let calls = 0
-  globalThis.fetch = async (_, options) => {
-    calls += 1
-    assert.notEqual(options.signal, controller.signal)
-    entered()
-    return new Promise((resolve) => {
-      release = () => resolve(Response.json(page(1, [card(1)])))
-    })
-  }
-  const request = lists.locateCard(cache, identity, undefined, 1, 1, controller.signal)
-  await started
-  controller.abort()
-  release()
-  await assert.rejects(request, { name: 'AbortError' })
-  assert.equal(
-    (await lists.locateCard(cache, identity, undefined, 1, 1)).items[0].question_version_id,
-    1,
-  )
-  assert.equal(calls, 1)
-})
-
-test('카드 페이지 캐시는 이전 기록 세대의 데이터를 재사용하지 않는다', async () => {
-  const cache = client()
-  cache.setQueryData(lists.cardPageKey(identity, undefined, 1), page(1, [card(1)]))
-  let calls = 0
-  globalThis.fetch = async () => {
-    calls += 1
-    return Response.json(page(1, [card(2)]))
-  }
-  const result = await lists.locateCard(cache, { ...identity, generation: 4 }, undefined, 1, 2)
-  assert.equal(result.items[0].question_version_id, 2)
-  assert.equal(calls, 1)
-})
-
 test('복습 대상과 다음 문제는 같은 분야의 전체 페이지에서 조회한다', async () => {
   const requests = []
   globalThis.fetch = async (url, options) => {
@@ -239,17 +197,134 @@ test('복습 대상과 다음 문제는 같은 분야의 전체 페이지에서 
   assert.equal(requests.length, 2)
 })
 
-test('이미 제출한 풀이를 복구한 경우에는 다음 미해결 문항을 바로 선택한다', async () => {
+test('해결된 문항이 목록에서 빠진 뒤에는 첫 미해결 문항으로 이어간다', async () => {
   let calls = 0
   globalThis.fetch = async (url) => {
     calls += 1
     assert.equal(new URL(url, 'http://local').searchParams.has('category_id'), false)
     return Response.json(
-      page(1, [{ question: { question_version_id: 2 }, content: { content_id: 2 } }], true),
+      page(1, [{ question: { question_version_id: 2 }, content: { content_id: 2 } }]),
     )
   }
-  const result = await lists.reviewTargets(identity, 1, 1, undefined, undefined, true)
+  const result = await lists.reviewTargets(identity, 1, 1, undefined)
   assert.equal(result.target, undefined)
   assert.equal(result.next.content.content_id, 2)
   assert.equal(calls, 1)
+})
+
+const wrongItem = (id, version = id) => ({
+  question: { question_version_id: version },
+  content: { content_id: id },
+})
+
+test('건너뛰기로 미해결 문항이 유지되어도 모든 문항을 순서대로 방문한다', async () => {
+  globalThis.fetch = async () =>
+    Response.json(
+      page(
+        1,
+        [1, 2, 3].map((id) => wrongItem(id)),
+      ),
+    )
+  const visited = [1]
+  for (let step = 0; step < 4; step += 1) {
+    const current = visited.at(-1)
+    const result = await lists.reviewTargets(identity, current, current, 8)
+    assert.equal(result.target.content.content_id, current)
+    visited.push(result.next.content.content_id)
+  }
+  assert.deepEqual(visited, [1, 2, 3, 1, 2])
+})
+
+test('앞 페이지에 다른 문항이 있어도 현재 문항 뒤의 다음 페이지로 진행한다', async () => {
+  const requested = []
+  globalThis.fetch = async (url) => {
+    const query = new URL(url, 'http://local').searchParams
+    const number = Number(query.get('page'))
+    requested.push(number)
+    assert.equal(query.get('category_id'), '8')
+    return Response.json(page(number, [wrongItem(number)], number < 3))
+  }
+  const result = await lists.reviewTargets(identity, 2, 2, 8)
+  assert.equal(result.target.content.content_id, 2)
+  assert.equal(result.next.content.content_id, 3)
+  assert.deepEqual(requested, [1, 2, 3])
+})
+
+test('마지막 문항 다음에는 앞 페이지의 미해결 문항으로 돌아간다', async () => {
+  globalThis.fetch = async (url) => {
+    const number = Number(new URL(url, 'http://local').searchParams.get('page'))
+    return Response.json(page(number, [wrongItem(number)], number < 3))
+  }
+  const result = await lists.reviewTargets(identity, 3, 3, 8)
+  assert.equal(result.target.content.content_id, 3)
+  assert.equal(result.next.content.content_id, 1)
+})
+
+test('현재 문항만 남거나 목록이 비어 있으면 다음 복습을 제시하지 않는다', async () => {
+  for (const items of [[wrongItem(1)], []]) {
+    globalThis.fetch = async () => Response.json(page(1, items))
+    const result = await lists.reviewTargets(identity, 1, 1, undefined)
+    assert.equal(result.next, undefined)
+  }
+})
+
+test('다른 버전의 같은 콘텐츠를 다음 복습으로 선택하지 않는다', async () => {
+  globalThis.fetch = async () => Response.json(page(1, [wrongItem(1, 2), wrongItem(3)]))
+  const result = await lists.reviewTargets(identity, 1, 1, undefined)
+  assert.equal(result.target, undefined)
+  assert.equal(result.next.content.content_id, 3)
+})
+
+test('보관함 검색어 변경은 분야·탭을 유지하고 모든 탭의 페이지를 초기화한다', () => {
+  const original = new URLSearchParams(
+    'tab=cards&concept=8&page=3&saved_page=2&wrong_page=4&cards_page=3',
+  )
+  const query = state.libraryParams(original, 'q', '  엑셀  ')
+  assert.equal(query.get('q'), '엑셀')
+  assert.equal(query.get('tab'), 'cards')
+  assert.equal(query.get('concept'), '8')
+  for (const key of ['page', 'saved_page', 'wrong_page', 'cards_page'])
+    assert.equal(query.has(key), false)
+  assert.equal(original.get('page'), '3')
+  const switched = state.libraryParams(state.libraryParams(query, 'page', '2'), 'tab', 'saved')
+  assert.equal(switched.get('q'), '엑셀')
+  assert.equal(switched.get('page'), '1')
+  assert.equal(state.libraryParams(switched, 'tab', 'cards').get('page'), '2')
+  assert.equal(state.libraryParams(switched, 'concept', '9').get('q'), '엑셀')
+})
+
+test('검색어만 지우면 분야를 유지하고 전체 조건 초기화는 현재 탭만 유지한다', () => {
+  const original = new URLSearchParams('tab=wrong&concept=8&q=엑셀&page=3&saved_page=2')
+  const cleared = state.libraryParams(original, 'q', ' ')
+  assert.equal(cleared.has('q'), false)
+  assert.equal(cleared.get('concept'), '8')
+  const reset = state.libraryParams(original, 'reset', '')
+  assert.equal(reset.toString(), 'tab=wrong')
+})
+
+test('복습과 카드의 검색 범위는 새로고침 시 복귀 주소에서도 복원한다', () => {
+  const backTo = '/learner/library?tab=cards&q=%EC%97%91%EC%85%80&concept=8&page=2'
+  assert.equal(state.reviewSearch(new URLSearchParams(), backTo), '엑셀')
+  assert.equal(state.reviewSearch(new URLSearchParams('q=보고서'), backTo), '보고서')
+  assert.equal(state.reviewSearch(new URLSearchParams('q='), backTo), '')
+})
+
+test('다음 오답 복습은 모든 페이지에서 검색어를 유지하고 현재 문항 밖의 검색 결과로만 이동한다', async () => {
+  globalThis.fetch = async (url) => {
+    const params = new URL(url, 'http://local').searchParams
+    assert.equal(params.get('q'), '업무')
+    assert.equal(params.get('category_id'), '8')
+    assert.equal(params.get('status'), 'PENDING')
+    const current = Number(params.get('page'))
+    return Response.json(
+      page(
+        current,
+        [{ content: { content_id: current }, question: { question_version_id: current } }],
+        current === 1,
+      ),
+    )
+  }
+  const result = await lists.reviewTargets(identity, 1, 1, 8, undefined, '업무')
+  assert.equal(result.target.content.content_id, 1)
+  assert.equal(result.next.content.content_id, 2)
 })

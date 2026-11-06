@@ -6,14 +6,17 @@ import ts from 'typescript'
 
 const tagUrl = new URL('../src/admin/TagInput.tsx', import.meta.url)
 const autocompleteUrl = new URL('../src/admin/AutocompleteInput.tsx', import.meta.url)
+const imeInputUrl = new URL('../src/shared/ImeInput.tsx', import.meta.url)
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (context.parentURL === tagUrl.href && specifier === './AutocompleteInput')
       return nextResolve(autocompleteUrl.href, context)
+    if (context.parentURL === autocompleteUrl.href && specifier === '../shared/ImeInput')
+      return nextResolve(imeInputUrl.href, context)
     return nextResolve(specifier, context)
   },
   load(url, context, nextLoad) {
-    if ([tagUrl.href, autocompleteUrl.href].includes(url)) {
+    if ([tagUrl.href, autocompleteUrl.href, imeInputUrl.href].includes(url)) {
       return {
         format: 'module',
         shortCircuit: true,

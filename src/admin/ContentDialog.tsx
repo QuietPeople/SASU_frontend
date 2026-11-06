@@ -1,9 +1,9 @@
+import { FeedbackProvider } from '../shared/FeedbackProvider'
 import { ContentFormPage, MaterialPage, StatsPage } from '../app/lazyPages'
 import { RouteContent } from '../app/RouteContent'
 import { useEffect, useRef, useState } from 'react'
 import type { AdminContent } from '../api/admin'
 import type { ContentSubview, ContentSubviewKind } from './contentSubview'
-import { RequestFeedback } from './RequestFeedback'
 import { Icon } from './Icon'
 import { Button } from './ui'
 import './content-dialog.css'
@@ -126,7 +126,7 @@ export function ContentDialog({
         </div>
       )}
       <div ref={bodyRef} className="admin-content-dialog__body">
-        <RequestFeedback key={view}>
+        <FeedbackProvider key={view}>
           <RouteContent key={view}>
             {view === 'edit' ? (
               <ContentFormPage embedded={embedded} />
@@ -136,7 +136,7 @@ export function ContentDialog({
               <StatsPage embedded={embedded} />
             )}
           </RouteContent>
-        </RequestFeedback>
+        </FeedbackProvider>
       </div>
     </dialog>
   )

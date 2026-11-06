@@ -10,7 +10,7 @@ import {
   VolumeOffIcon,
 } from '@videojs/react/icons'
 import { bindPlayerGestures } from './playerGestures'
-import { VideoLoading } from './VideoLoading'
+import { VideoBuffering } from './VideoLoading'
 
 interface FeedVideoPlayerProps {
   children: ReactNode
@@ -37,7 +37,7 @@ function PlaybackOverlay({
 
   return (
     <>
-      {loading && <VideoLoading />}
+      {loading && <VideoBuffering />}
       <div
         className="content-viewer__center-controls"
         data-paused={showControls ? '' : undefined}

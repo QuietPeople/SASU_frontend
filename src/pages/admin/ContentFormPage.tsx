@@ -1,9 +1,12 @@
+import { Skeleton } from '../../shared/Skeleton'
+import { ContentThumbnailInput } from '../../admin/ContentThumbnailInput'
+import { SegmentedControl } from '../../admin/SegmentedControl'
 import type { ContentSubview } from '../../admin/contentSubview'
+import { isEditConflict } from '../../admin/editVersion'
+import { EditConflictNotice } from '../../admin/EditConflictNotice'
 import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invalidateContentChange } from '../../api/queryInvalidation'
 import { api, type ApiPage } from '../../api/client'
 import {
   adminError,
@@ -14,7 +17,7 @@ import {
   type VideoPolicy,
 } from '../../api/admin'
 import { useSession } from '../../state/session'
-import { Badge, Button, Spinner } from '../../admin/ui'
+import { Badge, Button, ConfirmDialog, Spinner } from '../../admin/ui'
 import { useToast } from '../../admin/useToast'
 import { CategoryDialog } from '../../admin/CategoryDialog'
 import { ReviewDateInput } from '../../admin/ReviewDateInput'
@@ -29,8 +32,6 @@ import {
   tagInputError,
   tagSearchPath,
   resolveContentTag,
-  resolveContentTags,
-  contentMetadataBody,
   contentFieldError,
   type TextField,
   addContentTag,
@@ -41,9 +42,12 @@ import {
 } from '../../admin/contentEditor'
 import { useVideoUpload } from '../../admin/useVideoUpload'
 import { VideoUploadFeedback } from '../../admin/VideoUploadFeedback'
+import { VideoPolicyGuide } from '../../admin/VideoPolicyGuide'
 import { UploadNeedsReviewError } from '../../admin/uploadRecovery'
 import '../../admin/content-editor.css'
 import { useContentDraft } from '../../admin/useContentDraft'
+import { useContentSave } from '../../admin/useContentSave'
+import type { SaveStage } from '../../admin/contentSave'
 import { Field, SectionHeading } from '../../admin/ContentFields'
 
 export function ContentFormPage({ embedded }: { embedded?: ContentSubview } = {}) {
@@ -54,13 +58,14 @@ export function ContentFormPage({ embedded }: { embedded?: ContentSubview } = {}
   if (id && detail.isPending)
     return (
       <div className="admin-page">
-        <Spinner label="콘텐츠를 불러오는 중" />
+        <Skeleton variant="form" label="콘텐츠를 불러오는 중" />
       </div>
     )
   if (id && detail.isError && detail.data === undefined)
     return (
       <div className="admin-page">
         <RequestError
+          variant="screen"
           title="콘텐츠를 불러오지 못했어요."
           error={detail.error}
           action={<Button onClick={() => void detail.refetch()}>다시 시도</Button>}
@@ -91,16 +96,18 @@ interface EditorDraft {
   tagDraft: string
   tagSelection?: AdminTag | null
   file: File | null
+  thumbnailFile: File | null
+  removeThumbnail: boolean
   saved?: EditableContent
   baseline: string
 }
 // 화면 이동 동안만 보존한다. 사용자·기록 세대별로 분리하며 파일을 서버나 브라우저 저장소에 자동 업로드하지 않는다.
 const editorDrafts = new Map<string, EditorDraft>()
-type SaveStage = 'tags' | 'metadata' | 'video' | 'publish'
 const stageLabels: Record<SaveStage, string> = {
   tags: '태그 확인 중',
   metadata: '콘텐츠 정보 저장 중',
   video: '영상 전송 중',
+  thumbnail: '썸네일 저장 중',
   publish: '공개 처리 중',
 }
 
@@ -113,7 +120,6 @@ function ContentEditor({
 }) {
   const { actorId, generation } = useSession()
   const navigate = useNavigate()
-  const cache = useQueryClient()
   const { show, node } = useToast()
   const categories = useAdminQuery<{ items: AdminCategory[] }>('/categories')
   const policy = useAdminQuery<VideoPolicy>('/contents/video-policy')
@@ -125,10 +131,16 @@ function ContentEditor({
         tags: initial?.detail.content.tags ?? [],
         tagDraft: '',
         file: null,
+        thumbnailFile: null,
+        removeThumbnail: false,
         saved: initial,
         baseline: contentSignature(initialFields(initial), initial?.detail.content.tags ?? []),
       },
   )
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(seed.thumbnailFile ?? null)
+  const [removeThumbnail, setRemoveThumbnail] = useState(seed.removeThumbnail ?? false)
+  const [thumbnailRevision, setThumbnailRevision] = useState(0)
+  const [mediaTab, setMediaTab] = useState<'video' | 'thumbnail'>('video')
   const [saved, setSaved] = useState(seed.saved)
   const [file, setFile] = useState<File | null>(seed.file)
   const {
@@ -144,7 +156,6 @@ function ContentEditor({
     setBaseline,
     dirty: textDirty,
   } = useContentDraft(seed)
-  const [stage, setStage] = useState<SaveStage | null>(null)
   const videoUpload = useVideoUpload({
     actorId,
     generation,
@@ -155,6 +166,7 @@ function ContentEditor({
   const [warning, setWarning] = useState('')
   const [showFieldErrors, setShowFieldErrors] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
+  const [confirmMaterials, setConfirmMaterials] = useState(false)
   const [touched, setTouched] = useState<Partial<Record<TextField | 'tags', boolean>>>({})
   const [previewError, setPreviewError] = useState(false)
   const [fileError, setFileError] = useState('')
@@ -162,20 +174,35 @@ function ContentEditor({
   const dragDepth = useRef(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const savingRef = useRef(false)
-  const saveMutation = useMutation({
-    mutationFn: persistContent,
-    onSettled: () => {
-      savingRef.current = false
-      setStage(null)
+  const contentSave = useContentSave({
+    upload: videoUpload.upload,
+    onTags: (resolved) => {
+      setTags(resolved)
+      setTagDraft('')
+    },
+    onSaved: setSaved,
+    onBaseline: setBaseline,
+    onVideoSaved: () => {
+      setFile(null)
+      setPreviewError(false)
+      if (fileRef.current) fileRef.current.value = ''
+    },
+    onThumbnailSaved: () => {
+      setThumbnailFile(null)
+      setRemoveThumbnail(false)
+      setThumbnailRevision((value) => value + 1)
+    },
+    onWarning: setWarning,
+    onSuccess: (current, publish) => {
+      setShowFieldErrors(false)
+      show(publish ? '공개했어요.' : '저장했어요.')
+      editorDrafts.delete(draftKey)
+      if (!initial && !embedded)
+        navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
     },
   })
-  const busy = saveMutation.isPending
-    ? saveMutation.variables?.publish
-      ? 'publish'
-      : 'save'
-    : null
-  const requestError = saveMutation.error
+  const { savingRef, busy, stage, error: requestError } = contentSave
+  const editConflict = isEditConflict(requestError)
   const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
   const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
     ...tags,
@@ -184,7 +211,7 @@ function ContentEditor({
   const selectedTagError = tags.map((tag) => tagInputError(tag)).find(Boolean)
   const tagError = (tagDraft ? tagInputError(pendingTag) : null) ?? selectedTagError
   const canAddTag = tagInputError(pendingTag) === null
-  const dirty = file !== null || textDirty
+  const dirty = file !== null || thumbnailFile !== null || removeThumbnail || textDirty
   const missing = missingPublishFields(form, tags, !!file || !!saved?.detail.content.media_revision)
   const touch = (key: TextField | 'tags') => setTouched((current) => ({ ...current, [key]: true }))
   const fieldError = (key: TextField) =>
@@ -208,22 +235,25 @@ function ContentEditor({
   const reviewedError = fieldError('reviewed')
   const cautionInvalid = form.caution && !!fieldError('cautionText')
   const publishDisabled =
+    editConflict ||
     !saved ||
     missing.length > 0 ||
     busy !== null ||
     actorId === null ||
     videoUpload.recovery !== null
-  const publishHint = busy
-    ? '처리가 끝날 때까지 기다려 주세요'
-    : videoUpload.recovery
-      ? '영상 저장 결과를 먼저 확인해 주세요'
-      : actorId === null
-        ? '관리자 사용자를 선택해 주세요'
-        : missing.length
-          ? '필수 항목을 채워주세요'
-          : !saved
-            ? '먼저 임시저장해 주세요'
-            : undefined
+  const publishHint = editConflict
+    ? '최신 내용을 다시 불러와 주세요'
+    : busy
+      ? '처리가 끝날 때까지 기다려 주세요'
+      : videoUpload.recovery
+        ? '영상 저장 결과를 먼저 확인해 주세요'
+        : actorId === null
+          ? '관리자 사용자를 선택해 주세요'
+          : missing.length
+            ? '필수 항목을 채워주세요'
+            : !saved
+              ? '먼저 임시저장해 주세요'
+              : undefined
   const set = <K extends keyof ContentFields>(key: K, value: ContentFields[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
     setError('')
@@ -240,9 +270,32 @@ function ContentEditor({
 
   useEffect(() => {
     if (dirty || (!initial && saved))
-      editorDrafts.set(draftKey, { form, tags, tagDraft, tagSelection, file, saved, baseline })
+      editorDrafts.set(draftKey, {
+        form,
+        tags,
+        tagDraft,
+        tagSelection,
+        file,
+        thumbnailFile,
+        removeThumbnail,
+        saved,
+        baseline,
+      })
     else editorDrafts.delete(draftKey)
-  }, [draftKey, dirty, initial, form, tags, tagDraft, tagSelection, file, saved, baseline])
+  }, [
+    draftKey,
+    dirty,
+    initial,
+    form,
+    tags,
+    tagDraft,
+    tagSelection,
+    file,
+    thumbnailFile,
+    removeThumbnail,
+    saved,
+    baseline,
+  ])
   useEffect(() => {
     if (!dirty && !busy) return
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -280,9 +333,15 @@ function ContentEditor({
     setTagDraft('')
   }
   const focusField = (key: PublishField) => {
-    const field = document.getElementById(publishFields.find((item) => item.key === key)!.input)
-    field?.focus()
-    field?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    const focus = () => {
+      const field = document.getElementById(publishFields.find((item) => item.key === key)!.input)
+      field?.focus()
+      field?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    }
+    if (key === 'video') {
+      setMediaTab('video')
+      requestAnimationFrame(focus)
+    } else focus()
   }
   const refreshSaved = async () => {
     if (!saved || actorId === null) return
@@ -294,10 +353,37 @@ function ContentEditor({
       )
       setWarning('')
     } catch (cause) {
-      setWarning(`저장된 영상 정보를 다시 불러오지 못했어요. ${adminError(cause)}`)
+      setWarning(`저장된 콘텐츠 정보를 다시 불러오지 못했어요. ${adminError(cause)}`)
     }
   }
+  const reloadAfterConflict = async () => {
+    if (!saved || actorId === null) return
+    const latest = await api<EditableContent>(
+      `/contents/${saved.detail.content.content_id}?view=editor`,
+      { actorId },
+    )
+    const fields = initialFields(latest)
+    setSaved(latest)
+    setForm(fields)
+    setTags(latest.detail.content.tags)
+    setTagDraft('')
+    setTagSelection(null)
+    setBaseline(contentSignature(fields, latest.detail.content.tags))
+    setFile(null)
+    setThumbnailFile(null)
+    setRemoveThumbnail(false)
+    setThumbnailRevision((value) => value + 1)
+    if (fileRef.current) fileRef.current.value = ''
+    setPreviewError(false)
+    setFileError('')
+    setError('')
+    setWarning('')
+    setTouched({})
+    setShowFieldErrors(false)
+    contentSave.reset()
+  }
   const save = (publish: boolean, confirmedSaved?: EditableContent) => {
+    if (editConflict) return
     if (savingRef.current || actorId === null || (videoUpload.recovery && !confirmedSaved)) return
     if (tagDraft.trim()) {
       setError(
@@ -339,129 +425,19 @@ function ContentEditor({
       focusField('video')
       return
     }
-    savingRef.current = true
-    saveMutation.mutate({ publish, actorId, confirmedSaved })
-  }
-  async function persistContent({
-    publish,
-    actorId,
-    confirmedSaved,
-  }: {
-    publish: boolean
-    actorId: number
-    confirmedSaved?: EditableContent
-  }) {
     setError('')
     setWarning('')
-    let current = confirmedSaved ?? saved
-    let completedMetadata = false
-    let tagsChanged = false
-    const operation: { stage: SaveStage } = { stage: 'tags' }
-    const startStage = (next: SaveStage) => {
-      operation.stage = next
-      setStage(next)
-    }
-    try {
-      startStage('tags')
-      const uniqueTags = await resolveContentTags(tags, async (name) => {
-        const tag = await api<AdminTag>('/tags', { method: 'POST', actorId, body: { name } })
-        tagsChanged = true
-        return tag
-      })
-      setTags(uniqueTags)
-      setTagDraft('')
-      startStage('metadata')
-      current = await api<EditableContent>(
-        current ? `/contents/${current.detail.content.content_id}` : '/contents',
-        {
-          method: current ? 'PATCH' : 'POST',
-          actorId,
-          body: contentMetadataBody(form, uniqueTags),
-        },
-      )
-      setSaved(current)
-      setBaseline(contentSignature(form, uniqueTags))
-      completedMetadata = true
-      if (file) {
-        startStage('video')
-        const uploaded = await videoUpload.upload({
-          contentId: current.detail.content.content_id,
-          file,
-          expectedMediaRevision: (confirmedSaved ?? saved)?.detail.content.media_revision,
-        })
-        current = {
-          ...current,
-          detail: { ...current.detail, content: { ...current.detail.content, ...uploaded } },
-          missing_for_publish: current.missing_for_publish.filter((field) => field !== 'video'),
-        }
-        setSaved(current)
-        setFile(null)
-        setPreviewError(false)
-        if (fileRef.current) fileRef.current.value = ''
-        try {
-          current = await api<EditableContent>(
-            `/contents/${current.detail.content.content_id}?view=editor`,
-            { actorId },
-          )
-          setSaved(current)
-        } catch {
-          setWarning('영상은 저장됐어요. 최신 정보를 다시 불러와 주세요.')
-        }
-      }
-      if (publish) {
-        startStage('publish')
-        current = await api<EditableContent>(
-          `/contents/${current.detail.content.content_id}/publish`,
-          { method: 'POST', actorId },
-        )
-        setSaved(current)
-      }
-      cache.setQueryData(
-        [
-          'admin',
-          actorId,
-          generation,
-          `/contents/${current.detail.content.content_id}?view=editor`,
-        ],
-        current,
-      )
-      await invalidateContentChange(cache, {
-        contentId: current.detail.content.content_id,
-        tagsChanged,
-      })
-      setShowFieldErrors(false)
-      show(publish ? '공개했어요.' : '저장했어요.')
-      editorDrafts.delete(draftKey)
-      if (!initial && !embedded)
-        navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
-      return current
-    } catch (cause) {
-      const prefix = completedMetadata
-        ? operation.stage === 'video'
-          ? '콘텐츠 정보는 저장됐지만 영상 업로드에 실패했어요. 선택한 파일은 유지돼요. '
-          : operation.stage === 'publish'
-            ? '콘텐츠는 저장됐지만 공개에 실패했어요. '
-            : ''
-        : ''
-      if (current) {
-        cache.setQueryData(
-          [
-            'admin',
-            actorId,
-            generation,
-            `/contents/${current.detail.content.content_id}?view=editor`,
-          ],
-          current,
-        )
-      }
-      if (completedMetadata || tagsChanged)
-        await invalidateContentChange(cache, {
-          contentId: completedMetadata ? current?.detail.content.content_id : undefined,
-          tagsChanged,
-        })
-      if (cause instanceof UploadNeedsReviewError) throw cause
-      throw new Error(`${prefix}${adminError(cause)}`, { cause })
-    }
+    contentSave.save({
+      publish,
+      actorId,
+      generation,
+      form,
+      tags,
+      file,
+      thumbnailFile,
+      removeThumbnail,
+      saved: confirmedSaved ?? saved,
+    })
   }
   return (
     <div className="admin-page admin-editor">
@@ -504,7 +480,8 @@ function ContentEditor({
           </p>
         </header>
       )}
-      {requestError && !(requestError instanceof UploadNeedsReviewError) && (
+      {editConflict && <EditConflictNotice onReload={reloadAfterConflict} />}
+      {requestError && !editConflict && !(requestError instanceof UploadNeedsReviewError) && (
         <RequestError
           title="콘텐츠 저장·공개 실패"
           error={requestError.cause ?? requestError}
@@ -528,26 +505,10 @@ function ContentEditor({
           }
         />
       )}
-      {missing.length > 0 && (
-        <nav className="admin-editor__missing" aria-label="공개 준비 항목">
-          <strong>공개 준비</strong>
-          {missing.map((key) => (
-            <button
-              type="button"
-              key={key}
-              aria-label={`${publishFields.find((item) => item.key === key)!.label} 입력으로 이동`}
-              disabled={busy !== null}
-              onClick={() => {
-                setShowFieldErrors(true)
-                focusField(key)
-              }}
-            >
-              {publishFields.find((item) => item.key === key)!.label}
-            </button>
-          ))}
-        </nav>
-      )}
-      <fieldset disabled={busy !== null || videoUpload.recovery !== null} className="admin-editor__fieldset">
+      <fieldset
+        disabled={busy !== null || videoUpload.recovery !== null}
+        className="admin-editor__fieldset"
+      >
         <legend className="admin-sr">콘텐츠 작성</legend>
         <div className="admin-editor__grid">
           <div className="admin-editor__column admin-editor__column--basic">
@@ -724,218 +685,224 @@ function ContentEditor({
             </section>
           </div>
           <div className="admin-editor__column admin-editor__column--video">
-            <section
-              className={`admin-editor__section admin-editor__video-section${draggingFile ? ' admin-is-dragging' : ''}`}
-              onDragEnter={(event) => {
-                if (!event.dataTransfer.types.includes('Files')) return
-                event.preventDefault()
-                if (savingRef.current) return
-                dragDepth.current += 1
-                setDraggingFile(true)
-              }}
-              onDragOver={(event) => {
-                if (!event.dataTransfer.types.includes('Files')) return
-                event.preventDefault()
-                event.dataTransfer.dropEffect = savingRef.current || !policy.data ? 'none' : 'copy'
-              }}
-              onDragLeave={() => {
-                dragDepth.current = Math.max(0, dragDepth.current - 1)
-                if (dragDepth.current === 0) setDraggingFile(false)
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                dragDepth.current = 0
-                setDraggingFile(false)
-                if (!event.dataTransfer.types.includes('Files')) return
-                selectVideo(Array.from(event.dataTransfer.files))
-              }}
-            >
-              <SectionHeading number="02" title="영상" complete={!missing.includes('video')} />
+            <section className="admin-editor__section">
+              <SectionHeading
+                number="02"
+                title="영상 및 썸네일"
+                complete={mediaTab === 'video' ? !missing.includes('video') : undefined}
+              />
+              <SegmentedControl
+                label="영상과 썸네일 선택"
+                value={mediaTab}
+                options={[
+                  { id: 'video', label: '영상' },
+                  { id: 'thumbnail', label: '썸네일' },
+                ]}
+                onChange={(tab) => {
+                  if (tab === 'thumbnail') videoRef.current?.pause()
+                  setMediaTab(tab)
+                }}
+              />
               <div
-                className={`admin-editor__preview${invalid('video') || fileError ? ' admin-editor__preview--error' : ''}`}
+                hidden={mediaTab !== 'video'}
+                role="region"
+                aria-label="영상 파일"
+                className={`admin-editor__media-panel admin-editor__video-section${draggingFile ? ' admin-is-dragging' : ''}`}
+                onDragEnter={(event) => {
+                  if (!event.dataTransfer.types.includes('Files')) return
+                  event.preventDefault()
+                  if (savingRef.current) return
+                  dragDepth.current += 1
+                  setDraggingFile(true)
+                }}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes('Files')) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect =
+                    savingRef.current || !policy.data ? 'none' : 'copy'
+                }}
+                onDragLeave={() => {
+                  dragDepth.current = Math.max(0, dragDepth.current - 1)
+                  if (dragDepth.current === 0) setDraggingFile(false)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  dragDepth.current = 0
+                  setDraggingFile(false)
+                  if (!event.dataTransfer.types.includes('Files')) return
+                  selectVideo(Array.from(event.dataTransfer.files))
+                }}
               >
-                {file ? (
-                  <video
-                    ref={videoRef}
-                    key="local-preview"
-                    controls
-                    preload="metadata"
-                    onError={() => setPreviewError(true)}
-                    aria-label="선택한 영상 미리보기"
-                  />
-                ) : saved?.detail.content.video_url ? (
-                  <video
-                    key={saved.detail.content.video_url}
-                    src={saved.detail.content.video_url}
-                    controls
-                    preload="metadata"
-                    aria-label="저장된 영상 미리보기"
-                  />
-                ) : (
-                  <div>
-                    <Icon name="video" size={32} />
-                    <strong>영상을 추가해 주세요</strong>
-                    <span>지원하는 영상 파일 한 개를 여기에 끌어 놓으세요</span>
-                  </div>
-                )}
-                {draggingFile && (
-                  <div className="admin-editor__drop-overlay" role="status">
-                    <Icon name="plus" size={28} />
-                    <strong>
-                      {policy.data
-                        ? '여기에 영상을 놓아 주세요'
-                        : '업로드 기준을 불러오는 중이에요'}
-                    </strong>
-                    <span>지원 형식과 용량을 확인한 후 선택돼요</span>
-                  </div>
-                )}
-              </div>
-              {fileError && (
-                <p className="admin-field-error" id="content-video-selection-error" role="alert">
-                  {fileError}
-                </p>
-              )}
-              {file && previewError && (
-                <p className="admin-help">
-                  이 브라우저에서는 선택한 파일을 미리 볼 수 없어요. 지원 형식이면 저장 시 서버에서
-                  확인해요.
-                </p>
-              )}
-              <label className="admin-editor__file-picker">
-                <input
-                  ref={fileRef}
-                  id="content-video"
-                  type="file"
-                  accept={policy.data?.accept ?? ''}
-                  disabled={busy !== null || !policy.data}
-                  aria-label={
-                    saved?.detail.content.media_revision ? '영상 교체 파일 선택' : '영상 파일 선택'
-                  }
-                  aria-invalid={invalid('video') || !!fileError}
-                  aria-describedby={
-                    [
-                      policy.data ? 'content-video-policy' : '',
-                      fileError
-                        ? 'content-video-selection-error'
-                        : invalid('video')
-                          ? 'content-video-error'
-                          : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ') || undefined
-                  }
-                  onChange={(event) => {
-                    const selected = Array.from(event.target.files ?? [])
-                    if (selected.length) selectVideo(selected)
-                    event.target.value = ''
-                  }}
-                />
-                <Icon name="plus" size={18} />
-                {file
-                  ? '다른 파일 선택'
-                  : saved?.detail.content.media_revision
-                    ? '영상 교체'
-                    : '영상 파일 선택'}
-              </label>
-              {invalid('video') && (
-                <p className="admin-field-error" id="content-video-error">
-                  영상 파일을 선택해 주세요.
-                </p>
-              )}
-              {file && (
-                <div className="admin-editor__file-info">
-                  <div>
-                    <strong>{file.name}</strong>
-                    <span>
-                      {(file.size / 1024 / 1024).toFixed(1)} MB ·{' '}
-                      {stage === 'video' ? videoStatus : '업로드 대기'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-link"
-                    onClick={() => {
-                      setFile(null)
-                      setFileError('')
-                      setPreviewError(false)
-                      if (fileRef.current) fileRef.current.value = ''
-                    }}
-                  >
-                    선택 취소
-                  </button>
-                </div>
-              )}
-              {stage === 'video' && uploadProgress && (
-                <div className="admin-editor__upload-progress">
-                  <div className="admin-editor__upload-caption">
-                    <strong>{videoStatus}</strong>
-                    {uploadProgress.phase === 'uploading' && uploadProgress.total !== null && (
-                      <span>
-                        {(uploadProgress.loaded / 1024 / 1024).toFixed(1)} /{' '}
-                        {(uploadProgress.total / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                    )}
-                  </div>
-                  {uploadProgress.phase === 'processing' ? (
-                    <div className="admin-editor__upload-processing">
-                      <Spinner label="영상 확인 및 저장 중" />
-                      <span>파일 전송이 끝났어요. 서버에서 영상을 확인하고 있어요.</span>
-                    </div>
-                  ) : (
-                    <progress
-                      max={100}
-                      value={uploadProgress.percent ?? undefined}
-                      aria-label="영상 파일 전송률"
+                <div
+                  className={`admin-editor__preview${invalid('video') || fileError ? ' admin-editor__preview--error' : ''}`}
+                >
+                  {file ? (
+                    <video
+                      ref={videoRef}
+                      key="local-preview"
+                      controls
+                      preload="metadata"
+                      onError={() => setPreviewError(true)}
+                      aria-label="선택한 영상 미리보기"
                     />
+                  ) : saved?.detail.content.video_url ? (
+                    <video
+                      ref={videoRef}
+                      key={saved.detail.content.video_url}
+                      src={saved.detail.content.video_url}
+                      controls
+                      preload="metadata"
+                      aria-label="저장된 영상 미리보기"
+                    />
+                  ) : (
+                    <div>
+                      <Icon name="video" size={32} />
+                      <strong>영상을 추가해 주세요</strong>
+                      <span>지원하는 영상 파일 한 개를 여기에 끌어 놓으세요</span>
+                    </div>
+                  )}
+                  {draggingFile && (
+                    <div className="admin-editor__drop-overlay" role="status">
+                      <Icon name="plus" size={28} />
+                      <strong>
+                        {policy.data
+                          ? '여기에 영상을 놓아 주세요'
+                          : '업로드 기준을 불러오는 중이에요'}
+                      </strong>
+                      <span>지원 형식과 용량을 확인한 후 선택돼요</span>
+                    </div>
                   )}
                 </div>
-              )}
-              {policy.data && (
-                <div className="admin-editor__policy" id="content-video-policy">
-                  <span>최대 {Math.round(policy.data.max_bytes / 1024 / 1024)} MB</span>
-                  <span>
-                    길이 {policy.data.min_duration_sec}–{policy.data.max_duration_sec}초
-                  </span>
-                  <span>
-                    해상도 최대 {policy.data.max_long_edge_px} × {policy.data.max_long_edge_px}px
-                  </span>
-                  <div className="admin-editor__resolution-guide">
-                    <p>
-                      가로·세로 모두 {policy.data.max_long_edge_px}px 이하여야 해요. 영상 비율은
-                      자유예요.
-                    </p>
-                    {policy.data.max_long_edge_px >= 1920 && (
-                      <p>
-                        <strong>Full HD 가능</strong> · 가로 1920 × 1080px / 세로 1080 × 1920px
-                      </p>
-                    )}
-                    {policy.data.max_long_edge_px < 3840 && (
-                      <p>
-                        <strong>4K UHD 불가</strong> · 가로 3840 × 2160px / 세로 2160 × 3840px
-                      </p>
+                {fileError && (
+                  <p className="admin-field-error" id="content-video-selection-error" role="alert">
+                    {fileError}
+                  </p>
+                )}
+                {file && previewError && (
+                  <p className="admin-help">
+                    이 브라우저에서는 선택한 파일을 미리 볼 수 없어요. 지원 형식이면 저장 시
+                    서버에서 확인해요.
+                  </p>
+                )}
+                <label className="admin-editor__file-picker">
+                  <input
+                    ref={fileRef}
+                    id="content-video"
+                    type="file"
+                    accept={policy.data?.accept ?? ''}
+                    disabled={busy !== null || !policy.data}
+                    aria-label={
+                      saved?.detail.content.media_revision
+                        ? '영상 교체 파일 선택'
+                        : '영상 파일 선택'
+                    }
+                    aria-invalid={invalid('video') || !!fileError}
+                    aria-describedby={
+                      [
+                        policy.data ? 'content-video-policy' : '',
+                        fileError
+                          ? 'content-video-selection-error'
+                          : invalid('video')
+                            ? 'content-video-error'
+                            : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
+                    onChange={(event) => {
+                      const selected = Array.from(event.target.files ?? [])
+                      if (selected.length) selectVideo(selected)
+                      event.target.value = ''
+                    }}
+                  />
+                  <Icon name="plus" size={18} />
+                  {file
+                    ? '다른 파일 선택'
+                    : saved?.detail.content.media_revision
+                      ? '영상 교체'
+                      : '영상 파일 선택'}
+                </label>
+                {invalid('video') && (
+                  <p className="admin-field-error" id="content-video-error">
+                    영상 파일을 선택해 주세요.
+                  </p>
+                )}
+                {file && (
+                  <div className="admin-editor__file-info">
+                    <div>
+                      <strong>{file.name}</strong>
+                      <span>
+                        {(file.size / 1024 / 1024).toFixed(1)} MB ·{' '}
+                        {stage === 'video' ? videoStatus : '업로드 대기'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-link"
+                      onClick={() => {
+                        setFile(null)
+                        setFileError('')
+                        setPreviewError(false)
+                        if (fileRef.current) fileRef.current.value = ''
+                      }}
+                    >
+                      선택 취소
+                    </button>
+                  </div>
+                )}
+                {stage === 'video' && uploadProgress && (
+                  <div className="admin-editor__upload-progress">
+                    <div className="admin-editor__upload-caption">
+                      <strong>{videoStatus}</strong>
+                      {uploadProgress.phase === 'uploading' && uploadProgress.total !== null && (
+                        <span>
+                          {(uploadProgress.loaded / 1024 / 1024).toFixed(1)} /{' '}
+                          {(uploadProgress.total / 1024 / 1024).toFixed(1)} MB
+                        </span>
+                      )}
+                    </div>
+                    {uploadProgress.phase === 'processing' ? (
+                      <div className="admin-editor__upload-processing">
+                        <Spinner label="영상 확인 및 저장 중" />
+                        <span>파일 전송이 끝났어요. 서버에서 영상을 확인하고 있어요.</span>
+                      </div>
+                    ) : (
+                      <progress
+                        max={100}
+                        value={uploadProgress.percent ?? undefined}
+                        aria-label="영상 파일 전송률"
+                      />
                     )}
                   </div>
-                  <details>
-                    <summary>지원 형식·코덱 확인</summary>
-                    <ul>
-                      {policy.data.formats.map((format) => (
-                        <li key={format}>{format}</li>
-                      ))}
-                    </ul>
-                    <p>확장자가 같아도 영상·음성 코덱에 따라 업로드가 제한될 수 있어요.</p>
-                  </details>
-                </div>
-              )}
-              {policy.isError && (
-                <RequestError
-                  title="영상 업로드 기준 조회 실패"
-                  error={policy.error}
-                  action={<Button onClick={() => void policy.refetch()}>다시 시도</Button>}
+                )}
+                {policy.data && <VideoPolicyGuide policy={policy.data} />}
+                {policy.isError && (
+                  <RequestError
+                    title="영상 업로드 기준 조회 실패"
+                    error={policy.error}
+                    action={<Button onClick={() => void policy.refetch()}>다시 시도</Button>}
+                  />
+                )}
+                {saved?.detail.content.media_revision && (
+                  <p className="admin-help">영상 교체 후에도 기존 학습 기록은 유지돼요.</p>
+                )}
+              </div>
+              <div hidden={mediaTab !== 'thumbnail'} role="region" aria-label="썸네일 이미지">
+                <ContentThumbnailInput
+                  key={thumbnailRevision}
+                  file={thumbnailFile}
+                  remove={removeThumbnail}
+                  savedUrl={saved?.detail.content.thumbnail_url}
+                  refreshKey={thumbnailRevision}
+                  disabled={busy !== null || videoUpload.recovery !== null || editConflict}
+                  uploading={stage === 'thumbnail'}
+                  onChange={(file, remove) => {
+                    setThumbnailFile(file)
+                    setRemoveThumbnail(remove)
+                    setError('')
+                  }}
                 />
-              )}
-              {saved?.detail.content.media_revision && (
-                <p className="admin-help">영상 교체 후에도 기존 학습 기록은 유지돼요.</p>
-              )}
+              </div>
             </section>
           </div>
           <div className="admin-editor__column admin-editor__column--caution">
@@ -1031,7 +998,7 @@ function ContentEditor({
               setPreviewError(false)
               if (fileRef.current) fileRef.current.value = ''
               videoUpload.dismissRecovery()
-              saveMutation.reset()
+              contentSave.reset()
             }}
           />
           {busy && stage === 'video' && !videoUpload.recovery && (
@@ -1046,13 +1013,8 @@ function ContentEditor({
                 embedded.onOpenMaterials()
                 return
               }
-              if (
-                !dirty ||
-                window.confirm(
-                  '저장하지 않은 변경이 있어요. 학습자료로 이동할까요? 작성 내용은 이 탭에 유지돼요.',
-                )
-              )
-                navigate(`/admin/materials/${saved!.detail.content.content_id}`)
+              if (dirty) setConfirmMaterials(true)
+              else navigate(`/admin/materials/${saved!.detail.content.content_id}`)
             }}
           >
             학습자료
@@ -1061,7 +1023,9 @@ function ContentEditor({
             variant={saved ? 'default' : 'primary'}
             onClick={() => void save(false)}
             loading={busy === 'save'}
-            disabled={busy !== null || actorId === null || videoUpload.recovery !== null}
+            disabled={
+              editConflict || busy !== null || actorId === null || videoUpload.recovery !== null
+            }
           >
             {saved ? '변경 저장' : '임시저장'}
           </Button>
@@ -1087,6 +1051,22 @@ function ContentEditor({
           </span>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmMaterials}
+        title="저장하지 않은 변경이 있어요."
+        cancelLabel="계속 작성"
+        confirmLabel="저장 없이 이동"
+        busy={busy !== null}
+        onCancel={() => setConfirmMaterials(false)}
+        onConfirm={() => {
+          if (!saved || savingRef.current) return
+          setConfirmMaterials(false)
+          navigate(`/admin/materials/${saved.detail.content.content_id}`)
+        }}
+      >
+        <p>저장 없이 학습자료로 이동할까요?</p>
+        <p>작성 내용은 현재 브라우저 탭에 유지돼요.</p>
+      </ConfirmDialog>
       {categoryOpen && (
         <CategoryDialog
           onClose={() => setCategoryOpen(false)}

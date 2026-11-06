@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 
-export const AppLayout = lazy(() =>
-  import('../layouts/AppLayout').then((module) => ({ default: module.AppLayout })),
+export const LearnerLayout = lazy(() =>
+  import('../learner/LearnerLayout').then((module) => ({ default: module.LearnerLayout })),
 )
 export const AdminLayout = lazy(() =>
   import('../admin/AdminLayout').then((module) => ({ default: module.AdminLayout })),
@@ -23,9 +23,6 @@ export const LibraryPage = lazy(() =>
 )
 export const ReviewPage = lazy(() =>
   import('../pages/learner/ReviewPage').then((module) => ({ default: module.ReviewPage })),
-)
-export const FlashcardPage = lazy(() =>
-  import('../pages/learner/FlashcardPage').then((module) => ({ default: module.FlashcardPage })),
 )
 export const DashboardPage = lazy(() =>
   import('../pages/learner/DashboardPage').then((module) => ({ default: module.DashboardPage })),

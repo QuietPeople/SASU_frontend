@@ -1,0 +1,35 @@
+.admin-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid #dfe5ee;
+  border-radius: 7px;
+  background: #f5f7fb;
+  color: #77859a;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.admin-result-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+.admin-result-badge--correct {
+  border-color: #cfe5db;
+  background: #eff8f3;
+  color: #43826a;
+}
+.admin-result-badge--wrong {
+  border-color: #f0d9d4;
+  background: #fff3ef;
+  color: #b16e59;
+}

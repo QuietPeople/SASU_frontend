@@ -1,20 +1,17 @@
+import { Skeleton } from '../shared/Skeleton'
+import { ImeInput } from '../shared/ImeInput'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidateCategoryChange } from '../api/queryInvalidation'
 import { api, ApiError } from '../api/client'
-import { useAdminPages, useAdminQuery, type AdminCategory, type AdminContent } from '../api/admin'
+import { useAdminQuery, type AdminCategory, type AdminCategoryCounts } from '../api/admin'
 import { useSession } from '../state/session'
 import { RequestError } from './RequestFeedback'
-import { Button, Spinner } from './ui'
+import { Button } from './ui'
 import { Icon } from './Icon'
 import { useToast } from './useToast'
-import {
-  categoryDirty,
-  categoryNameError,
-  categoryUsage,
-  type CategoryDraft,
-} from './categoryEditor'
+import { categoryDirty, categoryNameError, type CategoryDraft } from './categoryEditor'
 import './category.css'
 
 // 독립 화면의 작성 중 입력만 탭 내 보존한다. 저장·취소 시 제거한다.
@@ -36,7 +33,9 @@ export function CategoryManager({
   const navigate = useNavigate()
   const { show, node } = useToast()
   const list = useAdminQuery<{ items: AdminCategory[] }>('/categories')
-  const contents = useAdminPages<AdminContent>('/contents?status=ALL', standalone)
+  const usageQuery = useAdminQuery<{ items: AdminCategoryCounts[] }>(
+    standalone ? '/categories/counts' : null,
+  )
   const [editor, setEditor] = useState<CategoryDraft | null>(() =>
     standalone && actorId !== null ? (drafts.get(actorId) ?? null) : null,
   )
@@ -68,7 +67,7 @@ export function CategoryManager({
   const error = editor ? categoryNameError(editor, categories) || conflict : ''
   const existing =
     editor?.id === null ? categories.find((c) => c.name === editor.name.trim()) : null
-  const counts = categoryUsage(contents.data ?? [])
+  const counts = new Map(usageQuery.data?.items.map((item) => [item.category_id, item]))
   const matches = categories.filter((c) =>
     c.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   )
@@ -287,13 +286,13 @@ export function CategoryManager({
         </header>
         <label className="admin-category__search">
           <Icon name="search" size={18} />
-          <input
+          <ImeInput
             type="search"
             aria-label="분야 검색"
             placeholder="분야 이름 검색"
             value={search}
             disabled={busy || !!editor}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
           />
         </label>
         {editor?.id === null && form}
@@ -303,7 +302,7 @@ export function CategoryManager({
           </p>
         )}
         {list.isPending ? (
-          <Spinner />
+          <Skeleton variant="text" />
         ) : !list.data ? null : !matches.length ? (
           <div className="admin-category__empty">
             <Icon name="categories" size={30} />
@@ -319,7 +318,7 @@ export function CategoryManager({
         ) : (
           <ul className="admin-category__list">
             {matches.map((cat) => {
-              const usage = counts.get(cat.category_id) ?? { total: 0, published: 0, draft: 0 }
+              const usage = counts.get(cat.category_id)
               return (
                 <li
                   key={cat.category_id}
@@ -334,7 +333,7 @@ export function CategoryManager({
                     </div>
                     {standalone && (
                       <div className="admin-category__usage" aria-label={`${cat.name} 콘텐츠 현황`}>
-                        {contents.data && !contents.isError ? (
+                        {usage && !usageQuery.isError ? (
                           <>
                             <span>
                               <button
@@ -347,7 +346,7 @@ export function CategoryManager({
                                   )
                                 }
                               >
-                                전체 <b>{usage.total}</b>
+                                전체 <b>{usage.total_count}</b>
                               </button>
                             </span>
                             <span className="is-published">
@@ -361,7 +360,7 @@ export function CategoryManager({
                                   )
                                 }
                               >
-                                공개 <b>{usage.published}</b>
+                                공개 <b>{usage.published_count}</b>
                               </button>
                             </span>
                             <span>
@@ -375,12 +374,14 @@ export function CategoryManager({
                                   )
                                 }
                               >
-                                임시저장 <b>{usage.draft}</b>
+                                임시저장 <b>{usage.draft_count}</b>
                               </button>
                             </span>
                           </>
                         ) : (
-                          <span>{contents.isError ? '현황 확인 필요' : '현황 불러오는 중…'}</span>
+                          <span>
+                            {usageQuery.isPending ? '현황 불러오는 중…' : '현황 확인 필요'}
+                          </span>
                         )}
                       </div>
                     )}
@@ -405,15 +406,16 @@ export function CategoryManager({
       {list.error && (
         <RequestError
           title="분야를 불러오지 못했어요."
+          variant={list.data ? 'toast' : 'screen'}
           error={list.error}
           action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
         />
       )}
-      {standalone && contents.error && (
+      {standalone && usageQuery.error && (
         <RequestError
           title="콘텐츠 현황을 불러오지 못했어요."
-          error={contents.error}
-          action={<Button onClick={() => void contents.refetch()}>현황 다시 불러오기</Button>}
+          error={usageQuery.error}
+          action={<Button onClick={() => void usageQuery.refetch()}>현황 다시 불러오기</Button>}
         />
       )}
       {requestError !== null && <RequestError title="분야 저장 실패" error={requestError} />}

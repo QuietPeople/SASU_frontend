@@ -6,11 +6,17 @@ export interface AdminCategory {
   category_id: number
   name: string
 }
+export interface AdminCategoryCounts extends AdminCategory {
+  total_count: number
+  published_count: number
+  draft_count: number
+}
 export interface AdminTag {
   tag_id: number
   name: string
 }
 export interface AdminContent {
+  thumbnail_url: string | null
   content_id: number
   title: string | null
   category: AdminCategory | null
@@ -22,6 +28,7 @@ export interface AdminContent {
   video_duration: number | null
 }
 export interface EditableContent {
+  updated_at: string
   detail: {
     content: AdminContent
     core_content: string | null
@@ -38,6 +45,7 @@ export interface VideoPolicy {
   min_duration_sec: number
   max_duration_sec: number
   max_long_edge_px: number
+  target_long_edge_px: number
   accept: string
   formats: string[]
 }
@@ -69,6 +77,8 @@ export interface VersionSummary {
   response_count: number
 }
 export interface AdminCurriculum {
+  thumbnail_url: string | null
+  updated_at: string | null
   curriculum_id: number
   title: string
   description: string | null
@@ -115,6 +125,7 @@ export interface AdminResponse {
   response_path: 'VIDEO_QUIZ' | 'FEED_REVIEW' | 'WRONG_NOTE'
   result: 'CORRECT' | 'WRONG' | 'SKIP'
   selected_option_id: number | null
+  correct_option_id: number
   correct_answer: string
   explanation: string
   submitted_at: string

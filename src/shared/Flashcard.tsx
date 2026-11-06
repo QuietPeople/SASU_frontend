@@ -9,6 +9,7 @@ export function Flashcard({
   style,
   flipped,
   onFlip,
+  onOpen,
   disabled = false,
 }: {
   question: string
@@ -16,9 +17,8 @@ export function Flashcard({
   isOX: boolean
   style: FlashcardStyle
   flipped: boolean
-  onFlip: () => void
   disabled?: boolean
-}) {
+} & ({ onFlip: () => void; onOpen?: never } | { onOpen: () => void; onFlip?: never })) {
   const contentId = useId()
   return (
     <div
@@ -26,15 +26,16 @@ export function Flashcard({
       role="button"
       aria-disabled={disabled}
       tabIndex={0}
-      aria-label={flipped ? '카드 앞면 보기' : '카드 뒷면 보기'}
+      aria-label={onOpen ? '플래시카드 열기' : flipped ? '카드 앞면 보기' : '카드 뒷면 보기'}
+      aria-haspopup={onOpen ? 'dialog' : undefined}
       aria-describedby={`${contentId}-${flipped ? 'answer' : 'question'}`}
       onClick={() => {
-        if (!disabled) onFlip()
+        if (!disabled) (onOpen ?? onFlip)()
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          if (!event.repeat && !disabled) onFlip()
+          if (!event.repeat && !disabled) (onOpen ?? onFlip)()
         }
       }}
     >
@@ -95,8 +96,8 @@ export function Flashcard({
                   <span> / 02</span>
                 </span>
                 <span className="sasu-flashcard__flip-hint" aria-hidden="true">
-                  <span>눌러서 뒤집기</span>
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>{onOpen ? '카드 열기' : '눌러서 뒤집기'}</span>
+                  <span aria-hidden="true">{onOpen ? '↗' : '↻'}</span>
                 </span>
               </footer>
             </article>

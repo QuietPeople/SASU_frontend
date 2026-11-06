@@ -1,8 +1,9 @@
+import { Skeleton } from '../shared/Skeleton'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { EditableContent } from '../api/admin'
 import type { useVideoUpload } from './useVideoUpload'
 import { Icon } from './Icon'
-import { Button, Spinner } from './ui'
+import { Button } from './ui'
 import './video-upload-feedback.css'
 
 interface UploadFeedbackProps {
@@ -140,7 +141,7 @@ function UploadRecoveryView({
                 ) : (
                   <div className="admin-upload-dialog__empty">
                     {checking ? (
-                      <Spinner label="저장된 영상 확인 중" />
+                      <Skeleton variant="text" label="저장된 영상 확인 중" />
                     ) : (
                       <Icon name="video" size={30} />
                     )}

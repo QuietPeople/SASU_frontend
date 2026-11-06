@@ -208,7 +208,9 @@ export function ResetPage() {
       <section className="admin-reset__scope" aria-label="초기화 범위">
         <div className="admin-reset__scope-column admin-reset__scope-column--delete">
           <header>
-            <span className="admin-reset__mark">−</span>
+            <span className="admin-reset__mark" aria-hidden="true">
+              −
+            </span>
             <h2>삭제되는 기록</h2>
           </header>
           <dl>
@@ -228,7 +230,9 @@ export function ResetPage() {
         </div>
         <div className="admin-reset__scope-column">
           <header>
-            <Icon name="check" size={19} />
+            <span className="admin-reset__mark admin-reset__mark--keep">
+              <Icon name="check" size={18} />
+            </span>
             <h2>유지되는 데이터</h2>
           </header>
           <dl>
@@ -280,7 +284,7 @@ export function ResetPage() {
               setTarget({ userId: learnerId, name: learnerName, generation, actorId })
           }}
         >
-          초기화 확인
+          <Icon name="reset" size={16} /> 초기화 확인
         </Button>
       </div>
       {completed && (
@@ -298,7 +302,10 @@ export function ResetPage() {
             ).map(([label, count]) => (
               <div key={label}>
                 <dt>{label}</dt>
-                <dd>{count.toLocaleString()}건 삭제</dd>
+                <dd>
+                  {count.toLocaleString()}
+                  <span>건 삭제</span>
+                </dd>
               </div>
             ))}
           </dl>

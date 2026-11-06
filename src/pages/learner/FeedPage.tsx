@@ -1,3 +1,4 @@
+import { flashcardLibraryPath, safeLibraryReturn } from '../../features/learner-navigation/state'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router'
@@ -13,6 +14,7 @@ import { PersonalizedFeed } from '../../features/feed/PersonalizedFeed'
 import { ContentViewer } from '../../features/content-viewer/ContentViewer'
 import { BufferedVideo } from '../../features/content-viewer/BufferedVideo'
 import { VideoLoading } from '../../features/content-viewer/VideoLoading'
+import { VideoUnavailable } from '../../features/content-viewer/VideoUnavailable'
 import { LEARNING_PRELOAD_STALE_MS } from '../../features/content-viewer/preloadPolicy'
 import { SwipeViewport } from '../../features/content-viewer/SwipeViewport'
 import { SwipeScene } from '../../features/content-viewer/SwipeScene'
@@ -24,11 +26,36 @@ import {
 import type { CurriculumDetail } from '../../api/learner'
 import type { WatchNavigationState } from '../../features/content-viewer/types'
 import { useSession } from '../../state/session'
-import { Button, StateBlock } from '../../shared/ui'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 
 export function FeedPage({ mode }: { mode: 'feed' | 'watch' }) {
   if (mode === 'feed') return <PersonalizedFeed />
   return <WatchPage />
+}
+
+function watchOrigin(params: URLSearchParams, routeState: Partial<WatchNavigationState> | null) {
+  const from = params.get('from')
+  const contexts: WatchContext[] = ['SEARCH', 'CURRICULUM', 'LIBRARY', 'REVIEW']
+  const context: WatchContext = contexts.includes(routeState?.context as WatchContext)
+    ? (routeState!.context as WatchContext)
+    : from === 'series'
+      ? 'CURRICULUM'
+      : from === 'saved' || from === 'library'
+        ? 'LIBRARY'
+        : from === 'wrong' || from === 'card' || from === 'review'
+          ? 'REVIEW'
+          : 'SEARCH'
+  const series = routeState?.curriculumId ?? Number(params.get('series'))
+  const seriesBackTo =
+    context === 'CURRICULUM'
+      ? routeState?.returnTo?.startsWith('/learner/')
+        ? routeState.returnTo
+        : Number.isSafeInteger(series) && series > 0
+          ? `/learner/series/${series}`
+          : '/learner/series'
+      : undefined
+  return { context, series, seriesBackTo }
 }
 
 function WatchPage() {
@@ -51,7 +78,7 @@ function WatchPage() {
       <div className="sasu-page">
         <StateBlock
           title="학습자 정보를 불러오지 못했어요."
-          text={error.message}
+          error={error}
           action={<Button onClick={() => void refreshSettings()}>다시 시도</Button>}
         />
       </div>
@@ -67,6 +94,7 @@ function WatchPage() {
     return (
       <div className="sasu-page">
         <StateBlock
+          variant="screen"
           title="올바른 영상 주소가 아니에요."
           action={<Link to="/learner/search">영상 검색</Link>}
         />
@@ -75,10 +103,12 @@ function WatchPage() {
   return (
     <>
       {error ? (
-        <div className="sasu-page" role="alert">
-          <p>학습자 정보를 갱신하지 못했어요. {error.message}</p>
-          <Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>
-        </div>
+        <StateBlock
+          variant="toast"
+          title="학습자 정보를 갱신하지 못했어요."
+          error={error}
+          action={<Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>}
+        />
       ) : null}
       <WatchContent
         key={`${actorId}:${learnerId}:${generation}`}
@@ -115,18 +145,8 @@ function WatchContent({
   })
   const from = params.get('from')
   const routeState = location.state as Partial<WatchNavigationState> | null
-  const contexts: WatchContext[] = ['SEARCH', 'CURRICULUM', 'LIBRARY', 'REVIEW']
-  const context: WatchContext = contexts.includes(routeState?.context as WatchContext)
-    ? (routeState!.context as WatchContext)
-    : from === 'series'
-      ? 'CURRICULUM'
-      : from === 'saved' || from === 'library'
-        ? 'LIBRARY'
-        : from === 'wrong' || from === 'card' || from === 'review'
-          ? 'REVIEW'
-          : 'SEARCH'
+  const { context, series, seriesBackTo } = watchOrigin(params, routeState)
   const version = params.get('questionVersionId')
-  const series = routeState?.curriculumId ?? Number(params.get('series'))
   const curriculum = useQuery({
     queryKey: [
       'learner',
@@ -148,6 +168,7 @@ function WatchContent({
     questionVersionId: version,
     returnTo: params.get('returnTo'),
     category: params.get('category'),
+    q: params.get('q'),
     reviewSession: params.get('reviewSession'),
     reviewScope: params.get('reviewScope'),
   })
@@ -156,14 +177,12 @@ function WatchContent({
     : from === 'wrong'
       ? `/learner/review/${contentId}${reviewQuery}`
       : from === 'card'
-        ? `/learner/cards${reviewQuery}`
+        ? flashcardLibraryPath(params)
         : context === 'LIBRARY'
-          ? '/learner/library?tab=saved'
-          : context === 'CURRICULUM' && series > 0
-            ? `/learner/series/${series}`
-            : '/learner/search'
+          ? safeLibraryReturn(params.get('returnTo'), 'saved')
+          : (seriesBackTo ?? '/learner/search')
   const backLabel =
-    context === 'LIBRARY'
+    context === 'LIBRARY' || from === 'card'
       ? '← 보관함으로'
       : context === 'CURRICULUM'
         ? '← 시리즈로'
@@ -201,37 +220,23 @@ function WatchContent({
   const prevId = currentIndex > 0 ? ids[currentIndex - 1] : undefined
   const prevTo = prevId ? videoPath(prevId) : undefined
   const renderCurrent = () => {
-    if (detail.isPending)
-      return (
-        <SwipeScene
-          panelPending
-          media={
-            <div className="sasu-player">
-              <VideoLoading />
-            </div>
-          }
-        />
-      )
+    if (detail.isPending) return <SwipeScene panelPending media={<VideoLoading />} />
     if (detail.isError && !detail.data)
       return (
         <SwipeScene
           media={
-            <div className="sasu-player swipe-preview__end">
-              <p>현재 영상을 불러올 수 없어요.</p>
-            </div>
+            <VideoUnavailable
+              title="영상을 불러오지 못했어요."
+              error={detail.error}
+              action={
+                <>
+                  <Button onClick={() => void detail.refetch()}>다시 시도</Button>
+                  <Link to={backTo}>{backLabel}</Link>
+                </>
+              }
+            />
           }
-        >
-          <StateBlock
-            title="영상을 불러오지 못했어요."
-            text={detail.error.message}
-            action={
-              <>
-                <Button onClick={() => void detail.refetch()}>다시 시도</Button>
-                <Link to={backTo}>{backLabel}</Link>
-              </>
-            }
-          />
-        </SwipeScene>
+        />
       )
     if (
       !detail.data.content.video_url ||
@@ -241,24 +246,22 @@ function WatchContent({
       return (
         <SwipeScene
           media={
-            <div className="sasu-player swipe-preview__end">
-              <p>현재 영상을 불러올 수 없어요.</p>
-            </div>
+            <VideoUnavailable
+              title="현재 재생할 수 없는 영상이에요."
+              action={<Link to={backTo}>{backLabel}</Link>}
+            />
           }
-        >
-          <StateBlock
-            title="현재 재생할 수 없는 영상이에요."
-            action={<Link to={backTo}>{backLabel}</Link>}
-          />
-        </SwipeScene>
+        />
       )
     return (
       <>
         {detail.isError ? (
-          <div className="sasu-page" role="alert">
-            <p>영상 정보를 갱신하지 못했어요. {detail.error.message}</p>
-            <Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>
-          </div>
+          <StateBlock
+            variant="toast"
+            title="영상 정보를 갱신하지 못했어요."
+            error={detail.error}
+            action={<Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>}
+          />
         ) : null}
         <ContentViewer
           playback={playback}
@@ -298,7 +301,18 @@ function WatchContent({
       items={contentIds.map((id) => ({
         key: `video:${id}`,
         renderVideo: (mediaHost, activeContent, active) => (
-          <BufferedVideo identity={identity} contentId={id} active={active} mediaHost={mediaHost}>
+          <BufferedVideo
+            identity={identity}
+            contentId={id}
+            active={active}
+            mediaHost={mediaHost}
+            overlay={{
+              showSeriesBack: context === 'CURRICULUM',
+              recommendationLabel: context === 'CURRICULUM' ? '시리즈 학습' : '영상 학습',
+              listIndex: ids.indexOf(id) >= 0 ? ids.indexOf(id) + 1 : undefined,
+              listTotal: ids.length > 1 ? ids.length : undefined,
+            }}
+          >
             {activeContent}
           </BufferedVideo>
         ),

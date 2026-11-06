@@ -1,0 +1,2047 @@
+@import './theme.css';
+
+/* ===== 셸: 좌측 내비 + 본문 ===== */
+:where(.learner-shell) .sasu-content {
+  min-width: 0;
+  padding: 28px clamp(16px, 4vw, 40px);
+}
+
+/* ===== 페이지 공통 ===== */
+:where(.learner-shell) .sasu-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+:where(.learner-shell) .sasu-page__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:where(.learner-shell) .sasu-page__head--row {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+:where(.learner-shell) .sasu-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+:where(.learner-shell) .sasu-title--sm {
+  font-size: 20px;
+}
+:where(.learner-shell) .sasu-sub {
+  margin: 0;
+  color: var(--sasu-sub);
+  font-size: 14px;
+}
+:where(.learner-shell) .sasu-muted {
+  color: var(--sasu-muted);
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-help {
+  margin: 0;
+  color: var(--sasu-muted);
+  font-size: 12.5px;
+}
+:where(.learner-shell) .sasu-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--sasu-brand);
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-link:hover {
+  text-decoration: underline;
+}
+:where(.learner-shell) .sasu-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== 카드 ===== */
+:where(.learner-shell) .sasu-card {
+  background: var(--sasu-surface);
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius);
+  padding: 18px;
+  box-shadow: var(--sasu-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:where(.learner-shell) .sasu-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-hr {
+  border: 0;
+  border-top: 1px solid var(--sasu-line-soft);
+  margin: 4px 0;
+}
+
+/* ===== 버튼 ===== */
+:where(.learner-shell) .sasu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  color: var(--sasu-ink);
+  border-radius: var(--sasu-radius-sm);
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+:where(.learner-shell) .sasu-btn:hover:not(:disabled) {
+  background: var(--sasu-line-soft);
+}
+:where(.learner-shell) .sasu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:where(.learner-shell) .sasu-btn--sm {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-btn--primary {
+  background: var(--sasu-brand);
+  border-color: var(--sasu-brand);
+  color: #fff;
+}
+:where(.learner-shell) .sasu-btn--primary:hover:not(:disabled) {
+  background: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-btn--danger {
+  background: var(--sasu-red);
+  border-color: var(--sasu-red);
+  color: #fff;
+}
+:where(.learner-shell) .sasu-btn--danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+:where(.learner-shell) .sasu-btn--light {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: transparent;
+  color: var(--sasu-ink);
+}
+
+/* ===== 배지·칩 ===== */
+:where(.learner-shell) .sasu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--sasu-line-soft);
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-badge--green {
+  background: var(--sasu-green-soft);
+  color: var(--sasu-green);
+}
+:where(.learner-shell) .sasu-badge--blue {
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-badge--amber {
+  background: var(--sasu-amber-soft);
+  color: var(--sasu-amber);
+}
+:where(.learner-shell) .sasu-badge--red {
+  background: var(--sasu-red-soft);
+  color: var(--sasu-red);
+}
+
+:where(.learner-shell) .sasu-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--sasu-line-soft);
+  color: var(--sasu-sub);
+  font-size: 13px;
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-chip--pick {
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-chip--pick.is-on {
+  background: var(--sasu-brand-soft);
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+}
+
+/* ===== 탭 ===== */
+:where(.learner-shell) .sasu-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--sasu-line-soft);
+  border-radius: 999px;
+}
+:where(.learner-shell) .sasu-tabs__tab {
+  border: 0;
+  background: transparent;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sasu-sub);
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-tabs__tab.is-active {
+  background: var(--sasu-surface);
+  color: var(--sasu-brand-ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+/* ===== 폼·입력 ===== */
+:where(.learner-shell) .sasu-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-row--tight {
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+:where(.learner-shell) .sasu-field--sm {
+  flex: 0 0 180px;
+}
+:where(.learner-shell) .sasu-field--block {
+  width: 100%;
+}
+:where(.learner-shell) .sasu-field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-field__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-field__req {
+  color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-field__hint,
+:where(.learner-shell) .sasu-field-hint {
+  font-size: 12px;
+  color: var(--sasu-muted);
+  margin: 0;
+}
+:where(.learner-shell) .sasu-field-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sasu-red);
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-field.is-error .sasu-input,
+:where(.learner-shell) .sasu-input.is-error {
+  border-color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-input {
+  width: 100%;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  border-radius: var(--sasu-radius-sm);
+  padding: 9px 11px;
+  font-size: 14px;
+  color: var(--sasu-ink);
+}
+:where(.learner-shell) .sasu-input:focus {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 1px;
+}
+:where(.learner-shell) .sasu-input--area {
+  resize: vertical;
+}
+:where(.learner-shell) .sasu-input--num {
+  width: 90px;
+  flex: 0 0 auto;
+}
+
+/* ===== 테이블 ===== */
+:where(.learner-shell) .sasu-table-wrap {
+  overflow-x: auto;
+}
+:where(.learner-shell) .sasu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-table th,
+:where(.learner-shell) .sasu-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--sasu-line-soft);
+  vertical-align: top;
+}
+:where(.learner-shell) .sasu-table th {
+  font-size: 12px;
+  color: var(--sasu-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:where(.learner-shell) .sasu-table__right {
+  text-align: right;
+}
+:where(.learner-shell) .sasu-table__title {
+  font-weight: 700;
+  display: block;
+}
+:where(.learner-shell) .sasu-table__tags,
+:where(.learner-shell) .sasu-table__sub {
+  display: block;
+  font-size: 12px;
+  color: var(--sasu-muted);
+  margin-top: 2px;
+}
+:where(.learner-shell) .sasu-table__actions {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ===== 상태 블록·스피너·토스트 ===== */
+:where(.learner-shell) .sasu-empty {
+  text-align: center;
+  padding: 40px 16px;
+  background: var(--sasu-surface);
+  border: 1px dashed var(--sasu-line);
+  border-radius: var(--sasu-radius);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+:where(.learner-shell) .sasu-empty__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+:where(.learner-shell) .sasu-empty__text {
+  margin: 0;
+  color: var(--sasu-muted);
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-empty__action {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+:where(.learner-shell) .sasu-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--sasu-line);
+  border-top-color: var(--sasu-brand);
+  border-radius: 50%;
+  display: inline-block;
+  animation: sasu-spin 0.7s linear infinite;
+}
+:where(.learner-shell) .sasu-spinner--light {
+  border-color: rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+}
+@keyframes sasu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+:where(.learner-shell) .sasu-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  background: var(--sasu-ink);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: var(--sasu-shadow);
+  z-index: 60;
+}
+:where(.learner-shell) .sasu-toast--error {
+  background: var(--sasu-red);
+}
+
+/* ===== 확인 대화상자 ===== */
+:where(.learner-shell) .sasu-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 80;
+}
+:where(.learner-shell) .sasu-modal__box {
+  background: var(--sasu-surface);
+  border-radius: var(--sasu-radius);
+  padding: 22px;
+  width: min(440px, 100%);
+  box-shadow: var(--sasu-shadow);
+}
+:where(.learner-shell) .sasu-modal__title {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+:where(.learner-shell) .sasu-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ===== 통계·대시보드 타일 ===== */
+:where(.learner-shell) .sasu-stat-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+:where(.learner-shell) .sasu-stat {
+  background: var(--sasu-surface);
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:where(.learner-shell) .sasu-stat__label {
+  font-size: 13px;
+  color: var(--sasu-muted);
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-stat__value {
+  font-size: 26px;
+  font-weight: 800;
+}
+:where(.learner-shell) .sasu-stat__sub {
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-stat__big {
+  font-size: 30px;
+  font-weight: 800;
+  margin: 0;
+}
+
+/* ===== 결과 목록 카드(검색·보관함) ===== */
+:where(.learner-shell) .sasu-result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-result-card {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  border-radius: var(--sasu-radius);
+  padding: 12px 14px;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-result-card--static {
+  cursor: default;
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static):hover {
+  border-color: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-result-card__thumb {
+  flex: 0 0 56px;
+  height: 56px;
+  border-radius: var(--sasu-radius-sm);
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  padding: 4px;
+}
+:where(.learner-shell) .sasu-result-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+:where(.learner-shell) .sasu-result-card__title {
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-result-card__meta {
+  font-size: 12.5px;
+  color: var(--sasu-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:where(.learner-shell) .sasu-result-card__summary {
+  font-size: 13px;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-result-card__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ===== 검색 ===== */
+:where(.learner-shell) .sasu-search__bar {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+:where(.learner-shell) .sasu-search__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sasu-sub);
+  font-weight: 600;
+}
+
+/* ===== 진행 막대 ===== */
+:where(.learner-shell) .sasu-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sasu-line-soft);
+  overflow: hidden;
+}
+:where(.learner-shell) .sasu-progress span {
+  display: block;
+  height: 100%;
+  background: var(--sasu-brand);
+}
+/* ===== 피드(L02) ===== */
+:where(.learner-shell) .sasu-feed {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(320px, 1fr);
+  gap: 24px;
+  max-width: 880px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+:where(.learner-shell) .sasu-feed--review {
+  grid-template-columns: minmax(0, 1fr);
+}
+:where(.learner-shell) .sasu-feed__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+:where(.learner-shell) .sasu-feed__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+:where(.learner-shell) .sasu-feed__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+:where(.learner-shell) .sasu-feed__stage {
+  display: flex;
+  justify-content: center;
+}
+:where(.learner-shell) .sasu-feed__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-feed__msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sasu-brand-ink);
+  font-weight: 600;
+}
+
+/* 플레이어 */
+:where(.learner-shell) .sasu-player {
+  width: 100%;
+  max-width: 300px;
+}
+:where(.learner-shell) .sasu-player:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 3px;
+  border-radius: var(--sasu-radius);
+}
+:where(.learner-shell) .sasu-player__screen {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  max-height: 440px;
+  margin: 0 auto;
+  border-radius: var(--sasu-radius);
+  background: linear-gradient(160deg, #1e293b, #334155);
+  color: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+:where(.learner-shell) .sasu-player__screen.is-failed {
+  background: linear-gradient(160deg, #3f1d1d, #4c2626);
+}
+:where(.learner-shell) .sasu-player__top {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+:where(.learner-shell) .sasu-player__pill {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+}
+:where(.learner-shell) .sasu-player__art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-player__word {
+  font-size: 22px;
+  font-weight: 800;
+}
+:where(.learner-shell) .sasu-player__line {
+  width: 60%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+:where(.learner-shell) .sasu-player__line--short {
+  width: 40%;
+}
+:where(.learner-shell) .sasu-player__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-player__big {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--sasu-ink);
+  font-size: 22px;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-player__end {
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-player__fail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+}
+:where(.learner-shell) .sasu-player__fail-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+:where(.learner-shell) .sasu-player__fail-title {
+  font-weight: 700;
+  margin: 0;
+}
+:where(.learner-shell) .sasu-player__fail-text {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+:where(.learner-shell) .sasu-player__fail-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+:where(.learner-shell) .sasu-player__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+:where(.learner-shell) .sasu-ctl {
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  border-radius: var(--sasu-radius-sm);
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-ctl__time {
+  font-size: 12px;
+  color: var(--sasu-muted);
+  font-variant-numeric: tabular-nums;
+}
+:where(.learner-shell) .sasu-ctl__bar {
+  flex: 1;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sasu-line);
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+:where(.learner-shell) .sasu-ctl__fill {
+  display: block;
+  height: 100%;
+  background: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-ctl__volume {
+  width: 72px;
+}
+:where(.learner-shell) .sasu-ctl__speed select {
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius-sm);
+  padding: 5px 6px;
+  font-size: 12px;
+}
+:where(.learner-shell) .sasu-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-react.is-on {
+  background: var(--sasu-brand-soft);
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+}
+
+/* 학습 패널(우측) */
+:where(.learner-shell) .sasu-lp {
+  background: var(--sasu-surface);
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius);
+  padding: 16px;
+  box-shadow: var(--sasu-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: 20px;
+}
+:where(.learner-shell) .sasu-lp__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+:where(.learner-shell) .sasu-lp__title {
+  margin: 0;
+  font-size: 16px;
+}
+:where(.learner-shell) .sasu-lp__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--sasu-line-soft);
+}
+:where(.learner-shell) .sasu-lp__tab {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sasu-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+:where(.learner-shell) .sasu-lp__tab.is-active {
+  color: var(--sasu-brand-ink);
+  border-bottom-color: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-lp__dot {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-lp__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:where(.learner-shell) .sasu-lp__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:where(.learner-shell) .sasu-lp__oneline p {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-lp__points {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:where(.learner-shell) .sasu-lp__points li {
+  display: flex;
+  gap: 8px;
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-lp__no {
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+:where(.learner-shell) .sasu-lp__related,
+:where(.learner-shell) .sasu-lp__reason {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-lp__caution {
+  background: var(--sasu-amber-soft);
+  border-radius: var(--sasu-radius-sm);
+  padding: 10px 12px;
+}
+:where(.learner-shell) .sasu-lp__caution-title {
+  margin: 0 0 2px;
+  font-weight: 700;
+  color: var(--sasu-amber);
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-lp__caution p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #92400e;
+}
+:where(.learner-shell) .sasu-lp__dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 6px 10px;
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-lp__dl dt {
+  color: var(--sasu-muted);
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-lp__dl dd {
+  margin: 0;
+}
+:where(.learner-shell) .sasu-lp__series {
+  border: 1px solid var(--sasu-line-soft);
+  border-radius: var(--sasu-radius-sm);
+  padding: 10px 12px;
+}
+:where(.learner-shell) .sasu-lp__steps {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-lp__steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:where(.learner-shell) .sasu-lp__steps li.is-current {
+  font-weight: 700;
+  color: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-lp__ok {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--sasu-green);
+  font-weight: 700;
+}
+
+/* ===== 퀴즈(C01) ===== */
+:where(.learner-shell) .sasu-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:where(.learner-shell) .sasu-quiz__context {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-quiz__q {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+:where(.learner-shell) .sasu-quiz__choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-choice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  border-radius: var(--sasu-radius-sm);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-choice:disabled {
+  cursor: default;
+}
+:where(.learner-shell) .sasu-choice.is-picked {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+:where(.learner-shell) .sasu-choice.is-answer {
+  border-color: var(--sasu-green);
+  background: var(--sasu-green-soft);
+}
+:where(.learner-shell) .sasu-choice.is-wrong {
+  border-color: var(--sasu-red);
+  background: var(--sasu-red-soft);
+}
+:where(.learner-shell) .sasu-choice__letter {
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--sasu-line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-choice__text {
+  flex: 1;
+}
+:where(.learner-shell) .sasu-choice__mark {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sasu-green);
+}
+:where(.learner-shell) .sasu-choice__mark.is-wrong {
+  color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-quiz__error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sasu-red);
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-result {
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-result.is-correct {
+  border-color: var(--sasu-green);
+  background: var(--sasu-green-soft);
+}
+:where(.learner-shell) .sasu-result.is-wrong {
+  border-color: var(--sasu-red);
+  background: var(--sasu-red-soft);
+}
+:where(.learner-shell) .sasu-result__title {
+  margin: 0;
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-result__dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 4px 10px;
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-result__dl dt {
+  color: var(--sasu-muted);
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-result__dl dd {
+  margin: 0;
+}
+:where(.learner-shell) .sasu-result__exp {
+  margin: 0;
+  font-size: 13.5px;
+}
+:where(.learner-shell) .sasu-result__foot {
+  margin-top: 2px;
+}
+
+/* ===== 복기 카드(C02) ===== */
+:where(.learner-shell) .sasu-review-card {
+  background: var(--sasu-surface);
+  border: 1px solid var(--sasu-brand);
+  border-radius: var(--sasu-radius);
+  padding: 20px;
+  box-shadow: var(--sasu-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+:where(.learner-shell) .sasu-review-card__lead {
+  margin: 0;
+  font-weight: 700;
+}
+:where(.learner-shell) .sasu-review-card__src {
+  margin: 0;
+  color: var(--sasu-muted);
+  font-size: 13px;
+}
+
+/* ===== 대시보드·통계 보조 ===== */
+:where(.learner-shell) .sasu-stats__misc {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--sasu-sub);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===== 폼 2열·콘텐츠 등록 ===== */
+:where(.learner-shell) .sasu-form__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+:where(.learner-shell) .sasu-form__actions {
+  margin-top: 4px;
+}
+:where(.learner-shell) .sasu-form__media {
+  min-height: 130px;
+  border: 1px dashed var(--sasu-line);
+  border-radius: var(--sasu-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sasu-line-soft);
+  font-size: 13px;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-form__media.is-error {
+  border-color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-form__media-ok {
+  color: var(--sasu-brand-ink);
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-choices-edit {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-choice-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-choice-edit.is-error .sasu-input {
+  border-color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-choice-edit__radio {
+  flex: 0 0 auto;
+}
+:where(.learner-shell) .sasu-card-preview {
+  border: 1px solid var(--sasu-line-soft);
+  border-radius: var(--sasu-radius-sm);
+  padding: 12px;
+}
+:where(.learner-shell) .sasu-card-preview__q,
+:where(.learner-shell) .sasu-card-preview__a {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-card-preview__ver {
+  margin-top: 10px;
+}
+:where(.learner-shell) .sasu-pick-list,
+:where(.learner-shell) .sasu-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-order-list {
+  counter-reset: step;
+}
+:where(.learner-shell) .sasu-pick-list li,
+:where(.learner-shell) .sasu-order-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--sasu-line-soft);
+  padding-bottom: 8px;
+}
+:where(.learner-shell) .sasu-order-list__btns {
+  display: flex;
+  gap: 4px;
+}
+
+/* ===== 좁은 화면(960px 미만): 내비 상단, 학습 패널 하단 ===== */
+@media (max-width: 960px) {
+  :where(.learner-shell) .sasu-feed {
+    grid-template-columns: 1fr;
+  }
+  :where(.learner-shell) .sasu-lp {
+    position: static;
+  }
+  :where(.learner-shell) .sasu-form__grid {
+    grid-template-columns: 1fr;
+  }
+  :where(.learner-shell) .sasu-stat-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 영상 좋아요·저장 액션 버튼 ===== */
+:where(.learner-shell) .sasu-actions {
+  display: flex;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sasu-line);
+  background: #ffffff;
+  color: var(--sasu-sub);
+  border-radius: 14px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+:where(.learner-shell) .sasu-action--icon-only {
+  padding: 9px 12px;
+}
+:where(.learner-shell) .sasu-action:hover:not(:disabled) {
+  border-color: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:where(.learner-shell) .sasu-action__icon {
+  display: inline-flex;
+}
+:where(.learner-shell) .sasu-action__icon svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease,
+    transform 0.2s ease;
+}
+:where(.learner-shell) .sasu-action--like.is-on {
+  border-color: var(--sasu-red);
+  color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-action--like.is-on .sasu-action__icon svg {
+  fill: var(--sasu-red);
+  stroke: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-action--save.is-on {
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-action--save.is-on .sasu-action__icon svg {
+  fill: var(--sasu-brand);
+  stroke: var(--sasu-brand);
+}
+:where(.learner-shell) .sasu-action.is-on .sasu-action__icon svg {
+  animation: sasu-tick 0.22s ease;
+}
+@keyframes sasu-tick {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ===== 학습 패널 하단 출처·검토일 ===== */
+:where(.learner-shell) .sasu-lp__body {
+  flex: 1;
+}
+:where(.learner-shell) .sasu-lp__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12px;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-lp__foot-item {
+  display: inline-flex;
+  gap: 6px;
+  min-width: 0;
+  word-break: break-all;
+}
+:where(.learner-shell) .sasu-lp__foot-label {
+  font-weight: 700;
+  color: var(--sasu-sub);
+  flex: 0 0 auto;
+}
+:where(.learner-shell) .sasu-lp__related-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+/* ===== 시청 메타(조회·시청 상태) ===== */
+:where(.learner-shell) .sasu-watchmeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ===== 보관함 탭 개수 ===== */
+:where(.learner-shell) .sasu-tabs__count {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-tabs__tab.is-active .sasu-tabs__count {
+  color: var(--sasu-brand-ink);
+}
+
+/* ===== 시작하기 체크리스트 ===== */
+
+/* ===== 키보드 포커스 표시 ===== */
+:where(.learner-shell) .sasu-btn:focus-visible,
+:where(.learner-shell) .sasu-action:focus-visible,
+:where(.learner-shell) .sasu-tabs__tab:focus-visible,
+:where(.learner-shell) .sasu-lp__tab:focus-visible,
+:where(.learner-shell) .sasu-chip--pick:focus-visible,
+:where(.learner-shell) .sasu-result-card:focus-visible,
+:where(.learner-shell) .sasu-link:focus-visible,
+:where(.learner-shell) .sasu-choice:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+  border-radius: var(--sasu-radius-sm);
+}
+:where(.learner-shell) .sasu-skeleton {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-skeleton li {
+  height: 64px;
+  border-radius: var(--sasu-radius);
+  background: linear-gradient(
+    100deg,
+    var(--sasu-line-soft) 30%,
+    #f4f7fb 50%,
+    var(--sasu-line-soft) 70%
+  );
+  background-size: 200% 100%;
+  animation: sasu-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes sasu-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.learner-shell) .sasu-skeleton li {
+    animation: none;
+  }
+}
+
+/* ===== 영상 스와이프 전환 ===== */
+:where(.learner-shell) .sasu-player {
+  touch-action: pan-x;
+}
+@keyframes sasu-enter-below {
+  from {
+    transform: translateY(34px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes sasu-enter-above {
+  from {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes sasu-exit-up {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+@keyframes sasu-exit-down {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(34px);
+    opacity: 0;
+  }
+}
+:where(.learner-shell) .sasu-feed__main.is-enter-below {
+  animation: sasu-enter-below 0.22s ease-out;
+}
+:where(.learner-shell) .sasu-feed__main.is-enter-above {
+  animation: sasu-enter-above 0.22s ease-out;
+}
+:where(.learner-shell) .sasu-feed__main.is-exit-up {
+  animation: sasu-exit-up 0.16s ease-in forwards;
+}
+:where(.learner-shell) .sasu-feed__main.is-exit-down {
+  animation: sasu-exit-down 0.16s ease-in forwards;
+}
+:where(.learner-shell) .sasu-swipehint {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--sasu-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.learner-shell) .sasu-feed__main.is-enter-below,
+  :where(.learner-shell) .sasu-feed__main.is-enter-above,
+  :where(.learner-shell) .sasu-feed__main.is-exit-up,
+  :where(.learner-shell) .sasu-feed__main.is-exit-down {
+    animation: none;
+  }
+}
+
+/* ===== 영상 안 오버레이(좋아요·저장·조회수·패널 토글) ===== */
+:where(.learner-shell) .sasu-player {
+  position: relative;
+}
+:where(.learner-shell) .sasu-ov-top {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 2;
+  pointer-events: none;
+}
+:where(.learner-shell) .sasu-ov-pill {
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+:where(.learner-shell) .sasu-ov-pill--done {
+  background: rgba(21, 128, 61, 0.85);
+}
+:where(.learner-shell) .sasu-ov {
+  position: absolute;
+  right: 10px;
+  bottom: 56px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+:where(.learner-shell) .sasu-ov__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+:where(.learner-shell) .sasu-ov__btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+:where(.learner-shell) .sasu-ov__btn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.8);
+}
+:where(.learner-shell) .sasu-ov__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:where(.learner-shell) .sasu-ov__btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition:
+    fill 0.2s ease,
+    transform 0.2s ease;
+}
+:where(.learner-shell) .sasu-ov__btn--like.is-on {
+  color: #f87171;
+}
+:where(.learner-shell) .sasu-ov__btn--save.is-on {
+  color: #ffffff;
+}
+:where(.learner-shell) .sasu-ov__btn.is-on svg {
+  fill: currentColor;
+  animation: sasu-tick 0.22s ease;
+}
+:where(.learner-shell) .sasu-ov__count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+:where(.learner-shell) .sasu-ov__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+:where(.learner-shell) .sasu-feed__nav {
+  justify-content: center;
+}
+
+/* ===== 학습 패널 접기 ===== */
+:where(.learner-shell) .sasu-feed.is-lp-closed {
+  grid-template-columns: minmax(0, 360px);
+  justify-content: center;
+}
+:where(.learner-shell) .sasu-lp__head {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-lp__fold {
+  flex: 0 0 auto;
+  border: 1px solid var(--sasu-line);
+  background: var(--sasu-surface);
+  color: var(--sasu-sub);
+  border-radius: var(--sasu-radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+:where(.learner-shell) .sasu-lp__fold:hover {
+  background: var(--sasu-line-soft);
+}
+:where(.learner-shell) .sasu-lp__fold:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+}
+@media (max-width: 960px) {
+  :where(.learner-shell) .sasu-feed.is-lp-closed {
+    grid-template-columns: 1fr;
+  }
+}
+:where(.learner-shell) .sasu-lp[hidden] {
+  display: none;
+}
+/* ===== 영상 오버레이: 평소 흐리게, 마우스 올리면 또렷하게 ===== */
+:where(.learner-shell) .sasu-ov,
+:where(.learner-shell) .sasu-ov-top {
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+:where(.learner-shell) .sasu-player:hover .sasu-ov,
+:where(.learner-shell) .sasu-player:hover .sasu-ov-top,
+:where(.learner-shell) .sasu-player:focus-within .sasu-ov,
+:where(.learner-shell) .sasu-player:focus-within .sasu-ov-top {
+  opacity: 1;
+}
+@media (hover: none) {
+  :where(.learner-shell) .sasu-ov,
+  :where(.learner-shell) .sasu-ov-top {
+    opacity: 1;
+  }
+}
+:where(.learner-shell) .sasu-lp__oneline {
+  background: var(--sasu-brand-soft);
+  border-left: 3px solid var(--sasu-brand);
+  border-radius: var(--sasu-radius-sm);
+  padding: 11px 13px;
+}
+:where(.learner-shell) .sasu-lp__oneline .sasu-lp__label {
+  color: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-lp__oneline p {
+  margin: 5px 0 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--sasu-ink);
+}
+
+:where(.learner-shell) .sasu-lp__sec {
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+}
+:where(.learner-shell) .sasu-lp__body > .sasu-lp__sec:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+:where(.learner-shell) .sasu-lp__core {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--sasu-ink);
+}
+
+:where(.learner-shell) .sasu-lp__related-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-lp__related-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--sasu-ink);
+  border: 1px solid var(--sasu-line);
+  border-radius: var(--sasu-radius-sm);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+:where(.learner-shell) .sasu-lp__related-list a:hover {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+:where(.learner-shell) .sasu-lp__related-list a:hover .sasu-lp__rel-ic {
+  background: #fff;
+}
+:where(.learner-shell) .sasu-lp__related-list a:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+}
+:where(.learner-shell) .sasu-lp__rel-ic {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--sasu-brand-soft);
+  color: var(--sasu-brand-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+:where(.learner-shell) .sasu-lp__rel-t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:where(.learner-shell) .sasu-lp__rel-go {
+  flex: 0 0 auto;
+  color: var(--sasu-muted);
+  font-size: 15px;
+}
+
+:where(.learner-shell) .sasu-lp__label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+:where(.learner-shell) .sasu-lp__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sasu-line-soft);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+:where(.learner-shell) .sasu-lp__foot-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+:where(.learner-shell) .sasu-lp__foot-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-lp__foot-value {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sasu-sub);
+  word-break: break-all;
+}
+:where(.learner-shell) .sasu-player {
+  max-width: 360px;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+:where(.learner-shell) .sasu-lp {
+  align-self: start;
+}
+
+:where(.learner-shell) .sasu-ov {
+  bottom: 86px;
+}
+:where(.learner-shell) .sasu-feed__bar {
+  align-items: center;
+}
+:where(.learner-shell) .sasu-backlink {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sasu-muted);
+  text-decoration: none;
+}
+:where(.learner-shell) .sasu-backlink:hover {
+  color: var(--sasu-ink);
+  text-decoration: none;
+}
+:where(.learner-shell) .sasu-backlink:focus-visible {
+  outline: 2px solid var(--sasu-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:where(.learner-shell) .sasu-ctxchip {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sasu-brand-ink);
+  background: var(--sasu-brand-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+:where(.learner-shell) .sasu-metaline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+:where(.learner-shell) .sasu-metaline__cat {
+  font-weight: 700;
+  color: var(--sasu-sub);
+}
+:where(.learner-shell) .sasu-metaline__tag {
+  background: var(--sasu-line-soft);
+  color: var(--sasu-sub);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px;
+}
+:where(.learner-shell) .sasu-feed__nav {
+  justify-content: center;
+  gap: 8px;
+}
+:where(.learner-shell) .sasu-feed__nav .sasu-link,
+:where(.learner-shell) .sasu-feed__nav .sasu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--sasu-line);
+  background: #fff;
+  color: var(--sasu-muted);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+:where(.learner-shell) .sasu-feed__nav .sasu-link:hover,
+:where(.learner-shell) .sasu-feed__nav .sasu-btn:hover:not(:disabled) {
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+  background: var(--sasu-brand-soft);
+  text-decoration: none;
+}
+:where(.learner-shell) .sasu-quiz__choices {
+  gap: 9px;
+}
+:where(.learner-shell) .sasu-choice {
+  border-width: 1.5px;
+  border-radius: 10px;
+  padding: 13px;
+  gap: 11px;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+:where(.learner-shell) .sasu-choice:not(:disabled):hover {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+:where(.learner-shell) .sasu-choice__letter {
+  flex: 0 0 26px;
+  height: 26px;
+  border: 1.5px solid var(--sasu-line);
+  background: transparent;
+  color: var(--sasu-muted);
+  font-weight: 800;
+}
+:where(.learner-shell) .sasu-choice:not(:disabled):hover .sasu-choice__letter {
+  border-color: var(--sasu-brand);
+  color: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-choice.is-answer .sasu-choice__letter {
+  border-color: var(--sasu-green);
+  background: var(--sasu-green);
+  color: #fff;
+}
+:where(.learner-shell) .sasu-choice.is-wrong .sasu-choice__letter {
+  border-color: var(--sasu-red);
+  background: var(--sasu-red);
+  color: #fff;
+}
+:where(.learner-shell) .sasu-choice__mark {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+}
+:where(.learner-shell) .sasu-result {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border-width: 1.5px;
+  border-radius: 10px;
+  background: #fff;
+}
+:where(.learner-shell) .sasu-result.is-wrong,
+:where(.learner-shell) .sasu-result.is-correct {
+  background: #fff;
+}
+:where(.learner-shell) .sasu-result__title {
+  margin: 0;
+  padding: 11px 13px;
+  font-size: 14px;
+  font-weight: 800;
+}
+:where(.learner-shell) .sasu-result.is-wrong .sasu-result__title {
+  background: var(--sasu-red-soft);
+  color: var(--sasu-red);
+}
+:where(.learner-shell) .sasu-result.is-correct .sasu-result__title {
+  background: var(--sasu-green-soft);
+  color: var(--sasu-green);
+}
+:where(.learner-shell) .sasu-result__dl {
+  margin: 12px 13px 0;
+  grid-template-columns: 46px 1fr;
+  gap: 6px 10px;
+}
+:where(.learner-shell) .sasu-result__dl dt {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+}
+:where(.learner-shell) .sasu-result__dl dd {
+  font-weight: 600;
+}
+:where(.learner-shell) .sasu-result__exp {
+  margin: 12px 13px 0;
+  background: var(--sasu-line-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.7;
+}
+:where(.learner-shell) .sasu-result__exp::before {
+  content: '해설';
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sasu-muted);
+  margin-bottom: 4px;
+}
+:where(.learner-shell) .sasu-result__foot {
+  margin: 12px 13px 13px;
+}
+:where(.learner-shell) .sasu-result__foot .sasu-link,
+:where(.learner-shell) .sasu-result__foot .sasu-btn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--sasu-line);
+  background: #fff;
+  color: var(--sasu-ink);
+  border-radius: 8px;
+  padding: 8px 13px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+:where(.learner-shell) .sasu-result__foot .sasu-link:hover,
+:where(.learner-shell) .sasu-result__foot .sasu-btn:hover:not(:disabled) {
+  background: var(--sasu-line-soft);
+  text-decoration: none;
+}
+:where(.learner-shell) .sasu-result__foot .sasu-row > *:last-child {
+  background: var(--sasu-brand);
+  border-color: var(--sasu-brand);
+  color: #fff;
+}
+:where(.learner-shell) .sasu-result__foot .sasu-row > *:last-child:hover {
+  background: var(--sasu-brand-ink);
+}
+:where(.learner-shell) .sasu-ov-pill--idx {
+  background: rgba(37, 99, 235, 0.75);
+}
+:where(.learner-shell) .sasu-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  animation: sasu-toast-in 0.18s ease-out;
+}
+:where(.learner-shell) .sasu-toast__ic {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+@keyframes sasu-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.learner-shell) .sasu-toast {
+    animation: none;
+  }
+}
+
+:where(.learner-shell) .sasu-result-card {
+  border-width: 1.5px;
+  border-radius: 10px;
+  padding: 13px 14px;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static):hover {
+  border-color: var(--sasu-brand);
+  background: var(--sasu-brand-soft);
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__thumb {
+  flex: 0 0 46px;
+  height: 46px;
+  border-radius: 9px;
+  font-size: 0;
+  padding: 0;
+}
+:where(.learner-shell)
+  .sasu-result-card:not(.sasu-result-card--static)
+  .sasu-result-card__thumb::before {
+  content: '▶';
+  font-size: 16px;
+  line-height: 1;
+}
+:where(.learner-shell)
+  .sasu-result-card:not(.sasu-result-card--static):hover
+  .sasu-result-card__thumb {
+  background: #fff;
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__title {
+  font-size: 14.5px;
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static) .sasu-result-card__summary {
+  display: none;
+}
+:where(.learner-shell) .sasu-result-card:not(.sasu-result-card--static)::after {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--sasu-muted);
+  font-size: 16px;
+}

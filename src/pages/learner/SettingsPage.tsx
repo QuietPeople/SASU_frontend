@@ -1,3 +1,4 @@
+import { Skeleton } from '../../shared/Skeleton'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
@@ -5,12 +6,13 @@ import { api } from '../../api/client'
 import { useCategories, type Category, type LearnerSettings } from '../../api/learner'
 import { invalidateLearnerSettings } from '../../api/queryInvalidation'
 import { useSession } from '../../state/session'
-import { Button } from '../../shared/ui'
-import { LearnerState as StateBlock } from '../../features/learner-navigation/LearnerState'
-import { useToast } from '../../shared/useToast'
+import { Button } from '../../learner/ui'
+import { InterestCategoryPicker } from '../../learner/InterestCategoryPicker'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
+import { useToast } from '../../learner/useToast'
 
 import { clearView, readView, writeView } from '../../features/learner-navigation/state'
-import '../../features/learner-navigation/learner-uiux.css'
+import '../../learner/learning-preferences.css'
 
 const MIN_INTERVAL = 1
 const MAX_INTERVAL = 20
@@ -20,13 +22,13 @@ export function SettingsPage() {
   const categories = useCategories(session.actorId, session.generation)
   if (session.isPending || (session.actorId !== null && categories.isPending))
     return (
-      <div className="sasu-page">
-        <StateBlock title="설정을 불러오는 중이에요." />
+      <div className="sasu-page learner-settings learner-preferences__loading">
+        <Skeleton variant="form" label="설정을 불러오는 중" />
       </div>
     )
   if (session.error || categories.error)
     return (
-      <div className="sasu-page">
+      <div className="sasu-page learner-settings">
         <StateBlock
           title="설정을 불러오지 못했어요."
           error={session.error ?? categories.error}
@@ -45,7 +47,7 @@ export function SettingsPage() {
     )
   if (!session.settings || session.learnerId === null)
     return (
-      <div className="sasu-page">
+      <div className="sasu-page learner-settings">
         <StateBlock title="학습자를 선택해 주세요." />
       </div>
     )
@@ -152,106 +154,171 @@ function SettingsForm({
     },
   })
   const saving = update.isPending
+  const intervalValue = Number(interval)
+  const validInterval =
+    interval.trim() !== '' &&
+    Number.isInteger(intervalValue) &&
+    intervalValue >= MIN_INTERVAL &&
+    intervalValue <= MAX_INTERVAL
+  const intervalMessage = `${MIN_INTERVAL}~${MAX_INTERVAL} 사이의 정수를 입력해 주세요.`
+  const changeInterval = (value: string) => {
+    setInterval(value)
+    setValidationError('')
+  }
+  const stepInterval = (step: number) => {
+    const current =
+      interval.trim() && Number.isFinite(intervalValue)
+        ? Math.trunc(intervalValue)
+        : Number(baseline.interval)
+    changeInterval(String(Math.min(MAX_INTERVAL, Math.max(MIN_INTERVAL, current + step))))
+  }
   const save = () => {
-    if (savingRef.current || actorId === null || learnerId === null) return
-    const value = Number(interval)
-    if (!Number.isInteger(value) || value < MIN_INTERVAL || value > MAX_INTERVAL) {
-      setValidationError(
-        `피드 복습 간격은 ${MIN_INTERVAL}~${MAX_INTERVAL} 사이 정수로 입력해 주세요.`,
-      )
+    if (savingRef.current || actorId === null || learnerId === null || !dirty) return
+    if (!validInterval) {
+      setValidationError(intervalMessage)
+      document.getElementById('review-interval')?.focus()
       return
     }
     savingRef.current = true
     setValidationError('')
-    update.mutate({ actorId, learnerId, interests: [...interests], interval: value })
+    update.mutate({ actorId, learnerId, interests: [...interests], interval: intervalValue })
   }
   return (
-    <div className="sasu-page sasu-settings">
+    <form
+      className="sasu-page learner-settings"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault()
+        save()
+      }}
+    >
       <header className="sasu-page__head">
         <p className="sasu-eyebrow">학습자 · 설정</p>
         <h1 className="sasu-title">설정</h1>
         <p className="sasu-sub">추천과 피드 복습 방식을 내 학습 습관에 맞게 바꿔요.</p>
       </header>
-      {dirty ? (
-        <p className="sasu-draft-notice" role="status">
-          아직 저장하지 않은 변경사항이 있어요. 같은 브라우저 탭에서 다른 메뉴에 다녀와도 입력을
-          복원해요. 추천에 적용하려면 저장해 주세요.
-        </p>
-      ) : null}
-      <section className="sasu-card">
-        <h2 className="sasu-card__title">관심 분야</h2>
-        <p className="sasu-sub">관심 있는 분야를 여러 개 고를 수 있어요.</p>
-        {interests.length === 0 && categories.length > 0 ? (
-          <p className="sasu-feed__msg">관심 분야를 고르면 추천 영상이 더 정확해져요.</p>
-        ) : null}
-        {categories.length === 0 ? (
-          <StateBlock title="아직 등록된 분야가 없어요." />
-        ) : (
-          <div className="sasu-chips" role="group" aria-label="관심 분야">
-            {categories.map((category) => (
-              <button
-                key={category.category_id}
-                type="button"
-                className={`sasu-chip sasu-chip--pick ${interests.includes(category.category_id) ? 'is-on' : ''}`}
-                aria-pressed={interests.includes(category.category_id)}
-                disabled={saving}
-                onClick={() => toggle(category.category_id)}
-              >
-                {interests.includes(category.category_id) ? '✓ ' : ''}
-                {category.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-      <section className="sasu-card">
-        <h2 className="sasu-card__title">피드 복습 간격</h2>
-        <label className="sasu-field sasu-field--inline">
-          <span>시청 완료 영상</span>
-          <input
-            className="sasu-input sasu-input--num"
-            type="number"
-            min={MIN_INTERVAL}
-            max={MAX_INTERVAL}
-            value={interval}
-            onChange={(event) => setInterval(event.target.value)}
-            disabled={saving}
-            aria-describedby="interval-hint"
-          />
-          <span>개마다</span>
-        </label>
-        <p id="interval-hint" className="sasu-help">
-          {Number.isInteger(Number(interval)) &&
-          Number(interval) >= MIN_INTERVAL &&
-          Number(interval) <= MAX_INTERVAL
-            ? `영상 ${Number(interval)}개를 시청 완료하면 복습 문항을 제안해요. 복습할 문항이 없으면 영상 시청을 계속해요. `
-            : ''}
-          1~20개 중 선택할 수 있어요. 저장한 간격은 다음 이용에도 유지돼요.
-        </p>
-        {validationError ? (
-          <p className="sasu-field-error" role="alert">
-            {validationError}
-          </p>
-        ) : null}
-        {update.isError && !validationError ? (
-          <StateBlock title="설정을 저장하지 못했어요." error={update.error} />
-        ) : null}
-      </section>
-      <div className="sasu-row">
-        <Button variant="primary" onClick={() => void save()} loading={saving}>
-          저장
-        </Button>
-        <Button
-          onClick={() => {
-            clearView(draftKey)
-            navigate(backTo || '/learner/feed')
-          }}
+      <section className="learner-preferences__section">
+        <InterestCategoryPicker
+          categories={categories}
+          value={interests}
+          onToggle={toggle}
           disabled={saving}
-        >
-          취소
-        </Button>
-      </div>
+        />
+      </section>
+      <section className="learner-preferences__section" aria-labelledby="review-interval-title">
+        <div className="learner-preferences__heading">
+          <div>
+            <h2 id="review-interval-title">피드 복습 간격</h2>
+            <p>영상을 보고 배운 내용을 얼마나 자주 돌아볼까요?</p>
+          </div>
+          <span className="learner-preferences__range">1~20개</span>
+        </div>
+        <div className="learner-interval">
+          <div className="learner-interval__preview">
+            <strong>{validInterval ? `영상 ${intervalValue}개` : '간격을 입력해 주세요'}</strong>
+            <span>{validInterval ? '시청 완료마다 복습 카드' : '1~20개 중 선택할 수 있어요'}</span>
+          </div>
+          <div className="learner-interval__control">
+            <label htmlFor="review-interval">시청 완료 영상 수</label>
+            <div
+              className="learner-interval__stepper"
+              data-invalid={!!validationError || undefined}
+            >
+              <button
+                type="button"
+                aria-label="복습 간격 1개 줄이기"
+                disabled={saving || (validInterval && intervalValue === MIN_INTERVAL)}
+                onClick={() => stepInterval(-1)}
+              >
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 10h10"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <div className="learner-interval__value">
+                <input
+                  id="review-interval"
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_INTERVAL}
+                  max={MAX_INTERVAL}
+                  step={1}
+                  value={interval}
+                  onChange={(event) => changeInterval(event.target.value)}
+                  onBlur={() => setValidationError(validInterval ? '' : intervalMessage)}
+                  disabled={saving}
+                  aria-invalid={!!validationError}
+                  aria-describedby={`interval-hint${validationError ? ' interval-error' : ''}`}
+                />
+                <span aria-hidden="true">개</span>
+              </div>
+              <button
+                type="button"
+                aria-label="복습 간격 1개 늘리기"
+                disabled={saving || (validInterval && intervalValue === MAX_INTERVAL)}
+                onClick={() => stepInterval(1)}
+              >
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 10h10M10 5v10"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="learner-interval__help">
+          <p id="interval-hint">
+            시청 완료 기록을 기준으로 하며, 복습할 카드가 없으면 다음 영상으로 이어져요.
+          </p>
+          {validationError && (
+            <p id="interval-error" className="learner-preferences__error" role="alert">
+              {validationError}
+            </p>
+          )}
+        </div>
+      </section>
+      {update.isError && (
+        <StateBlock variant="toast" title="설정을 저장하지 못했어요." error={update.error} />
+      )}
+      <footer className="learner-settings__footer">
+        <div className="learner-settings__status" data-dirty={dirty || undefined} role="status">
+          <strong>
+            {saving
+              ? '설정을 저장하고 있어요'
+              : dirty
+                ? '변경사항 있음'
+                : '현재 설정이 저장되어 있어요'}
+          </strong>
+          <span>
+            {dirty
+              ? '변경한 설정을 적용하려면 저장해 주세요.'
+              : '원하는 학습 방식으로 조정해 보세요.'}
+          </span>
+        </div>
+        <div className="learner-settings__actions">
+          <Button
+            onClick={() => {
+              clearView(draftKey)
+              navigate(backTo || '/learner/feed')
+            }}
+            disabled={saving}
+          >
+            취소
+          </Button>
+          <Button variant="primary" type="submit" loading={saving} disabled={!dirty}>
+            설정 저장
+          </Button>
+        </div>
+      </footer>
       {node}
-    </div>
+    </form>
   )
 }

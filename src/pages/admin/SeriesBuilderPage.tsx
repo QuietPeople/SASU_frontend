@@ -1,30 +1,42 @@
-import { useAdminPages, type AdminCurriculum } from '../../api/admin'
+import { Skeleton } from '../../shared/Skeleton'
+import { ImeInput } from '../../shared/ImeInput'
+import { useEffect } from 'react'
+import { Thumbnail } from '../../shared/Thumbnail'
+import { usePaginationScroll } from '../../shared/usePaginationScroll'
+import { useAdminQuery, type AdminCurriculum } from '../../api/admin'
+import { queryString, type ApiPage } from '../../api/client'
 import { RequestError } from '../../admin/RequestFeedback'
 import { Icon } from '../../admin/Icon'
-import { Button, Spinner } from '../../admin/ui'
+import { Button } from '../../admin/ui'
 import { SeriesDialog } from '../../admin/SeriesDialog'
+import { AdminPagination } from '../../admin/AdminPagination'
 import '../../admin/series.css'
 import { useAdminView } from '../../admin/useAdminView'
 import { adminPage, adminId, adminFilters } from '../../admin/navigation'
 
 export function SeriesBuilderPage() {
-  const list = useAdminPages<AdminCurriculum>('/curriculums?view=editor')
   const [params, setParams] = useAdminView('series')
   const rawEdit = params.get('edit')
   const editing = rawEdit === 'new' ? 'new' : (adminId(rawEdit) ?? null)
   const search = params.get('q') ?? ''
   const page = adminPage(params.get('page'))
+  const { attach: paginationRef, preserve: preservePaginationScroll } =
+    usePaginationScroll<HTMLElement>(search)
+  const list = useAdminQuery<ApiPage<AdminCurriculum>>(
+    `/curriculums${queryString({ view: 'editor', q: search.trim() || undefined, page, size: 5 })}`,
+  )
   const setEditing = (id: number | 'new' | null) =>
     setParams(adminFilters(params, { edit: id === null ? '' : String(id) }))
   const setSearch = (value: string) => setParams(adminFilters(params, { q: value }), true)
-  const setPage = (value: number) => setParams(adminFilters(params, { page: String(value) }))
-  const matches = (list.data ?? []).filter((series) =>
-    `${series.title} ${series.description ?? ''}`
-      .toLocaleLowerCase()
-      .includes(search.trim().toLocaleLowerCase()),
-  )
-  const pages = Math.max(1, Math.ceil(matches.length / 5))
-  const currentPage = Math.min(page, pages)
+  const setPage = (value: number) => {
+    preservePaginationScroll()
+    setParams(adminFilters(params, { page: String(value) }))
+  }
+  const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 5))
+  useEffect(() => {
+    if (list.data && !list.isFetching && page > pages)
+      setParams(adminFilters(params, { page: String(pages) }), true)
+  }, [list.data, list.isFetching, page, pages, params, setParams])
   return (
     <div className="admin-page admin-series">
       <header className="admin-page__head admin-page__head--row admin-series__page-head">
@@ -37,30 +49,33 @@ export function SeriesBuilderPage() {
           <Icon name="plus" size={17} />새 시리즈
         </Button>
       </header>
-      <section className="admin-card admin-series__catalog" aria-label="시리즈 목록">
+      <section
+        ref={paginationRef}
+        className="admin-card admin-series__catalog"
+        aria-label="시리즈 목록"
+      >
         <div className="admin-series__catalog-head">
           <h2>
-            시리즈 <span>{list.data?.length ?? '—'}</span>
+            시리즈 <span>{list.data?.total ?? '—'}</span>
           </h2>
           <label className="admin-series__search">
             <Icon name="search" size={18} />
-            <input
+            <ImeInput
               type="search"
               aria-label="시리즈 검색"
-              placeholder="시리즈 이름 검색"
+              placeholder="시리즈 이름·설명 검색"
+              maxLength={200}
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-              }}
+              onValueChange={setSearch}
             />
           </label>
         </div>
         {list.isPending ? (
-          <Spinner />
+          <Skeleton variant="list" />
         ) : (
           list.data && (
             <>
-              {!matches.length ? (
+              {!list.data.items.length ? (
                 <div className="admin-series__empty">
                   <Icon name="series" size={30} />
                   <strong>{search ? '검색 결과가 없어요.' : '아직 시리즈가 없어요.'}</strong>
@@ -72,7 +87,7 @@ export function SeriesBuilderPage() {
                 </div>
               ) : (
                 <ul className="admin-series__cards">
-                  {matches.slice((currentPage - 1) * 5, currentPage * 5).map((series) => (
+                  {list.data.items.map((series) => (
                     <li key={series.curriculum_id}>
                       <button
                         type="button"
@@ -80,9 +95,7 @@ export function SeriesBuilderPage() {
                         onClick={() => setEditing(series.curriculum_id)}
                         aria-label={`${series.title} 편집`}
                       >
-                        <span className="admin-series__series-icon">
-                          <Icon name="series" size={22} />
-                        </span>
+                        <Thumbnail src={series.thumbnail_url} refreshKey={list.dataUpdatedAt} />
                         <span className="admin-series__series-info">
                           <strong>{series.title}</strong>
                           {series.description && (
@@ -101,28 +114,16 @@ export function SeriesBuilderPage() {
                   ))}
                 </ul>
               )}
-              {pages > 1 && (
-                <nav className="admin-series__pagination" aria-label="시리즈 목록 페이지">
-                  <button
-                    type="button"
-                    aria-label="이전 시리즈 페이지"
-                    disabled={currentPage === 1}
-                    onClick={() => setPage(currentPage - 1)}
-                  >
-                    <Icon name="chevronLeft" size={18} />
-                  </button>
-                  <span>
-                    {currentPage} / {pages}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="다음 시리즈 페이지"
-                    disabled={currentPage === pages}
-                    onClick={() => setPage(currentPage + 1)}
-                  >
-                    <Icon name="chevronRight" size={18} />
-                  </button>
-                </nav>
+              {list.data.total > 0 && (
+                <AdminPagination
+                  page={list.data.page}
+                  size={5}
+                  total={list.data.total}
+                  hasNext={list.data.has_next}
+                  disabled={list.isFetching}
+                  label="시리즈 목록 페이지"
+                  onChange={setPage}
+                />
               )}
             </>
           )
@@ -130,6 +131,7 @@ export function SeriesBuilderPage() {
         {list.error && (
           <RequestError
             title="시리즈 목록을 불러오지 못했어요."
+            variant={list.data ? 'toast' : 'screen'}
             error={list.error}
             action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
           />

@@ -1,9 +1,12 @@
+import { Skeleton } from '../shared/Skeleton'
 import { useState } from 'react'
+import { usePaginationScroll } from '../shared/usePaginationScroll'
 import { useAdminQuery, type QuestionVersion, type VersionSummary } from '../api/admin'
 import type { ApiPage } from '../api/client'
 import { Icon } from './Icon'
+import { ResultBadge } from './ResultBadge'
 import { RequestError } from './RequestFeedback'
-import { Button, Spinner } from './ui'
+import { Button } from './ui'
 import './question-history.css'
 
 const dateFormat = new Intl.DateTimeFormat('ko-KR', {
@@ -19,6 +22,8 @@ export function QuestionHistory({ current }: { current: QuestionVersion }) {
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<number | null>(null)
+  const { attach: paginationRef, preserve: preservePaginationScroll } =
+    usePaginationScroll<HTMLDivElement>(`${current.question_id}:${open}`)
   const history = useAdminQuery<ApiPage<VersionSummary>>(
     open ? `/questions/${current.question_id}/versions?page=${page}&size=10` : null,
   )
@@ -26,6 +31,7 @@ export function QuestionHistory({ current }: { current: QuestionVersion }) {
     open && selected ? `/questions/${current.question_id}/versions/${selected}` : null,
   )
   const changePage = (next: number) => {
+    preservePaginationScroll()
     setSelected(null)
     setPage(next)
   }
@@ -45,15 +51,16 @@ export function QuestionHistory({ current }: { current: QuestionVersion }) {
         </span>
       </summary>
       {open && (
-        <div className="admin-history__body">
+        <div ref={paginationRef} className="admin-history__body">
           <p className="admin-history__note">이전 문항과 당시 응답은 그대로 보존돼요.</p>
           {history.isPending ? (
             <div className="admin-history__loading">
-              <Spinner />
+              <Skeleton variant="text" />
             </div>
           ) : history.isError ? (
             <RequestError
               title="이력을 불러오지 못했어요."
+              variant="screen"
               error={history.error}
               action={<Button onClick={() => void history.refetch()}>다시 시도</Button>}
             />
@@ -109,11 +116,12 @@ export function QuestionHistory({ current }: { current: QuestionVersion }) {
                           >
                             {detail.isPending ? (
                               <div className="admin-history__loading">
-                                <Spinner />
+                                <Skeleton variant="text" />
                               </div>
                             ) : detail.isError ? (
                               <RequestError
                                 title="버전을 불러오지 못했어요."
+                                variant="screen"
                                 error={detail.error}
                                 action={
                                   <Button onClick={() => void detail.refetch()}>다시 시도</Button>
@@ -145,12 +153,7 @@ export function QuestionHistory({ current }: { current: QuestionVersion }) {
                                             <span className="admin-history__option-text">
                                               {option.option_text}
                                             </span>
-                                            {option.is_correct && (
-                                              <span className="admin-history__answer">
-                                                <Icon name="check" size={14} />
-                                                정답
-                                              </span>
-                                            )}
+                                            {option.is_correct && <ResultBadge result="CORRECT" />}
                                           </li>
                                         ))}
                                     </ol>

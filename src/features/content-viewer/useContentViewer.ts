@@ -32,7 +32,7 @@ export function useContentViewer({
   const active = useRef(false)
   const tracking = useRef(createWatchTracking())
   const [result, setResult] = useState<WatchResult | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<Error | null>(null)
   const inFlight = useRef<Promise<boolean> | null>(null)
   const onReportRef = useRef(onReport)
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useContentViewer({
           state.sent = signature
           if (active.current) {
             setResult(next)
-            setError('')
+            setError(null)
             onReportRef.current?.(next)
           }
           // 서버에 반영된 진도와 저장 목록, 통계를 갱신한다.
@@ -69,7 +69,7 @@ export function useContentViewer({
           return true
         } catch (cause) {
           if (active.current)
-            setError(cause instanceof Error ? cause.message : '시청 기록을 저장하지 못했어요.')
+            setError(cause instanceof Error ? cause : new Error('시청 기록을 저장하지 못했어요.'))
           return false
         } finally {
           state.pending = false

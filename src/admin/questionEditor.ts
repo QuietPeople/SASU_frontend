@@ -50,7 +50,10 @@ export function questionErrors(draft: QuestionDraft): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!draft.question.trim()) errors.question = '질문을 입력해 주세요.'
   choices.forEach((choice, index) => {
-    if (!choice.trim()) errors[`choice-${index}`] = `${index + 1}번 보기를 입력해 주세요.`
+    const text = choice.trim()
+    if (!text) errors[`choice-${index}`] = `${index + 1}번 보기를 입력해 주세요.`
+    else if (choices.some((other, at) => at !== index && other.trim() === text))
+      errors[`choice-${index}`] = '다른 보기와 내용이 같아요. 서로 다른 보기를 입력해 주세요.'
   })
   if (answer < 0) errors.answer = '정답을 하나 선택해 주세요.'
   if (!draft.explanation.trim()) errors.explanation = '해설을 입력해 주세요.'
@@ -59,4 +62,25 @@ export function questionErrors(draft: QuestionDraft): Record<string, string> {
 
 export function questionSignature(draft: QuestionDraft) {
   return JSON.stringify(questionBody(draft))
+}
+
+export function questionServerErrors(error: unknown): Record<string, string> {
+  if (
+    !error ||
+    typeof error !== 'object' ||
+    !('code' in error) ||
+    error.code !== 'DUPLICATE_OPTION' ||
+    !('fields' in error) ||
+    !Array.isArray(error.fields)
+  )
+    return {}
+  const errors: Record<string, string> = {}
+  for (const item of error.fields) {
+    if (!item || typeof item.field !== 'string') continue
+    const match = /^options\[(\d+)\]\.option_text$/.exec(item.field)
+    if (match && Number(match[1]) < 4)
+      errors[`choice-${Number(match[1])}`] =
+        '다른 보기와 내용이 같아요. 서로 다른 보기를 입력해 주세요.'
+  }
+  return errors
 }

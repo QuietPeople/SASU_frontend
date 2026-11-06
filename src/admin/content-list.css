@@ -27,6 +27,12 @@
   font-size: 13px;
   box-shadow: 0 3px 7px #2563eb14;
 }
+.admin-cl__summaries,
+.admin-cl__panel {
+  width: 100%;
+  max-width: 960px;
+  align-self: center;
+}
 .admin-cl__summaries {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -111,10 +117,8 @@
   color: #b6bfcd;
 }
 .admin-cl__panel {
-  width: 100%;
-  max-width: 960px;
-  align-self: center;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: white;
   border: 1px solid #e5e9f1;
   border-radius: 14px;
@@ -122,12 +126,15 @@
 }
 .admin-cl__toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 188px 76px;
+  grid-template-columns: minmax(180px, 1fr) 174px 198px 68px;
+  grid-template-areas: 'search category missing submit';
   align-items: center;
   gap: 10px;
   padding: 22px 24px 18px;
 }
 .admin-cl__search {
+  grid-area: search;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -159,45 +166,35 @@
 .admin-cl__search input::placeholder {
   color: #99a3b3;
 }
-.admin-cl__filter {
+.admin-cl__filter.admin-filter-select {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
   color: #7b879b;
 }
+.admin-cl__filter--category {
+  grid-area: category;
+}
+.admin-cl__filter--missing {
+  grid-area: missing;
+}
 .admin-cl__filter label {
   flex-shrink: 0;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
   color: #637087;
 }
-.admin-cl__select {
-  position: relative;
+.admin-cl__filter .admin-filter-select__control {
   flex: 1;
   min-width: 0;
+}
+.admin-cl__filter .admin-input {
   height: 44px;
 }
-.admin-cl__select select {
-  appearance: none;
-  width: 100%;
-  height: 100%;
-  border: 1px solid #e2e7ef;
-  border-radius: 9px;
-  padding: 0 38px 0 13px;
-  color: #536077;
-  background: white;
-  font-size: 13px;
-  cursor: pointer;
-}
-.admin-cl__filter-chevron {
-  position: absolute;
-  inset: 0 12px 0 auto;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
 .admin-cl__search-submit {
+  grid-area: submit;
   height: 44px;
   border: 1px solid #dce3ef;
   border-radius: 9px;
@@ -349,6 +346,7 @@
   background: #ecf7f1;
 }
 .admin-cl__footer {
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -419,7 +417,7 @@
   min-height: 230px;
   justify-content: center;
 }
-.admin-cl :where(button, select):focus-visible {
+.admin-cl :where(button, input):focus-visible {
   outline: 3px solid #9db9ff;
   outline-offset: 3px;
 }
@@ -429,7 +427,10 @@
   }
   .admin-cl__toolbar {
     padding: 18px 18px 14px;
-    grid-template-columns: minmax(0, 1fr) 172px 64px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px;
+    grid-template-areas:
+      'search search submit'
+      'category missing missing';
   }
 }
 @media (max-width: 760px) {
@@ -529,10 +530,11 @@
   }
   .admin-cl__toolbar {
     grid-template-columns: minmax(0, 1fr) 68px;
+    grid-template-areas:
+      'search submit'
+      'category category'
+      'missing missing';
     padding: 16px;
-  }
-  .admin-cl__search {
-    grid-column: 1 / -1;
   }
   .admin-cl__results {
     padding: 0 16px 12px;
@@ -559,4 +561,8 @@
   .admin-cl__summary:hover {
     transform: none;
   }
+}
+
+.admin-cl__loading {
+  padding: 20px 24px;
 }

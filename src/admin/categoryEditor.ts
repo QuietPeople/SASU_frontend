@@ -19,19 +19,3 @@ export function categoryNameError(
     return '이미 사용 중인 분야명이에요. 다른 이름을 입력해 주세요.'
   return ''
 }
-
-export function categoryUsage(
-  contents: { category: { category_id: number } | null; status: string }[],
-) {
-  const counts = new Map<number, { total: number; published: number; draft: number }>()
-  for (const content of contents) {
-    if (!content.category) continue
-    const id = content.category.category_id
-    const count = counts.get(id) ?? { total: 0, published: 0, draft: 0 }
-    count.total++
-    if (content.status === 'PUBLISHED') count.published++
-    else if (content.status === 'DRAFT') count.draft++
-    counts.set(id, count)
-  }
-  return counts
-}

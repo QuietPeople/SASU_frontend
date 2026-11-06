@@ -154,30 +154,6 @@
   color: #4169a4;
   flex-shrink: 0;
 }
-.admin-series__pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  padding: 14px 0 0;
-  font-size: 12px;
-  color: #62758f;
-}
-.admin-series__pagination button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e4e9f2;
-  border-radius: 50%;
-  background: white;
-  color: #7188a9;
-  cursor: pointer;
-}
-.admin-series__pagination button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
 .admin-series__empty {
   display: flex;
   flex-direction: column;
@@ -299,18 +275,38 @@
   margin: 0;
   min-width: 0;
 }
-.admin-series__info {
+.admin-series__overview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 20px;
+  margin-bottom: 22px;
 }
-.admin-series__info .admin-field {
-  gap: 10px;
+.admin-series__overview > .admin-thumbnail-editor {
+  min-width: 0;
+  margin: 0;
+}
+.admin-series__info {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  margin: 0;
   padding: 20px;
   border: 1px solid #dbe3ef;
   border-radius: 16px;
   background: #fff;
+}
+.admin-series__info .admin-field {
+  flex: none;
+  gap: 8px;
+}
+.admin-series__info .admin-series__description-field {
+  flex: 1;
+}
+.admin-series__description-field textarea {
+  flex: 1;
+  min-height: 104px;
 }
 .admin-series__info .admin-input {
   line-height: 1.6;
@@ -413,7 +409,10 @@
 .admin-series__candidate-list {
   list-style: none;
   padding: 0;
-  margin: 6px 0 0;
+  margin: 0;
+}
+.admin-series__candidate-scroll {
+  margin-top: 6px;
   max-height: 450px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -684,6 +683,11 @@
     display: none;
   }
 }
+@media (max-width: 1000px) {
+  .admin-series__overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 800px) {
   .admin-series-dialog {
     width: 100%;
@@ -702,10 +706,10 @@
     scrollbar-gutter: auto;
   }
   .admin-series__info {
-    grid-template-columns: 1fr;
     gap: 16px;
+    padding: 17px 14px;
   }
-  .admin-series__info .admin-field {
+  .admin-series__overview > .admin-thumbnail-editor {
     padding: 17px 14px;
   }
   .admin-series__builder {

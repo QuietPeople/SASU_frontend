@@ -39,15 +39,16 @@
   --admin-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 .admin-shell {
+  --sasu-sidebar-width: 232px;
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: var(--sasu-sidebar-width) minmax(0, 1fr);
   min-height: 100dvh;
   background: #f7f8fb;
   color: var(--admin-ink);
   transition: grid-template-columns 200ms ease;
 }
 .admin-shell--collapsed {
-  grid-template-columns: 80px minmax(0, 1fr);
+  --sasu-sidebar-width: 80px;
 }
 .admin-icon {
   flex-shrink: 0;
@@ -641,6 +642,37 @@
   gap: 8px;
   margin-top: 18px;
 }
+.admin-confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid #e2e7ef;
+  border-radius: 18px;
+  color: #526079;
+  box-shadow: 0 24px 90px rgb(20 35 65 / 20%);
+}
+.admin-confirm-dialog::backdrop {
+  background: rgb(24 36 58 / 34%);
+  backdrop-filter: blur(3px);
+}
+.admin-confirm-dialog .admin-modal__title {
+  color: #2c3c56;
+  line-height: 1.5;
+}
+.admin-confirm-dialog .admin-modal__body {
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.admin-confirm-dialog .admin-modal__body p {
+  margin: 0;
+}
+.admin-confirm-dialog .admin-modal__foot {
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
 .admin-stat-row {
   list-style: none;
   margin: 0;
@@ -807,6 +839,7 @@
 }
 @media (max-width: 760px) {
   .admin-shell {
+    --sasu-sidebar-width: 0px;
     display: block;
   }
   .admin-mobile-header {

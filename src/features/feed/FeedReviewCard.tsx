@@ -1,7 +1,9 @@
+import { ErrorFeedback } from '../../shared/ErrorFeedback'
+import { Skeleton } from '../../shared/Skeleton'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { FlashcardPreview } from '../../admin/FlashcardPreview'
-import type { FlashcardStyle } from '../../admin/useFlashcardStyle'
+import { FlashcardPreview } from '../../shared/FlashcardPreview'
+import type { FlashcardStyle } from '../../shared/useFlashcardStyle'
 import {
   getFlashcardAnswer,
   learningKey,
@@ -95,28 +97,36 @@ export function FeedReviewCard({
             }}
           />
           {reveal && answer.isPending ? (
-            <p className="feed-review__notice" role="status">
-              정답을 불러오는 중이에요.
-            </p>
+            <div className="feed-review__notice">
+              <Skeleton variant="text" label="정답 불러오는 중" />
+            </div>
           ) : null}
           {reveal && answer.isError ? (
-            <div className="feed-review__notice" role="alert" data-interactive>
-              <p>정답을 불러오지 못했어요.</p>
-              <button onClick={() => void answer.refetch()}>다시 시도</button>
-            </div>
+            <ErrorFeedback
+              title="정답을 불러오지 못했어요."
+              error={answer.error}
+              action={
+                <button type="button" onClick={() => void answer.refetch()}>
+                  다시 시도
+                </button>
+              }
+            />
           ) : null}
           {viewed.isError || flipped.isError ? (
-            <div className="feed-review__notice" role="alert" data-interactive>
-              <p>카드 학습 기록을 저장하지 못했어요.</p>
-              <button
-                onClick={() => {
-                  if (viewed.isError) logView()
-                  if (flipped.isError) logFlip()
-                }}
-              >
-                기록 다시 저장
-              </button>
-            </div>
+            <ErrorFeedback
+              title="카드 학습 기록을 저장하지 못했어요."
+              error={viewed.error ?? flipped.error}
+              action={
+                <button
+                  onClick={() => {
+                    if (viewed.isError) logView()
+                    if (flipped.isError) logFlip()
+                  }}
+                >
+                  기록 다시 저장
+                </button>
+              }
+            />
           ) : null}
         </div>
       }

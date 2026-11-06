@@ -1,3 +1,8 @@
+import { ErrorFeedback } from '../../shared/ErrorFeedback'
+import { Skeleton } from '../../shared/Skeleton'
+import { Notification } from '../../shared/Notification'
+import { DisclosureSummary } from '../../shared/DisclosureSummary'
+import { LearnerState } from '../../learner/LearnerState'
 import {
   useCallback,
   useContext,
@@ -21,10 +26,11 @@ import {
   type WatchContext,
   type WatchResult,
 } from '../../api/learning'
-import { QuizView } from '../../shared/QuizView'
-import { Button } from '../../shared/ui'
+import { QuizView } from '../../learner/QuizView'
+import { Button } from '../../learner/ui'
 import { useContentViewer } from './useContentViewer'
 import { FeedVideoPlayer } from './FeedVideoPlayer'
+import { ContentVideoOverlay } from './ContentVideoOverlay'
 import { bindVideoPlayback, type PlaybackIntent } from './videoPlayback'
 import type { WatchNavigationState } from './types'
 import type { CurriculumDetail } from '../../api/learner'
@@ -34,7 +40,6 @@ import { SwipeContext } from './swipeContext'
 import { BufferedVideoContext } from './bufferedVideoContext'
 import { bindActiveVideoEvents, type ActiveVideoEvent } from './videoBuffer'
 import './content-viewer.css'
-import './panel-quiz.css'
 
 interface ContentViewerProps {
   playback: ViewerSession
@@ -363,113 +368,59 @@ export function ContentViewer({
           onTogglePlayback={togglePlayback}
           onLike={likeFromGesture}
         >
-          <header className="sasu-feed__head">
-            <h1 className="sasu-title">{content.title ?? '제목 없음'}</h1>
-            <div className="content-viewer__metadata">
-              <div className="sasu-metaline">
-                <span className="sasu-metaline__cat">{content.category?.name ?? '미지정'}</span>
-                {content.tags.map((tag) => (
-                  <span className="sasu-metaline__tag" key={tag.name}>
-                    #{tag.name}
-                  </span>
-                ))}
-              </div>
-              <span className="content-viewer__views">
-                조회수 {watch.result?.view_count ?? content.view_count}
-              </span>
-            </div>
-          </header>
-          {playError ? (
-            <div className="content-viewer__error" role="alert">
-              <p>영상을 재생하지 못했어요.</p>
-              <Button
-                onClick={() => {
-                  player.current?.load()
-                  setPlayError(false)
-                  resumePlayback()
-                }}
-              >
-                다시 불러오기
-              </Button>
-              <Link className="sasu-link" to={backTo}>
-                {backLabel.replace(/^←\s*/, '')}
-              </Link>
-            </div>
-          ) : null}
-          <div className="sasu-ov-top">
-            <div className="content-viewer__status">
-              {listIndex && listTotal ? (
-                <span className="sasu-ov-pill sasu-ov-pill--idx">
-                  {listIndex} / {listTotal}
-                </span>
-              ) : null}
-              <span className="sasu-ov-pill">{watched ? '시청 완료' : '시청 전'}</span>
-            </div>
-            {recommendationLabel || context !== 'FEED' ? (
-              <div className="content-viewer__recommendation">
-                {recommendationLabel || (context === 'CURRICULUM' ? '시리즈 학습' : '영상 학습')}
+          <ContentVideoOverlay
+            content={content}
+            showSeriesBack={context === 'CURRICULUM'}
+            navigationPending={swiping || navigating || navigationPending}
+            onBackToSeries={() => void transition(() => navigate(backTo))}
+            viewCount={watch.result?.view_count}
+            watched={watched}
+            recommendationLabel={
+              recommendationLabel ||
+              (context === 'FEED'
+                ? undefined
+                : context === 'CURRICULUM'
+                  ? '시리즈 학습'
+                  : '영상 학습')
+            }
+            listIndex={listIndex}
+            listTotal={listTotal}
+            panelOpen={panelOpen}
+            panelId={panelId}
+            panelToggle={panelToggle}
+            reactionPending={reaction.isPending}
+            onLike={toggleLike}
+            onSave={() => reaction.mutate({ kind: 'saved', on: !content.saved })}
+            onTogglePanel={() => {
+              if (panelOpen) closePanel()
+              else setPanelOpen(true)
+            }}
+          >
+            {playError ? (
+              <div className="content-viewer__error">
+                <ErrorFeedback
+                  variant="screen"
+                  title="영상을 재생하지 못했어요."
+                  action={
+                    <>
+                      <Button
+                        onClick={() => {
+                          player.current?.load()
+                          setPlayError(false)
+                          resumePlayback()
+                        }}
+                      >
+                        다시 불러오기
+                      </Button>
+                      <Link className="sasu-link" to={backTo}>
+                        {backLabel.replace(/^←\s*/, '')}
+                      </Link>
+                    </>
+                  }
+                />
               </div>
             ) : null}
-          </div>
-
-          {/* 영상 안 우측: 좋아요·저장·학습 패널 토글 */}
-          <div className="sasu-ov">
-            <div className="sasu-ov__item">
-              <button
-                type="button"
-                className={`sasu-ov__btn sasu-ov__btn--like ${content.liked ? 'is-on' : ''}`}
-                aria-pressed={content.liked ?? false}
-                aria-label="좋아요"
-                disabled={reaction.isPending}
-                onClick={toggleLike}
-              >
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
-                </svg>
-              </button>
-              <span className="sasu-ov__count">{content.like_count}</span>
-            </div>
-            <div className="sasu-ov__item">
-              <button
-                type="button"
-                className={`sasu-ov__btn sasu-ov__btn--save ${content.saved ? 'is-on' : ''}`}
-                aria-pressed={content.saved ?? false}
-                aria-label={content.saved ? '보관함에 저장됨' : '보관함에 저장'}
-                disabled={reaction.isPending}
-                onClick={() => reaction.mutate({ kind: 'saved', on: !content.saved })}
-              >
-                <svg viewBox="0 0 24 24" width="22" height="22">
-                  <path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-                </svg>
-              </button>
-              <span className="sasu-ov__count">저장</span>
-            </div>
-            <div className="sasu-ov__item">
-              <button
-                type="button"
-                className={`sasu-ov__btn sasu-ov__btn--materials ${panelOpen ? 'is-on' : ''}`}
-                ref={panelToggle}
-                aria-controls={panelId}
-                aria-expanded={panelOpen}
-                aria-label={panelOpen ? '학습자료 접기' : '학습자료 펼치기'}
-                onClick={() => {
-                  if (panelOpen) closePanel()
-                  else setPanelOpen(true)
-                }}
-              >
-                <svg
-                  className="content-viewer__materials-icon"
-                  viewBox="0 0 24 24"
-                  width="22"
-                  height="22"
-                  aria-hidden="true"
-                >
-                  <path d="M3 4.5c3.2-1.2 6-.7 9 1.2v15c-3-1.9-5.8-2.4-9-1.2zM21 4.5c-3.2-1.2-6-.7-9 1.2v15c3-1.9 5.8-2.4 9-1.2z" />
-                </svg>
-              </button>
-              <span className="sasu-ov__count">학습자료</span>
-            </div>
-          </div>
+          </ContentVideoOverlay>
         </FeedVideoPlayer>
       }
       panel={
@@ -500,18 +451,22 @@ export function ContentViewer({
             </div>
             {series ? (
               <details className="content-viewer__series">
-                <summary>
-                  시리즈 학습 순서{' '}
-                  <span>{listIndex ? `${listIndex} / ${listTotal ?? 1}` : '목록 보기'}</span>
-                </summary>
-                {series.loading ? <p role="status">학습 순서를 불러오는 중이에요.</p> : null}
+                <DisclosureSummary
+                  meta={listIndex ? `${listIndex} / ${listTotal ?? 1}` : '목록 보기'}
+                >
+                  시리즈 학습 순서
+                </DisclosureSummary>
+                {series.loading ? <Skeleton variant="text" label="학습 순서 불러오는 중" /> : null}
                 {series.error ? (
-                  <div role="alert">
-                    <p>학습 순서를 불러오지 못했어요.</p>
-                    <Button size="sm" onClick={series.retry}>
-                      다시 시도
-                    </Button>
-                  </div>
+                  <ErrorFeedback
+                    title="학습 순서를 불러오지 못했어요."
+                    error={series.error}
+                    action={
+                      <Button size="sm" onClick={series.retry}>
+                        다시 시도
+                      </Button>
+                    }
+                  />
                 ) : null}
                 {series.data ? (
                   <>
@@ -729,10 +684,11 @@ export function ContentViewer({
                 tabIndex={0}
               >
                 {questionError && !openedQuestion ? (
-                  <div role="alert">
-                    <p>{questionError.message}</p>
-                    <Button onClick={retryQuestion}>문항 다시 불러오기</Button>
-                  </div>
+                  <LearnerState
+                    title="문항을 불러오지 못했어요."
+                    error={questionError}
+                    action={<Button onClick={retryQuestion}>문항 다시 불러오기</Button>}
+                  />
                 ) : null}
                 {openedQuestion ? (
                   <QuizView
@@ -741,8 +697,8 @@ export function ContentViewer({
                     responsePath="VIDEO_QUIZ"
                     appearance="material-preview"
                   />
-                ) : question === undefined ? (
-                  <p role="status">문항을 불러오는 중이에요.</p>
+                ) : question === undefined && !questionError ? (
+                  <Skeleton variant="form" label="문항 불러오는 중" count={2} />
                 ) : question === null ? (
                   <p>등록된 퀴즈가 없어요. 영상 학습을 마치고 다음으로 이동할 수 있어요.</p>
                 ) : null}
@@ -759,29 +715,36 @@ export function ContentViewer({
               </div>
             </dl>
           </aside>
-          {toast ? (
-            <p className="sasu-toast" role="status">
-              <span className="sasu-toast__ic" aria-hidden="true">
-                ✓
-              </span>
-              {toast.text}
-            </p>
-          ) : null}
+          {toast ? <Notification title={toast.text} tone="ok" event={toast} /> : null}
         </>
       }
     >
       {playErrorReport.isError ? (
-        <p role="alert">오류 기록: {playErrorReport.error.message}</p>
+        <LearnerState
+          title="재생 오류 기록을 저장하지 못했어요."
+          variant="toast"
+          error={playErrorReport.error}
+        />
       ) : null}
-      {navigationError ? <p role="alert">{navigationError}</p> : null}
-      {reaction.isError ? <p role="alert">{reaction.error.message}</p> : null}
+      {navigationError ? <ErrorFeedback title={navigationError} /> : null}
+      {reaction.isError ? (
+        <LearnerState
+          title="좋아요·저장 요청을 처리하지 못했어요."
+          variant="toast"
+          error={reaction.error}
+        />
+      ) : null}
       {watch.error ? (
-        <div role="alert">
-          <p>시청 기록: {watch.error}</p>
-          <Button size="sm" onClick={watch.retry}>
-            기록 다시 저장
-          </Button>
-        </div>
+        <LearnerState
+          title="시청 기록을 저장하지 못했어요."
+          variant="toast"
+          error={watch.error}
+          action={
+            <Button size="sm" onClick={watch.retry}>
+              기록 다시 저장
+            </Button>
+          }
+        />
       ) : null}
     </SwipeScene>
   )

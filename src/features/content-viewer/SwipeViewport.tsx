@@ -1,3 +1,4 @@
+import { Skeleton } from '../../shared/Skeleton'
 import {
   useCallback,
   useEffectEvent,
@@ -149,9 +150,8 @@ export function SwipeViewport({
                 })}
               </div>
               {pending && (
-                <div className="swipe-viewport__pending" role="status">
-                  <span className="content-viewer__loading-ring" aria-hidden="true" />
-                  <span className="sasu-sr">다음 항목 준비 중</span>
+                <div className="swipe-viewport__pending">
+                  <Skeleton variant="text" label="다음 항목 준비 중" />
                 </div>
               )}
             </div>
@@ -179,9 +179,8 @@ export function SwipeViewport({
                 <div className="sasu-lp__head">
                   <h2 className="sasu-lp__title">학습자료</h2>
                 </div>
-                <div className="content-viewer__panel-loading" role="status">
-                  <span className="content-viewer__loading-ring" aria-hidden="true" />
-                  <span className="sasu-sr">학습자료 불러오는 중</span>
+                <div className="content-viewer__panel-loading">
+                  <Skeleton variant="form" label="학습자료 불러오는 중" />
                 </div>
               </aside>
             </>

@@ -1,16 +1,29 @@
+import { Skeleton } from '../../shared/Skeleton'
+import { ImeInput } from '../../shared/ImeInput'
+import { Thumbnail } from '../../shared/Thumbnail'
+import { usePaginationScroll } from '../../shared/usePaginationScroll'
 import { ContentDialog } from '../../admin/ContentDialog'
+import { ContentFilter } from '../../admin/ContentFilter'
 import type { ContentSubviewKind } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { type ApiPage, queryString } from '../../api/client'
+import { type ApiPage } from '../../api/client'
 import { type AdminContent, type AdminCategory, useAdminQuery } from '../../api/admin'
-import { Badge, Button, Spinner, StateBlock } from '../../admin/ui'
+import { Badge, Button, StateBlock } from '../../admin/ui'
 import { Icon, type IconName } from '../../admin/Icon'
 import { pageNumbers } from '../../admin/pagination'
 import '../../admin/content-list.css'
 import { useAdminView } from '../../admin/useAdminView'
-import { adminFilters, adminPage, adminStatus, adminId } from '../../admin/navigation'
+import {
+  adminFilters,
+  adminPage,
+  adminStatus,
+  adminId,
+  adminMissing,
+  adminContentListPath,
+  CONTENT_MISSING_OPTIONS,
+} from '../../admin/navigation'
 
 function ContentActions({
   content,
@@ -38,7 +51,7 @@ function ContentActions({
   )
 }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 5
 
 export function ContentListPage() {
   const navigate = useNavigate()
@@ -47,26 +60,33 @@ export function ContentListPage() {
     status = adminStatus(params.get('status')),
     page = adminPage(params.get('page'))
   const category = adminId(params.get('category_id'))
+  const missing = adminMissing(params.get('missing'))
+  const { attach: paginationRef, preserve: preservePaginationScroll } =
+    usePaginationScroll<HTMLElement>(`${query}:${status}:${category}:${missing}`)
   const update = (values: Record<string, string>) => setParams(adminFilters(params, values), true)
   const setQuery = (value: string) => update({ q: value })
   const setStatus = (value: string) => update({ status: value })
-  const setPage = (value: number) => update({ page: String(value) })
+  const setPage = (value: number) => {
+    if (value === page) return
+    preservePaginationScroll()
+    update({ page: String(value) })
+  }
   const categories = useAdminQuery<{ items: AdminCategory[] }>('/categories')
   const [panel, setPanel] = useState<{ content: AdminContent; view: ContentSubviewKind } | null>(
     null,
   )
   const openPanel = (content: AdminContent, view: ContentSubviewKind) => setPanel({ content, view })
   const list = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status, page, size: PAGE_SIZE })}`,
+    adminContentListPath(params, { size: PAGE_SIZE }),
   )
   const all = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'ALL', size: 1 })}`,
+    adminContentListPath(params, { status: 'ALL', size: 1 }),
   )
   const published = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'PUBLISHED', size: 1 })}`,
+    adminContentListPath(params, { status: 'PUBLISHED', size: 1 }),
   )
   const drafts = useAdminQuery<ApiPage<AdminContent>>(
-    `/contents${queryString({ q: query.trim() || undefined, category_id: category, status: 'DRAFT', size: 1 })}`,
+    adminContentListPath(params, { status: 'DRAFT', size: 1 }),
   )
   const reset = () => {
     setParams(new URLSearchParams())
@@ -108,6 +128,10 @@ export function ContentListPage() {
     },
   ]
   const totalPages = Math.max(1, Math.ceil((list.data?.total ?? 0) / PAGE_SIZE))
+  useEffect(() => {
+    if (list.data && page > totalPages)
+      setParams(adminFilters(params, { page: String(totalPages) }), true)
+  }, [list.data, page, totalPages, params, setParams])
   return (
     <>
       <div className="admin-page admin-cl">
@@ -147,7 +171,7 @@ export function ContentListPage() {
             </button>
           ))}
         </div>
-        <section className="admin-cl__panel" aria-label="콘텐츠 검색 결과">
+        <section ref={paginationRef} className="admin-cl__panel" aria-label="콘텐츠 검색 결과">
           <form
             className="admin-cl__toolbar"
             role="search"
@@ -159,32 +183,37 @@ export function ContentListPage() {
           >
             <div className="admin-cl__search">
               <Icon name="search" size={19} />
-              <input
+              <ImeInput
                 type="search"
                 aria-label="콘텐츠 검색어"
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                }}
+                onValueChange={setQuery}
                 placeholder="제목, 태그, 핵심 내용 검색"
               />
             </div>
-            <label className="admin-content-filter">
-              <span>분야</span>
-              <select
-                className="admin-input"
-                aria-label="콘텐츠 분야"
-                value={category ?? ''}
-                onChange={(event) => update({ category_id: event.target.value })}
-              >
-                <option value="">전체 분야</option>
-                {categories.data?.items.map((item) => (
-                  <option key={item.category_id} value={item.category_id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ContentFilter
+              className="admin-cl__filter admin-cl__filter--category"
+              id="content-list-category"
+              label="분야"
+              value={category ? String(category) : ''}
+              disabled={categories.isPending}
+              options={[
+                { id: '', label: '전체 분야' },
+                ...(categories.data?.items ?? []).map((item) => ({
+                  id: String(item.category_id),
+                  label: item.name,
+                })),
+              ]}
+              onChange={(category_id) => update({ category_id })}
+            />
+            <ContentFilter
+              className="admin-cl__filter admin-cl__filter--missing"
+              id="content-list-missing"
+              label="미등록 항목"
+              value={missing ?? ''}
+              options={CONTENT_MISSING_OPTIONS.map(({ value, label }) => ({ id: value, label }))}
+              onChange={(missing) => update({ missing })}
+            />
             <button className="admin-cl__search-submit" type="submit">
               검색
             </button>
@@ -200,7 +229,7 @@ export function ContentListPage() {
               )}{' '}
               <span>{list.data?.total?.toLocaleString() ?? '—'}</span>
             </p>
-            {query || status !== 'ALL' || category ? (
+            {query || status !== 'ALL' || category || missing ? (
               <button type="button" onClick={reset}>
                 <Icon name="reset" size={14} /> 조건 초기화
               </button>
@@ -208,12 +237,13 @@ export function ContentListPage() {
           </div>
           {list.isPending ? (
             <div className="admin-cl__loading">
-              <Spinner label="목록을 불러오는 중" />
+              <Skeleton variant="list" label="목록을 불러오는 중" />
               <span>콘텐츠를 불러오고 있어요</span>
             </div>
           ) : list.isError ? (
             <RequestError
               title="목록을 불러오지 못했어요."
+              variant="screen"
               error={list.error}
               action={<Button onClick={() => void list.refetch()}>다시 시도</Button>}
             />
@@ -238,7 +268,10 @@ export function ContentListPage() {
                     {list.data.items.map((c) => (
                       <tr key={c.content_id}>
                         <td>
-                          <span className="admin-table__title">{c.title || '제목 없음'}</span>
+                          <div className="sasu-thumbnail-row">
+                            <Thumbnail src={c.thumbnail_url} refreshKey={list.dataUpdatedAt} />
+                            <span className="admin-table__title">{c.title || '제목 없음'}</span>
+                          </div>
                           <span className="admin-table__tags">
                             {c.tags.map((t) => `#${t.name}`).join(' ')}
                           </span>
@@ -261,7 +294,10 @@ export function ContentListPage() {
                 {list.data.items.map((content) => (
                   <li className="admin-cl__content-card" key={content.content_id}>
                     <div className="admin-cl__card-head">
-                      <h2>{content.title || '제목 없음'}</h2>
+                      <div className="sasu-thumbnail-row">
+                        <Thumbnail src={content.thumbnail_url} refreshKey={list.dataUpdatedAt} />
+                        <h2>{content.title || '제목 없음'}</h2>
+                      </div>
                       <Badge tone={content.status === 'PUBLISHED' ? 'green' : 'neutral'}>
                         {content.status === 'PUBLISHED' ? '공개' : '임시저장'}
                       </Badge>

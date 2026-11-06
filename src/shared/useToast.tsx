@@ -1,19 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { Notification } from './Notification'
 
-// 성공·안내용 짧은 상태 알림. 자동으로 사라지며 사용자 화면 이동은 하지 않음(화면 설계서 1-2 알림)
 export function useToast() {
-  const [toast, setToast] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
-  const timer = useRef<number | undefined>(undefined)
-  const show = (text: string, tone: 'ok' | 'error' = 'ok') => {
-    window.clearTimeout(timer.current)
-    setToast({ text, tone })
-    timer.current = window.setTimeout(() => setToast(null), 2600)
+  const [toast, setToast] = useState<{ id: number; text: string; tone: 'ok' | 'error' } | null>(
+    null,
+  )
+  const show = useCallback((text: string, tone: 'ok' | 'error' = 'ok') => {
+    setToast((current) => ({ id: (current?.id ?? 0) + 1, text, tone }))
+  }, [])
+  return {
+    show,
+    node: toast ? <Notification key={toast.id} title={toast.text} tone={toast.tone} /> : null,
   }
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-  const node = toast ? (
-    <div className={`sasu-toast sasu-toast--${toast.tone}`} role="status" aria-live="polite">
-      {toast.text}
-    </div>
-  ) : null
-  return { show, node }
 }

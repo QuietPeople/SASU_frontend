@@ -48,8 +48,12 @@ export function libraryParams(params: URLSearchParams, name: string, value: stri
   if (name === 'tab') {
     next.set('tab', value)
     next.set('page', String(positiveId(next.get(`${value}_page`)) ?? 1))
-  } else if (name === 'concept') {
-    if (value) next.set(name, value)
+  } else if (name === 'concept' || name === 'q' || name === 'reset') {
+    const normalized = value.trim()
+    if (name === 'reset') {
+      next.delete('q')
+      next.delete('concept')
+    } else if (normalized) next.set(name, normalized)
     else next.delete(name)
     for (const tab of ['saved', 'wrong', 'cards']) next.delete(`${tab}_page`)
     next.delete('page')
@@ -67,9 +71,24 @@ export function reviewCategory(params: URLSearchParams, returnTo: string) {
   )
 }
 
+export function reviewSearch(params: URLSearchParams, returnTo: string) {
+  return (params.get('q') ?? new URLSearchParams(returnTo.split('?')[1]).get('q') ?? '').trim()
+}
+
 export function safeLibraryReturn(value: string | null | undefined, tab: LibraryTab) {
   if (value && /^\/learner\/library(?:\?|$)/.test(value)) return value
   return `/learner/library?tab=${tab}`
+}
+
+export function flashcardLibraryPath(params: URLSearchParams) {
+  const backTo = safeLibraryReturn(params.get('returnTo'), 'cards')
+  const query = new URLSearchParams(backTo.split('?')[1])
+  const next = libraryTab(query) === 'cards' ? query : libraryParams(query, 'tab', 'cards')
+  const category = positiveId(params.get('category'))
+  const q = params.get('q')?.trim()
+  if (!next.has('concept') && category) next.set('concept', String(category))
+  if (!next.has('q') && q) next.set('q', q)
+  return `/learner/library?${next}`
 }
 
 export function learnerErrorMessage(error: unknown) {
