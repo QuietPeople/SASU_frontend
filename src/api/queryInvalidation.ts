@@ -148,7 +148,8 @@ export function invalidateContentChange(
     (query) =>
       (tagsChanged && adminPath(query)?.pathname === '/tags') ||
       (contentId !== undefined &&
-        (adminContents(query, contentId) ||
+        (adminPath(query)?.pathname === '/categories/counts' ||
+          adminContents(query, contentId) ||
           adminCurriculums(query) ||
           adminStatistics(query, contentId) ||
           learnerResource(query, publicContentViews, contentId))),
@@ -162,7 +163,7 @@ export function invalidateCategoryChange(
   return invalidate(
     cache,
     (query) =>
-      adminPath(query)?.pathname === '/categories' ||
+      ['/categories', '/categories/counts'].includes(adminPath(query)?.pathname ?? '') ||
       learnerResource(query, ['categories']) ||
       (renamed &&
         (adminContents(query) ||

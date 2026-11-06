@@ -1,11 +1,14 @@
+import { Skeleton } from '../../shared/Skeleton'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidateQuestionChange } from '../../api/queryInvalidation'
 import { api } from '../../api/client'
 import {
   useAdminQuery,
   type AdminQuestion,
+  type AdminContent,
+  type EditableContent,
   type QuestionType,
   type QuestionVersion,
 } from '../../api/admin'
@@ -13,18 +16,23 @@ import { useSession } from '../../state/session'
 import type { ContentSubview } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { ContentTargetPicker } from '../../admin/ContentTargetPicker'
-import { Badge, Button, Spinner } from '../../admin/ui'
+import { ContentDialog } from '../../admin/ContentDialog'
+import { adminId } from '../../admin/navigation'
+import { Badge, Button } from '../../admin/ui'
 import { useToast } from '../../admin/useToast'
 import {
   activeQuestion,
   initialQuestionDraft,
   questionBody,
   questionErrors,
+  questionServerErrors,
   questionSignature,
   type QuestionDraft,
 } from '../../admin/questionEditor'
 import { SegmentedControl } from '../../admin/SegmentedControl'
 import { QuestionHistory } from '../../admin/QuestionHistory'
+import { QuestionPreview } from '../../admin/QuestionPreview'
+import { ResultBadge } from '../../admin/ResultBadge'
 import { FlashcardPreview } from '../../shared/FlashcardPreview'
 import { useFlashcardStyle, type FlashcardStyle } from '../../shared/useFlashcardStyle'
 import '../../admin/material.css'
@@ -35,82 +43,82 @@ const FORMATS: { id: QuestionType; label: string }[] = [
   { id: 'MCQ_4', label: '4지 선다' },
 ]
 
-// 단독 화면의 경로 이동에도 입력을 보존한다. 서버 저장이 아니며 탭을 새로고침하면 사라진다.
-const drafts = new Map<string, QuestionDraft>()
-
 export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
-  const { id: routeId } = useParams()
-  const id = embedded ? String(embedded.contentId) : routeId
-  const { actorId } = useSession()
-  const navigate = useNavigate()
-  const { show, node } = useToast()
-  const [dirty, setDirty] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [destination, setDestination] = useState<string | null>(null)
-  const confirmation = useRef<HTMLDialogElement>(null)
-  const stayButton = useRef<HTMLButtonElement>(null)
-  const current = useAdminQuery<AdminQuestion | null>(
-    id ? `/contents/${id}/question?view=editor` : null,
+  const { actorId, generation } = useSession()
+  return embedded ? (
+    <MaterialEditor embedded={embedded} />
+  ) : (
+    <MaterialWorkspace key={`${actorId}:${generation}`} />
   )
+}
+
+function MaterialWorkspace() {
+  const { id } = useParams()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const [selection, setSelection] = useState<AdminContent | null>(null)
+  const routeTarget = adminId(id ?? null)
+  const detail = useAdminQuery<EditableContent>(
+    routeTarget ? `/contents/${routeTarget}?view=editor` : null,
+  )
+  const selected = selection ?? (routeTarget ? detail.data?.detail.content : null)
+  const close = () => {
+    setSelection(null)
+    if (id) navigate(`/admin/materials${params.size ? `?${params}` : ''}`, { replace: true })
+  }
+  return (
+    <>
+      <div className="admin-page admin-material admin-material--workspace">
+        <header className="admin-page__head">
+          <p className="admin-eyebrow">관리자 · 학습자료</p>
+          <h1 className="admin-title">퀴즈·플래시카드</h1>
+          <p className="admin-sub">콘텐츠별 퀴즈와 연결된 플래시카드를 관리해요.</p>
+        </header>
+        <ContentTargetPicker onSelect={setSelection} />
+        {routeTarget && detail.isPending && (
+          <Skeleton variant="form" label="학습자료를 불러오는 중" />
+        )}
+        {id && (!routeTarget || detail.isError) && (
+          <RequestError
+            variant={selected ? 'toast' : 'screen'}
+            title="선택한 콘텐츠를 불러오지 못했어요."
+            error={detail.error}
+            action={
+              <>
+                {routeTarget && <Button onClick={() => void detail.refetch()}>다시 시도</Button>}
+                <Button onClick={close}>목록으로</Button>
+              </>
+            }
+          />
+        )}
+      </div>
+      {selected && (
+        <ContentDialog
+          key={selected.content_id}
+          content={selected}
+          initialView="materials"
+          onClose={close}
+        />
+      )}
+    </>
+  )
+}
+
+function MaterialEditor({ embedded }: { embedded: ContentSubview }) {
+  const { actorId, generation } = useSession()
+  const { show, node } = useToast()
+  const id = embedded.contentId
+  const current = useAdminQuery<AdminQuestion | null>(`/contents/${id}/question?view=editor`)
   const version = useAdminQuery<QuestionVersion>(
     current.data
       ? `/questions/${current.data.question_id}/versions/${current.data.question_version_id}`
       : null,
   )
-  const error = id ? (current.error ?? version.error) : null
-  const pending = !!id && (current.isPending || (!!current.data && version.isPending))
+  const error = current.error ?? version.error
   const hasData =
-    !id || (current.data !== undefined && (current.data === null || version.data !== undefined))
-  const move = (path: string) => {
-    if (busy) return
-    if (dirty) setDestination(path)
-    else navigate(path)
-  }
-  useEffect(() => {
-    if (!destination) return
-    const dialog = confirmation.current!
-    const previous = document.activeElement as HTMLElement | null
-    dialog.showModal()
-    stayButton.current?.focus()
-    return () => {
-      dialog.close()
-      previous?.focus()
-    }
-  }, [destination])
-  useEffect(() => {
-    if (embedded || (!dirty && !busy)) return
-    const guard = (event: MouseEvent) => {
-      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
-        return
-      const link = event.target instanceof Element ? event.target.closest('a[href]') : null
-      if (
-        !(link instanceof HTMLAnchorElement) ||
-        link.target === '_blank' ||
-        link.origin !== window.location.origin
-      )
-        return
-      if (link.pathname === window.location.pathname && link.search === window.location.search)
-        return
-      event.preventDefault()
-      if (!busy) setDestination(link.pathname + link.search + link.hash)
-    }
-    document.addEventListener('click', guard, true)
-    return () => document.removeEventListener('click', guard, true)
-  }, [embedded, dirty, busy])
+    current.data !== undefined && (current.data === null || version.data !== undefined)
   return (
     <div className="admin-page admin-form admin-material">
-      {!embedded && (
-        <>
-          <header className="admin-page__head">
-            <p className="admin-eyebrow">관리자 · 학습자료</p>
-            <h1 className="admin-title">퀴즈·플래시카드</h1>
-            <p className="admin-help">
-              콘텐츠의 퀴즈를 작성하면 질문과 정답이 복습 카드로 연결돼요.
-            </p>
-          </header>
-          <ContentTargetPicker target={id} disabled={busy} onSelect={move} />
-        </>
-      )}
       {error && (
         <RequestError
           title={
@@ -118,11 +126,12 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
               ? '최신 학습자료를 불러오지 못했어요. 작성 중인 내용은 유지돼요.'
               : '학습자료를 불러오지 못했어요.'
           }
+          variant={hasData ? 'toast' : 'screen'}
           error={error}
           action={
             <Button
               onClick={() => {
-                if (id) void current.refetch()
+                void current.refetch()
                 if (current.data) void version.refetch()
               }}
             >
@@ -131,57 +140,17 @@ export function MaterialPage({ embedded }: { embedded?: ContentSubview } = {}) {
           }
         />
       )}
-      {hasData && id ? (
+      {hasData ? (
         <QuestionEditor
-          key={`${actorId}:${id}:${version.data?.question_version_id ?? 'new'}`}
-          draftKey={`${actorId}:${id}:${version.data?.question_version_id ?? 'new'}`}
-          contentId={Number(id)}
+          key={`${actorId}:${generation}:${id}:${version.data?.question_version_id ?? 'new'}`}
+          contentId={id}
           initial={current.data ? version.data : undefined}
           embedded={embedded}
-          onDirtyChange={setDirty}
-          onBusyChange={setBusy}
           onSaved={show}
         />
-      ) : pending && !error ? (
-        <Spinner />
-      ) : hasData ? (
-        <div className="admin-empty">
-          <p className="admin-empty__title">퀴즈를 작성할 콘텐츠를 선택해 주세요.</p>
-          <p className="admin-help">콘텐츠마다 퀴즈 1개와 연결된 플래시카드를 관리해요.</p>
-        </div>
+      ) : !error ? (
+        <Skeleton variant="form" />
       ) : null}
-      <dialog
-        ref={confirmation}
-        className="admin-material-confirm"
-        aria-labelledby="material-leave-title"
-        onCancel={(event) => {
-          event.preventDefault()
-          setDestination(null)
-        }}
-      >
-        <h2 id="material-leave-title">저장하지 않은 변경이 있어요.</h2>
-        <p>이동할까요? 입력은 현재 탭에서 잠시 유지되며, 새로고침하면 사라져요.</p>
-        <div className="admin-row">
-          <button
-            ref={stayButton}
-            type="button"
-            className="admin-btn admin-btn--primary"
-            onClick={() => setDestination(null)}
-          >
-            계속 작성
-          </button>
-          <Button
-            onClick={() => {
-              if (destination) {
-                navigate(destination)
-                setDestination(null)
-              }
-            }}
-          >
-            이동
-          </Button>
-        </div>
-      </dialog>
       {node}
     </div>
   )
@@ -200,28 +169,19 @@ function FieldLabel({ children, complete }: { children: ReactNode; complete: boo
 
 function QuestionEditor({
   contentId,
-  draftKey,
   initial,
   embedded,
-  onDirtyChange: parentDirty,
-  onBusyChange: parentBusy,
   onSaved,
 }: {
   contentId: number
-  draftKey: string
   initial?: QuestionVersion
-  embedded?: ContentSubview
-  onDirtyChange: (dirty: boolean) => void
-  onBusyChange: (busy: boolean) => void
+  embedded: ContentSubview
   onSaved: (text: string) => void
 }) {
   const { actorId } = useSession()
   const cache = useQueryClient()
   const form = useRef<HTMLFieldSetElement>(null)
-  const [restored] = useState(() => !embedded && drafts.has(draftKey))
-  const [draft, setDraft] = useState(
-    () => (!embedded && drafts.get(draftKey)) || initialQuestionDraft(initial),
-  )
+  const [draft, setDraft] = useState(() => initialQuestionDraft(initial))
   const { format, question, explanation } = draft
   const { choices, answer } = activeQuestion(draft)
   const signature = questionSignature(draft)
@@ -229,6 +189,10 @@ function QuestionEditor({
   const dirty = signature !== baseline
   const saveMutation = useMutation({
     mutationFn: persistQuestion,
+    onError: (error) => {
+      const field = Object.keys(questionServerErrors(error))[0]
+      if (field) form.current?.querySelector<HTMLElement>(`[data-field="${field}"]`)?.focus()
+    },
     onSettled: () => {
       saving.current = false
     },
@@ -238,24 +202,20 @@ function QuestionEditor({
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [attempted, setAttempted] = useState(false)
   const [previewMode, setPreviewMode] = useState<'quiz' | 'card'>('quiz')
-  const [previewVisible, setPreviewVisible] = useState(true)
   const flashcardStyle = useFlashcardStyle()
-  const errors = questionErrors(draft)
-  const visibleError = (field: string) => (attempted || touched[field] ? errors[field] : undefined)
+  const serverErrors =
+    saveMutation.variables?.signature === signature ? questionServerErrors(saveMutation.error) : {}
+  const errors = { ...serverErrors, ...questionErrors(draft) }
+  const visibleError = (field: string) =>
+    attempted || touched[field] || serverErrors[field] ? errors[field] : undefined
   const touch = (field: string) => setTouched((old) => ({ ...old, [field]: true }))
-  const onDirtyChange = embedded?.onDirtyChange ?? parentDirty
-  const onBusyChange = embedded?.onBusyChange ?? parentBusy
+  const { onDirtyChange, onBusyChange } = embedded
   useEffect(() => {
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => {
     onBusyChange(busy)
   }, [busy, onBusyChange])
-  useEffect(() => {
-    if (embedded) return
-    if (dirty) drafts.set(draftKey, draft)
-    else drafts.delete(draftKey)
-  }, [draftKey, draft, dirty, embedded])
   useEffect(() => {
     if (!dirty && !busy) return
     const guard = (event: BeforeUnloadEvent) => {
@@ -266,7 +226,7 @@ function QuestionEditor({
     return () => window.removeEventListener('beforeunload', guard)
   }, [dirty, busy])
   const requestError = saveMutation.error
-  async function persistQuestion({ actorId }: { actorId: number }) {
+  async function persistQuestion({ actorId }: { actorId: number; signature: string }) {
     const body = questionBody(draft)
     const savedQuestion = await api<QuestionVersion>(
       initial ? `/questions/${initial.question_id}/versions` : `/contents/${contentId}/question`,
@@ -278,7 +238,6 @@ function QuestionEditor({
           : body,
       },
     )
-    drafts.delete(draftKey)
     setBaseline(signature)
     onSaved(
       initial ? '변경사항을 저장했어요. 이전 응답은 보존돼요.' : '퀴즈와 플래시카드를 연결했어요.',
@@ -295,7 +254,7 @@ function QuestionEditor({
       return
     }
     saving.current = true
-    saveMutation.mutate({ actorId })
+    saveMutation.mutate({ actorId, signature })
   }
   return (
     <>
@@ -308,7 +267,6 @@ function QuestionEditor({
             {busy ? '저장 중…' : dirty ? '저장하지 않은 변경' : initial ? '저장됨' : '작성 전'}
           </span>
         </div>
-        {restored && dirty && <p className="admin-help">이 탭에서 작성하던 내용을 복원했어요.</p>}
       </div>
       {requestError && <RequestError title="학습자료 저장 실패" error={requestError} />}
       <div className="admin-material__grid">
@@ -396,7 +354,7 @@ function QuestionEditor({
                       }))
                     }
                   />
-                  {answer === index && <span className="admin-material__correct">정답</span>}
+                  {answer === index && <ResultBadge result="CORRECT" />}
                 </div>
                 {visibleError(`choice-${index}`) && (
                   <p id={`material-choice-${index}-error`} className="admin-field-error">
@@ -434,24 +392,15 @@ function QuestionEditor({
             )}
           </label>
         </fieldset>
-        <div>
-          <Button
-            aria-expanded={previewVisible}
-            onClick={() => setPreviewVisible((value) => !value)}
-          >
-            {previewVisible ? '미리보기 접기' : '미리보기 열기'}
-          </Button>
-          {previewVisible && (
-            <MaterialPreview
-              key={signature}
-              draft={draft}
-              cardStyle={flashcardStyle}
-              mode={previewMode}
-              setMode={setPreviewMode}
-            />
-          )}
-        </div>
+        <MaterialPreview
+          key={signature}
+          draft={draft}
+          cardStyle={flashcardStyle}
+          mode={previewMode}
+          setMode={setPreviewMode}
+        />
       </div>
+      {initial && <QuestionHistory current={initial} />}
       <div className="admin-row admin-material__actions">
         <Button
           variant="primary"
@@ -461,13 +410,10 @@ function QuestionEditor({
         >
           {initial ? '변경사항 저장' : '저장'}
         </Button>
-        {embedded && (
-          <Button onClick={embedded.onClose} disabled={busy}>
-            닫기
-          </Button>
-        )}
+        <Button onClick={embedded.onClose} disabled={busy}>
+          닫기
+        </Button>
       </div>
-      {initial && <QuestionHistory current={initial} />}
     </>
   )
 }
@@ -504,29 +450,18 @@ function MaterialPreview({
       />
       {mode === 'quiz' ? (
         <div className="admin-material__quiz">
-          <p className="admin-material__preview-question">
-            {draft.question.trim() || '질문을 입력해 주세요'}
-          </p>
-          <div
-            className="admin-material__preview-options"
-            role="group"
-            aria-label="퀴즈 미리보기 답 선택"
-          >
-            {choices.map((choice, index) => (
-              <button
-                key={index}
-                type="button"
-                aria-pressed={picked === index}
-                disabled={checked || !choice.trim()}
-                className={`${picked === index ? 'is-picked' : ''} ${checked && answer === index ? 'is-answer' : ''}`}
-                onClick={() => setPicked(index)}
-              >
-                <span>{index + 1}</span>
-                <span>{choice.trim() || `${index + 1}번 보기`}</span>
-                {checked && answer === index && <strong>정답</strong>}
-              </button>
-            ))}
-          </div>
+          <QuestionPreview
+            question={draft.question}
+            options={choices.map((choice, index) => ({
+              option_id: index,
+              option_order: index + 1,
+              option_text: choice,
+            }))}
+            selectedOptionId={picked}
+            correctOptionId={checked ? answer : null}
+            disabled={checked}
+            onSelect={setPicked}
+          />
           {checked ? (
             <div className="admin-material__preview-result" role="status">
               <strong>{picked === answer ? '정답이에요' : '정답을 확인해 보세요'}</strong>

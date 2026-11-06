@@ -420,3 +420,61 @@ test('콘텐츠 생성 전 태그만 저장된 부분 성공은 태그 목록만
     ...snapshots,
   )
 })
+
+test('콘텐츠 저장·공개와 분야 변경은 서버 분야 집계를 갱신하고 태그만 생성된 실패는 제외한다', async () => {
+  const cache = new QueryClient()
+  const key = admin('/categories/counts')
+  try {
+    cache.setQueryData(key, {
+      items: [{ category_id: 1, total_count: 3, published_count: 2, draft_count: 1 }],
+    })
+    await invalidateContentChange(cache, { tagsChanged: true })
+    assert.equal(cache.getQueryState(key).isInvalidated, false)
+    await invalidateContentChange(cache, { contentId: 7 })
+    assert.equal(cache.getQueryState(key).isInvalidated, true)
+    cache.setQueryData(key, { items: [] })
+    await invalidateCategoryChange(cache, { renamed: false })
+    assert.equal(cache.getQueryState(key).isInvalidated, true)
+  } finally {
+    cache.clear()
+  }
+})
+
+test('영상·학습자료 등록 후 활성 미등록 목록과 개수를 다시 조회한다', async () => {
+  const cache = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  let missing = true
+  const observers = []
+  const stops = []
+  const paths = [
+    '/contents?missing=video&page=1&size=10',
+    '/contents?missing=learning_material&page=2&size=10',
+    '/contents?missing=either&status=DRAFT&page=1&size=1',
+  ]
+  try {
+    for (const path of paths) {
+      const options = {
+        queryKey: admin(path),
+        queryFn: async () => ({
+          items: missing ? [{ content_id: 7 }] : [],
+          total: missing ? 1 : 0,
+        }),
+      }
+      await cache.fetchQuery(options)
+      const observer = new QueryObserver(cache, options)
+      observers.push(observer)
+      stops.push(observer.subscribe(() => {}))
+    }
+    missing = false
+    await invalidateContentChange(cache, { contentId: 7 })
+    for (const path of paths) assert.equal(cache.getQueryData(admin(path)).total, 0)
+    missing = true
+    await invalidateQuestionChange(cache, { contentId: 7, questionId: 3 })
+    for (const path of paths) assert.equal(cache.getQueryData(admin(path)).total, 1)
+  } finally {
+    for (const stop of stops) stop()
+    for (const observer of observers) observer.destroy()
+    cache.clear()
+  }
+})

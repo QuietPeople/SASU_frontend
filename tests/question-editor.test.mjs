@@ -5,6 +5,7 @@ import {
   initialQuestionDraft,
   questionBody,
   questionErrors,
+  questionServerErrors,
   questionSignature,
 } from '../src/admin/questionEditor.ts'
 
@@ -90,4 +91,31 @@ test('서버 보기 순서를 정렬하고 OX의 정답을 객관식에 넘기�
     choices: ['', '', ''],
     answer: -1,
   })
+})
+
+test('앞뒤 공백을 제외한 중복 보기 모두에 오류를 표시하며 대소문자·내부 공백은 구분한다', () => {
+  const errors = questionErrors({ ...complete, mcqChoices: ['하나', ' 하나 ', '셋', '하나'] })
+  assert.deepEqual(Object.keys(errors), ['choice-0', 'choice-1'])
+  assert.match(errors['choice-0'], /다른 보기/)
+  assert.deepEqual(questionErrors({ ...complete, mcqChoices: ['A B', 'A  B', 'a b', 'A B'] }), {})
+  assert.deepEqual(questionErrors({ ...complete, format: 'OX', oxAnswer: 0 }), {})
+})
+
+test('서버의 중복 위치를 보기 입력에 연결하고 다른 오류·잘못된 위치는 제외한다', () => {
+  assert.deepEqual(
+    Object.keys(
+      questionServerErrors({
+        code: 'DUPLICATE_OPTION',
+        fields: [
+          { field: 'options[0].option_text' },
+          { field: 'options[2].option_text' },
+          { field: 'options[4].option_text' },
+          null,
+        ],
+      }),
+    ),
+    ['choice-0', 'choice-2'],
+  )
+  assert.deepEqual(questionServerErrors({ code: 'INTERNAL_ERROR', fields: [] }), {})
+  assert.deepEqual(questionServerErrors(null), {})
 })
