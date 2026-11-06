@@ -24,42 +24,6 @@
   flex: 1 1 0;
   min-width: 0;
 }
-.admin-target-picker {
-  margin-bottom: 22px;
-}
-.admin-target-picker__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 12px;
-}
-.admin-target-picker__filters .admin-field {
-  flex: 1 1 160px;
-  margin: 0;
-}
-.admin-target-picker__list {
-  list-style: none;
-  padding: 0;
-}
-.admin-target-picker__list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--admin-line, #e2e8f0);
-}
-.admin-target-picker__list p {
-  font-size: 13px;
-  color: var(--admin-sub);
-  margin: 6px 0 0;
-}
-.admin-target-picker__selected,
-.admin-stats-target {
-  padding: 12px 16px;
-  background: #f0f5ff;
-  border-radius: 12px;
-}
 .admin-category__usage button {
   border: 0;
   background: none;
@@ -72,26 +36,6 @@
 }
 .admin-category__usage button:disabled {
   cursor: default;
-}
-.admin-editor__missing {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-.admin-editor__missing button {
-  padding: 6px 10px;
-  font-size: 13px;
-  border: 1px solid #d8b776;
-  border-radius: 9px;
-  background: #fff9ed;
-  color: #805d14;
-  cursor: pointer;
-}
-.admin-editor__missing strong {
-  align-self: center;
-  font-size: 13px;
-  color: var(--admin-sub);
 }
 .admin-editor .admin-editor__grid {
   grid-template-areas: 'basic video' 'caution video';
@@ -123,16 +67,6 @@
 .admin-stats [id^='stats-'] {
   scroll-margin-top: 90px;
 }
-.admin-request-summary {
-  margin-block: 12px;
-  padding: 14px 16px;
-  border: 1px solid #e0b1b1;
-  border-radius: 12px;
-  background: #fff7f7;
-}
-.admin-request-summary p {
-  margin: 8px 0;
-}
 @media (max-width: 900px) {
   .admin-editor .admin-editor__grid {
     grid-template-columns: minmax(0, 1fr);
@@ -152,18 +86,5 @@
 @media (max-width: 700px) {
   .admin-stats-jumps {
     display: flex;
-  }
-}
-@media (max-width: 540px) {
-  .admin-target-picker__filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .admin-target-picker__filters .admin-field {
-    flex: 0 0 auto;
-  }
-  .admin-target-picker__list li {
-    align-items: start;
-    flex-direction: column;
   }
 }
