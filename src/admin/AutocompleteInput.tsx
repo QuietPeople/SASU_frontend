@@ -1,3 +1,4 @@
+import { ImeInput } from '../shared/ImeInput'
 import { useEffect, useRef, useState } from 'react'
 interface Option {
   id: string
@@ -74,7 +75,7 @@ export function AutocompleteInput({
         }
       }}
     >
-      <input
+      <ImeInput
         ref={input}
         id={id}
         className="admin-input"
@@ -98,13 +99,12 @@ export function AutocompleteInput({
           if (!focused || dismissed) onOpen?.()
           setDismissed(false)
         }}
-        onChange={(event) => {
-          onChange(event.target.value)
+        onValueChange={(next) => {
+          onChange(next)
           setDismissed(false)
           setActive(-1)
         }}
         onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return
           if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && matches.length) {
             event.preventDefault()
             setDismissed(false)

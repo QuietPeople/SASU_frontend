@@ -9,9 +9,17 @@ interface ListPosition {
 export function useListMemory(scope: string, area: string, query: string, ready: boolean) {
   const key = `${scope}:${area}:${query}`
   const restored = useRef('')
+  const keepNextPosition = useRef(false)
   const positions = useRef(new Map<string, ListPosition>())
   useLayoutEffect(() => {
-    if (!ready || restored.current === key) return
+    if (!ready) return
+    if (keepNextPosition.current) {
+      keepNextPosition.current = false
+      restored.current = key
+      positions.current.set(key, { scroll: window.scrollY })
+      return
+    }
+    if (restored.current === key) return
     const saved = readView<ListPosition>(key)
     const point = positions.current.get(key) ?? {
       scroll: saved && Number.isFinite(saved.scroll) && saved.scroll >= 0 ? saved.scroll : 0,
@@ -58,6 +66,7 @@ export function useListMemory(scope: string, area: string, query: string, ready:
     [key],
   )
   const reset = useCallback(() => {
+    keepNextPosition.current = false
     clearView(key)
     const point = positions.current.get(key)
     if (point) {
@@ -66,5 +75,8 @@ export function useListMemory(scope: string, area: string, query: string, ready:
     }
     window.scrollTo(0, 0)
   }, [key])
-  return { remember, reset }
+  const preserveScroll = useCallback(() => {
+    keepNextPosition.current = true
+  }, [])
+  return { remember, reset, preserveScroll }
 }
