@@ -8,7 +8,6 @@ import {
   SeriesPage,
   LibraryPage,
   ReviewPage,
-  FlashcardPage,
   DashboardPage,
   SettingsPage,
   ContentListPage,
@@ -19,16 +18,29 @@ import {
   StatsPage,
   ResetPage,
 } from './lazyPages'
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useSearchParams } from 'react-router'
+import { flashcardLibraryPath, positiveId } from '../features/learner-navigation/state'
 
 import { useSession } from '../state/session'
 
 // 첫 이용(L01)을 아직 마치지 않았으면 피드 대신 관심 분야 안내로 보냄(공통기준 11)
 function Feed({ mode }: { mode: 'feed' | 'watch' }) {
   const { settings } = useSession()
-  if (mode === 'feed' && settings && !settings.interest_guide_completed)
+  const [params] = useSearchParams()
+  // 직접 선택한 영상은 관심 분야 안내로 우회하지 않고 바로 재생한다.
+  if (
+    mode === 'feed' &&
+    !positiveId(params.get('start')) &&
+    settings &&
+    !settings.interest_guide_completed
+  )
     return <Navigate to="/learner/welcome" replace />
   return <FeedPage mode={mode} />
+}
+
+function LegacyFlashcardRedirect() {
+  const [params] = useSearchParams()
+  return <Navigate to={flashcardLibraryPath(params)} replace />
 }
 
 function Learner({ children }: { children: React.ReactNode }) {
@@ -118,14 +130,7 @@ export function AppRouter() {
             </Learner>
           }
         />
-        <Route
-          path="/learner/cards"
-          element={
-            <Learner>
-              <FlashcardPage />
-            </Learner>
-          }
-        />
+        <Route path="/learner/cards" element={<LegacyFlashcardRedirect />} />
         <Route
           path="/learner/dashboard"
           element={

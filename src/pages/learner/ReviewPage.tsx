@@ -1,3 +1,4 @@
+import { Skeleton } from '../../shared/Skeleton'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router'
@@ -17,8 +18,13 @@ import { Button } from '../../learner/ui'
 import { LearnerState as StateBlock } from '../../learner/LearnerState'
 
 import { reviewTargets } from '../../features/learner-navigation/lists'
-import { reviewCategory, safeLibraryReturn } from '../../features/learner-navigation/state'
+import {
+  reviewCategory,
+  reviewSearch,
+  safeLibraryReturn,
+} from '../../features/learner-navigation/state'
 import '../../learner/navigation.css'
+import '../../learner/review.css'
 
 function useReviewReturnTo() {
   const location = useLocation()
@@ -44,7 +50,7 @@ export function ReviewPage() {
   if (isPending && !identity)
     return (
       <div className="sasu-page">
-        <StateBlock title="학습자 정보를 불러오는 중이에요." />
+        <Skeleton variant="form" label="학습자 정보를 불러오는 중이에요." />
       </div>
     )
   if (error && !identity)
@@ -73,6 +79,7 @@ export function ReviewPage() {
     return (
       <div className="sasu-page">
         <StateBlock
+          variant="screen"
           title="올바른 복습 주소가 아니에요."
           action={<Link to={backTo}>보관함으로</Link>}
         />
@@ -81,13 +88,12 @@ export function ReviewPage() {
   return (
     <>
       {error || backgroundError ? (
-        <div className="sasu-page">
-          <StateBlock
-            title="학습자 정보를 갱신하지 못했어요."
-            error={error ?? backgroundError}
-            action={<Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>}
-          />
-        </div>
+        <StateBlock
+          title="학습자 정보를 갱신하지 못했어요."
+          variant="toast"
+          error={error ?? backgroundError}
+          action={<Button onClick={() => void refreshSettings()}>정보 다시 불러오기</Button>}
+        />
       ) : null}
       <WrongReview
         key={`${actorId}:${learnerId}:${generation}:${id}:${versionId}`}
@@ -126,6 +132,7 @@ function WrongReview({
   const [params, setParams] = useSearchParams()
   const [newSessionId] = useState(() => crypto.randomUUID())
   const category = reviewCategory(params, backTo)
+  const q = reviewSearch(params, backTo)
   const scope = `${identity.actorId}:${identity.learnerId}:${identity.generation}`
   const requestedSession = params.get('reviewSession')
   const restore =
@@ -145,7 +152,7 @@ function WrongReview({
   }, [params, setParams, attemptId, scope, backTo])
 
   const wrong = useQuery<ReviewData>({
-    queryKey: learningKey(identity, 'wrong-review', contentId, versionId, attemptId, category),
+    queryKey: learningKey(identity, 'wrong-review', contentId, versionId, attemptId, category, q),
     enabled: (query) => query.state.data === undefined,
     queryFn: async ({ signal }) => {
       if (restore) {
@@ -186,7 +193,7 @@ function WrongReview({
             if (!(cause instanceof ApiError && cause.status === 404)) throw cause
           }
           try {
-            const pending = await reviewTargets(identity, contentId, versionId, category, signal)
+            const pending = await reviewTargets(identity, contentId, versionId, category, signal, q)
             return {
               target: { question: restoredAttempt.question, contentId, title, categoryName },
               restoredAttempt,
@@ -202,7 +209,14 @@ function WrongReview({
           }
         }
       }
-      const { target, next } = await reviewTargets(identity, contentId, versionId, category, signal)
+      const { target, next } = await reviewTargets(
+        identity,
+        contentId,
+        versionId,
+        category,
+        signal,
+        q,
+      )
       return {
         target: target
           ? {
@@ -224,7 +238,7 @@ function WrongReview({
   if (wrong.isPending)
     return (
       <div className="sasu-page">
-        <StateBlock title="복습할 문항을 불러오는 중이에요." />
+        <Skeleton variant="form" label="복습할 문항을 불러오는 중이에요." />
       </div>
     )
   if (wrong.isError)
@@ -241,7 +255,7 @@ function WrongReview({
                 <Button onClick={() => void wrong.refetch()}>다시 시도</Button>
               ) : null}
               <Link className="sasu-link" to={backTo}>
-                현재 오답 목록 확인
+                다시 풀 문제 목록 확인
               </Link>
             </>
           }
@@ -252,7 +266,8 @@ function WrongReview({
     return (
       <div className="sasu-page">
         <StateBlock
-          title="현재 미해결 오답이 아닌 문항이에요."
+          variant="screen"
+          title="현재 다시 풀 문제 목록에 없는 문항이에요."
           text="이미 해결되었거나 문항이 새 버전으로 바뀌었을 수 있어요. 보관함에서 현재 목록을 확인해 주세요."
           action={<Link to={backTo}>오답 보관함으로</Link>}
         />
@@ -263,6 +278,7 @@ function WrongReview({
       {wrong.data.nextError ? (
         <div className="sasu-page">
           <StateBlock
+            variant="toast"
             title="다음 복습 대상을 불러오지 못했어요."
             error={wrong.data.nextError}
             action={<Button onClick={() => void wrong.refetch()}>다음 대상 다시 확인</Button>}
@@ -301,54 +317,55 @@ function OpenedReview({
   const location = useLocation()
   const [params] = useSearchParams()
   const category = reviewCategory(params, backTo)
+  const q = reviewSearch(params, backTo)
   const sourceTo = `/learner/watch/${target.contentId}${queryString({ from: 'wrong', questionVersionId: target.question.question_version_id, returnTo: backTo, reviewSession: attemptId, reviewScope: scope })}`
   return (
     <div className="sasu-page sasu-review">
-      <div className="sasu-review__top">
-        <Link className="sasu-link" to={backTo}>
+      <nav className="sasu-review__navigation" aria-label="복습 화면 이동">
+        <Link className="sasu-backlink" to={backTo}>
           ← 보관함으로
         </Link>
-        <span className="sasu-sub">
-          오답 복습 · {target.title ?? `영상 ${target.contentId}`} · {target.categoryName}
-        </span>
-      </div>
-      <section className="sasu-card">
-        <p className="sasu-review__secondary">
-          <Link
-            className="sasu-link"
-            to={sourceTo}
-            state={{ context: 'REVIEW', returnTo: `${location.pathname}${location.search}` }}
-          >
-            원본 영상 보기
-          </Link>
-        </p>
+        <Link
+          className="sasu-btn sasu-btn--default sasu-review__source"
+          to={sourceTo}
+          state={{ context: 'REVIEW', returnTo: `${location.pathname}${location.search}` }}
+        >
+          원본 영상 보기
+        </Link>
+      </nav>
+      <section className="sasu-card sasu-review__card" aria-labelledby="review-title">
+        <header className="sasu-review__heading">
+          <p className="sasu-eyebrow">오답 복습</p>
+          <h1 id="review-title">{target.title ?? `영상 ${target.contentId}`}</h1>
+          {target.categoryName ? <p className="sasu-sub">{target.categoryName}</p> : null}
+        </header>
         <QuizView
           identity={identity}
           question={target.question}
           responsePath="WRONG_NOTE"
+          appearance="material-preview"
           attemptId={attemptId}
           restoredAttempt={restoredAttempt}
-          context={`원본 영상: ${target.title ?? `영상 ${target.contentId}`}`}
           footer={() => (
             <div className="sasu-row">
               {next ? (
                 <Link
                   className="sasu-btn sasu-btn--primary"
-                  to={`/learner/review/${next.content.content_id}${queryString({ questionVersionId: next.question.question_version_id, category, returnTo: backTo })}`}
+                  to={`/learner/review/${next.content.content_id}${queryString({ questionVersionId: next.question.question_version_id, category, q: q || undefined, returnTo: backTo })}`}
                   state={{ returnTo: backTo }}
                 >
                   다음 복습 →
                 </Link>
               ) : (
-                <Link className="sasu-link" to={backTo}>
+                <Link className="sasu-btn sasu-btn--primary" to={backTo}>
                   보관함으로
                 </Link>
               )}
             </div>
           )}
         />
-        <p className="sasu-help">
-          정답을 맞히면 미해결 오답이 풀려요. 건너뛰기는 추가 오답으로 기록하지 않아요.
+        <p className="sasu-help sasu-review__hint">
+          정답을 제출하면 다시 풀 문제 목록에서 빠져요. 건너뛰기는 추가 오답으로 기록하지 않아요.
         </p>
       </section>
     </div>
