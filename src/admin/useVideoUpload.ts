@@ -77,6 +77,7 @@ export function useVideoUpload({
     contentId: number
     file: File
     expectedMediaRevision?: string | null
+    generateThumbnail?: boolean
   }) {
     if (!mounted.current) throw new DOMException('화면을 벗어나 요청을 중단했습니다.', 'AbortError')
     if (actorId === null || active.current) throw new Error('영상 업로드를 시작할 수 없어요.')

@@ -1,3 +1,5 @@
+import { queryString } from '../api/client.ts'
+
 const PREFIX = 'sasu.admin.view.'
 export function readAdminView(key: string) {
   try {
@@ -34,4 +36,31 @@ export function adminFilters(params: URLSearchParams, values: Record<string, str
     else next.set(key, value)
   }
   return next
+}
+
+export const CONTENT_MISSING_OPTIONS = [
+  { value: '', label: '전체' },
+  { value: 'video', label: '영상 미등록' },
+  { value: 'learning_material', label: '학습자료 미등록' },
+  { value: 'either', label: '영상 또는 학습자료 미등록' },
+] as const
+
+export function adminMissing(value: string | null) {
+  return value === 'video' || value === 'learning_material' || value === 'either'
+    ? value
+    : undefined
+}
+
+export function adminContentListPath(
+  params: URLSearchParams,
+  { size = 10, status }: { size?: number; status?: ReturnType<typeof adminStatus> } = {},
+) {
+  return `/contents${queryString({
+    q: params.get('q')?.trim() || undefined,
+    category_id: adminId(params.get('category_id')),
+    status: status ?? adminStatus(params.get('status')),
+    missing: adminMissing(params.get('missing')),
+    page: status === undefined ? adminPage(params.get('page')) : 1,
+    size,
+  })}`
 }

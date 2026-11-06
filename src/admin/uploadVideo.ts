@@ -2,7 +2,7 @@ import { ApiError, GENERATION_MISMATCH_EVENT } from '../api/client.ts'
 import type { UploadedVideo } from '../api/admin.ts'
 
 export const VIDEO_UPLOAD_TIMEOUT_MS = 10 * 60 * 1000
-export const VIDEO_RESPONSE_TIMEOUT_MS = 3 * 60 * 1000
+export const VIDEO_RESPONSE_TIMEOUT_MS = 10 * 60 * 1000
 
 export interface VideoUploadProgress {
   phase: 'uploading' | 'processing'
@@ -16,6 +16,7 @@ export function uploadVideo({
   actorId,
   file,
   expectedMediaRevision,
+  generateThumbnail = true,
   onProgress,
   signal,
   timeoutMs = VIDEO_UPLOAD_TIMEOUT_MS,
@@ -25,6 +26,7 @@ export function uploadVideo({
   actorId: number
   file: File
   expectedMediaRevision?: string | null
+  generateThumbnail?: boolean
   onProgress: (progress: VideoUploadProgress) => void
   signal?: AbortSignal
   timeoutMs?: number
@@ -38,6 +40,7 @@ export function uploadVideo({
     const request = new XMLHttpRequest()
     const body = new FormData()
     body.append('file', file)
+    body.append('generate_thumbnail', String(generateThumbnail))
     if (expectedMediaRevision) body.append('expected_media_revision', expectedMediaRevision)
     let progress: VideoUploadProgress = {
       phase: 'uploading',
@@ -80,6 +83,8 @@ export function uploadVideo({
     }
     request.upload.onload = () => {
       if (settled || progress.phase === 'processing') return
+      // XHR 제한은 전송 시간까지 포함하므로, 전송 후에는 응답 대기 타이머로 전환한다.
+      request.timeout = 0
       progress = {
         ...progress,
         phase: 'processing',

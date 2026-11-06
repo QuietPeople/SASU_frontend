@@ -22,6 +22,7 @@ test('중단·통신 단절·응답 손실·교체 충돌은 실패 확정 대�
     assert.equal(uploadNeedsReview(error), true)
   assert.equal(uploadNeedsReview(new ApiError(422, 'INVALID_VIDEO', '')), false)
   assert.equal(uploadNeedsReview(new ApiError(413, 'FILE_TOO_LARGE', '')), false)
+  assert.equal(uploadNeedsReview(new ApiError(500, 'THUMBNAIL_GENERATION_FAILED', '')), false)
 })
 
 test('최신 revision은 변화만 판정하며 중단 요청의 성공 여부로 단정하지 않는다', () => {

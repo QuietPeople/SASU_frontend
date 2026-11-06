@@ -17,6 +17,8 @@ export class UploadNeedsReviewError extends Error {
 }
 
 export function uploadNeedsReview(error: unknown) {
+  // 추출 실패 응답은 서버가 새 영상 연결을 취소한 결과이므로 중단 확인창을 띄우지 않는다.
+  if (error instanceof ApiError && error.code === 'THUMBNAIL_GENERATION_FAILED') return false
   return (
     (error instanceof Error && error.name === 'AbortError') ||
     (error instanceof ApiError &&

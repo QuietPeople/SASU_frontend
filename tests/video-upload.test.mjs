@@ -74,6 +74,15 @@ test('영상 PUT 요청에 파일·사용자·기존 revision을 유지하고 mu
   assert.deepEqual(request.headers, { Accept: 'application/json', 'X-Actor-Id': '1' })
   assert.equal(request.body.get('file').name, 'sample.mp4')
   assert.equal(request.body.get('expected_media_revision'), 'old')
+  assert.equal(request.body.get('generate_thumbnail'), 'true')
+  request.respond(200, result)
+  assert.deepEqual(await promise, result)
+})
+
+test('직접 이미지를 선택한 요청은 자동 추출 생략 값을 multipart로 전송한다', async () => {
+  const { promise, request } = start({ generateThumbnail: false })
+  assert.equal(request.body.get('generate_thumbnail'), 'false')
+  assert.equal(request.body.getAll('generate_thumbnail').length, 1)
   request.respond(200, result)
   assert.deepEqual(await promise, result)
 })
@@ -178,15 +187,16 @@ test('전송 완료 후 대기를 중단해도 늦은 성공 응답을 적용하
   assert.equal(events.length, 2)
 })
 
-test('전체 요청 제한과 별도로 파일 전송 이후의 응답 대기 제한을 적용한다', async (t) => {
+test('전송 제한 직전에 완료해도 서버 응답은 추가로 10분 동안 기다린다', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const { promise, request } = start()
   assert.equal(request.timeout, VIDEO_UPLOAD_TIMEOUT_MS)
   const rejection = assert.rejects(promise, { code: 'UPLOAD_TIMEOUT' })
-  t.mock.timers.tick(VIDEO_RESPONSE_TIMEOUT_MS)
+  t.mock.timers.tick(VIDEO_UPLOAD_TIMEOUT_MS - 1)
   assert.equal(request.aborted, undefined)
   request.upload.onload()
-  t.mock.timers.tick(VIDEO_RESPONSE_TIMEOUT_MS - 1)
+  assert.equal(request.timeout, 0)
+  t.mock.timers.tick(10 * 60 * 1000 - 1)
   assert.equal(request.aborted, undefined)
   t.mock.timers.tick(1)
   await rejection

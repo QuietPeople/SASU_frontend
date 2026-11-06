@@ -5,6 +5,8 @@ import {
   adminPage,
   adminStatus,
   adminId,
+  adminMissing,
+  adminContentListPath,
   readAdminView,
   writeAdminView,
 } from '../src/admin/navigation.ts'
@@ -62,5 +64,59 @@ test('목록 상태는 행위자·기록 세대·화면별로 분리하고 저�
   } finally {
     if (previous === undefined) delete globalThis.sessionStorage
     else globalThis.sessionStorage = previous
+  }
+})
+
+test('미등록 항목 변경은 검색·분야·공개 상태를 유지하고 페이지를 초기화한다', () => {
+  const original = new URLSearchParams('q=엑셀&category_id=11&status=DRAFT&page=4')
+  const next = adminFilters(original, { missing: 'learning_material' })
+  assert.equal(next.get('missing'), 'learning_material')
+  assert.equal(next.get('q'), '엑셀')
+  assert.equal(next.get('category_id'), '11')
+  assert.equal(next.get('status'), 'DRAFT')
+  assert.equal(next.has('page'), false)
+  const moved = adminFilters(next, { page: '2' })
+  assert.equal(moved.get('missing'), 'learning_material')
+  const cleared = adminFilters(moved, { missing: '' })
+  assert.equal(cleared.has('missing'), false)
+  assert.equal(cleared.has('page'), false)
+  assert.equal(cleared.get('q'), '엑셀')
+})
+
+test('콘텐츠 목록·학습자료 목록·상태별 개수에 같은 미등록 조건을 전달한다', () => {
+  for (const missing of ['video', 'learning_material', 'either']) {
+    const params = new URLSearchParams({
+      q: ' 엑셀 ',
+      category_id: '11',
+      status: 'DRAFT',
+      page: '3',
+      missing,
+    })
+    for (const options of [
+      {},
+      { size: 1, status: 'ALL' },
+      { size: 1, status: 'PUBLISHED' },
+      { size: 1, status: 'DRAFT' },
+    ]) {
+      const url = new URL(adminContentListPath(params, options), 'http://local')
+      assert.equal(url.pathname, '/contents')
+      assert.equal(url.searchParams.get('missing'), missing)
+      assert.equal(url.searchParams.get('q'), '엑셀')
+      assert.equal(url.searchParams.get('category_id'), '11')
+      assert.equal(url.searchParams.get('status'), options.status ?? 'DRAFT')
+      assert.equal(url.searchParams.get('page'), options.status ? '1' : '3')
+      assert.equal(url.searchParams.get('size'), String(options.size ?? 10))
+    }
+  }
+})
+
+test('전체 또는 잘못된 미등록 조건은 서버에 보내지 않는다', () => {
+  for (const value of [null, '', 'all', 'quiz', 'video,learning_material']) {
+    assert.equal(adminMissing(value), undefined)
+    const url = new URL(
+      adminContentListPath(new URLSearchParams({ missing: value ?? '' })),
+      'http://local',
+    )
+    assert.equal(url.searchParams.has('missing'), false)
   }
 })
