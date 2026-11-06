@@ -1,14 +1,11 @@
+import { ErrorFeedback } from '../../shared/ErrorFeedback'
+import { Notification } from '../../shared/Notification'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
-import {
-  getFeed,
-  getFeedCandidate,
-  saveFeedPosition,
-  type Feed,
-  type FeedItem,
-  type FeedPosition,
-} from '../../api/feed'
+import { Link, useLocation, useSearchParams } from 'react-router'
+import { positiveId } from '../learner-navigation/state'
+import { getFeedEntry, feedSessionAtEntry, type FeedEntry, type FeedDisplayItem } from './entry'
+import { getFeedCandidate, saveFeedPosition } from '../../api/feed'
 import {
   getLearningContent,
   getLearningQuestion,
@@ -21,13 +18,16 @@ import { SwipeViewport, type SwipeItem } from '../content-viewer/SwipeViewport'
 import { SwipeScene } from '../content-viewer/SwipeScene'
 import { feedSlides } from './feedSlides'
 import { LEARNING_PRELOAD_STALE_MS } from '../content-viewer/preloadPolicy'
-import { SwipeEndPreview, BufferedVideo } from '../content-viewer/BufferedVideo'
+import { BufferedVideo } from '../content-viewer/BufferedVideo'
+import { FeedEndCard } from './FeedEndCard'
 import { FeedCardPreview } from './FeedCardPreview'
 import { FLASHCARD_STYLES } from '../../shared/useFlashcardStyle'
 import { VideoLoading, VideoLoadingFrame } from '../content-viewer/VideoLoading'
+import { VideoUnavailable } from '../content-viewer/VideoUnavailable'
 import { createViewerSession, type ViewerSession } from '../content-viewer/viewerSession'
 import { FeedReviewCard } from './FeedReviewCard'
-import { Button, StateBlock } from '../../learner/ui'
+import { Button } from '../../learner/ui'
+import { LearnerState as StateBlock } from '../../learner/LearnerState'
 import { useSession } from '../../state/session'
 import {
   readFeedSession,
@@ -40,6 +40,14 @@ import {
 } from './session'
 
 export function PersonalizedFeed() {
+  const location = useLocation()
+  const [params] = useSearchParams()
+  const startContentId = positiveId(params.get('start'))
+  const requestedReturn = location.state?.returnTo
+  const returnTo =
+    typeof requestedReturn === 'string' && /^\/learner\/search(?:\?|$)/.test(requestedReturn)
+      ? requestedReturn
+      : '/learner/search'
   const { actorId, learnerId, generation, settings, refreshSettings } = useSession()
   const identity = useMemo(
     () =>
@@ -59,19 +67,32 @@ export function PersonalizedFeed() {
     )
   return (
     <FeedLoader
-      key={`${actorId}:${learnerId}:${generation}`}
+      key={`${actorId}:${learnerId}:${generation}:${location.key}`}
       identity={identity}
       interval={settings?.review_interval ?? 5}
+      startContentId={startContentId}
+      returnTo={returnTo}
     />
   )
 }
 
-function FeedLoader({ identity, interval }: { identity: LearningIdentity; interval: number }) {
+function FeedLoader({
+  identity,
+  interval,
+  startContentId,
+  returnTo,
+}: {
+  identity: LearningIdentity
+  interval: number
+  startContentId?: number
+  returnTo: string
+}) {
   const [revision, setRevision] = useState(0)
   const [entryId] = useState(() => crypto.randomUUID())
   const feed = useQuery({
-    queryKey: learningKey(identity, 'feed', entryId, revision),
-    queryFn: ({ signal }) => getFeed(identity, signal),
+    queryKey: learningKey(identity, 'feed', entryId, revision, startContentId),
+    queryFn: ({ signal }) =>
+      getFeedEntry(identity, revision === 0 ? startContentId : undefined, signal),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   })
@@ -80,9 +101,17 @@ function FeedLoader({ identity, interval }: { identity: LearningIdentity; interv
     return (
       <div className="sasu-page">
         <StateBlock
-          title="추천 영상을 불러오지 못했어요."
-          text={feed.error?.message}
-          action={<Button onClick={() => void feed.refetch()}>다시 시도</Button>}
+          title="영상을 불러오지 못했어요."
+          error={feed.error}
+          action={
+            <>
+              <Button onClick={() => void feed.refetch()}>다시 시도</Button>
+              {startContentId !== undefined && revision === 0 && (
+                <Button onClick={() => setRevision((value) => value + 1)}>추천 영상 보기</Button>
+              )}
+              <Link to={returnTo}>검색으로</Link>
+            </>
+          }
         />
       </div>
     )
@@ -91,8 +120,8 @@ function FeedLoader({ identity, interval }: { identity: LearningIdentity; interv
       key={revision}
       identity={identity}
       interval={interval}
-      feed={feed.data.feed}
-      position={feed.data.position}
+      entry={feed.data}
+      returnTo={returnTo}
       reload={() => setRevision((value) => value + 1)}
     />
   )
@@ -101,34 +130,27 @@ function FeedLoader({ identity, interval }: { identity: LearningIdentity; interv
 function FeedFlow({
   identity,
   interval,
-  feed,
-  position,
+  entry,
+  returnTo,
   reload,
 }: {
   identity: LearningIdentity
   interval: number
-  feed: Feed
-  position: FeedPosition
+  entry: FeedEntry
+  returnTo: string
   reload: () => void
 }) {
   // 시청 보고·좋아요의 배경 재조회로 현재 영상과 추천 순서가 바뀌지 않게 한다.
-  const [items] = useState(() =>
-    feed.items.filter(
-      (item, index, all) =>
-        all.findIndex((other) => other.content.content_id === item.content.content_id) === index,
-    ),
+  const [initial] = useState(entry)
+  const items = initial.items
+  const [currentId, setCurrentId] = useState(initial.initialContentId)
+  const [state, setState] = useState(() =>
+    feedSessionAtEntry(readFeedSession(identity), initial.explicitStart),
   )
-  const [currentId, setCurrentId] = useState<number | null>(() =>
-    position.resume_available &&
-    items.some((item) => item.content.content_id === position.last_content_id)
-      ? position.last_content_id
-      : (items[0]?.content.content_id ?? null),
-  )
-  const [state, setState] = useState(() => readFeedSession(identity))
   const stateRef = useRef(state)
   const [storageFailed, setStorageFailed] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<Error | null>(null)
   const moving = useRef(false)
   const mounted = useRef(true)
   const [preparedCard, setPreparedCard] = useState<PendingFeedReview | null>(null)
@@ -187,7 +209,7 @@ function FeedFlow({
     if (moving.current || !mounted.current) return false
     moving.current = true
     setBusy(true)
-    setError('')
+    setError(null)
     try {
       const current = stateRef.current
       const inserted =
@@ -236,7 +258,7 @@ function FeedFlow({
       }
     } catch (cause) {
       if (mounted.current && !(cause instanceof Error && cause.name === 'AbortError'))
-        setError(cause instanceof Error ? cause.message : '복기 대상을 확인하지 못했어요.')
+        setError(cause instanceof Error ? cause : new Error('복기 대상을 확인하지 못했어요.'))
       return false
     } finally {
       moving.current = false
@@ -273,7 +295,7 @@ function FeedFlow({
       direction === 'next' ? (card?.nextContentId ?? null) : (card?.previousContentId ?? currentId)
     update((previous) => ({ ...previous, pending: null }))
     setCurrentId(items.some((item) => item.content.content_id === next) ? next : null)
-    setError('')
+    setError(null)
   }
   const goPrevious = () => {
     const card = cardBetween(stateRef.current, previousId ?? null, currentId)
@@ -296,6 +318,17 @@ function FeedFlow({
     : currentId === null
       ? 'end'
       : `video:${currentId}`
+  const endScreen = (
+    <FeedEndCard empty={items.length === 0}>
+      <Button variant="primary" onClick={reload}>
+        추천 다시 불러오기
+      </Button>
+      {previousId !== undefined && <Button onClick={goPrevious}>이전 항목</Button>}
+      <Link className="sasu-link" to={returnTo}>
+        영상 검색하기
+      </Link>
+    </FeedEndCard>
+  )
   const scrollItems: SwipeItem[] = slides.map((slide) => ({
     key: slide.key,
     ...(slide.kind === 'video'
@@ -305,6 +338,11 @@ function FeedFlow({
               identity={identity}
               contentId={slide.contentId}
               content={items.find((item) => item.content.content_id === slide.contentId)?.content}
+              overlay={{
+                recommendationLabel: items.find(
+                  (item) => item.content.content_id === slide.contentId,
+                )?.recommendation_label,
+              }}
               active={active}
               mediaHost={mediaHost}
             >
@@ -313,30 +351,36 @@ function FeedFlow({
           ),
         }
       : {
-          preview: slide.kind === 'review' ? cardPreview(slide.card) : <SwipeEndPreview />,
+          preview: slide.kind === 'review' ? cardPreview(slide.card) : endScreen,
         }),
   }))
 
   return (
     <>
       {storageFailed ? (
-        <div className="sasu-page" role="alert">
-          이 브라우저에서는 복기 진행 상태를 보관하지 못했어요. 새로고침하면 진행 상태가 사라질 수
-          있어요.
-        </div>
+        <ErrorFeedback
+          title="복기 진행 상태를 보관하지 못했어요."
+          text="새로고침하면 진행 상태가 사라질 수 있어요."
+        />
       ) : null}
-      {feed.resume_unavailable ? (
-        <div className="sasu-page" role="status">
-          마지막 영상은 현재 이용할 수 없어 다른 추천 영상부터 보여 드려요.
-        </div>
+      {initial.resumeUnavailable && items.length > 0 ? (
+        <Notification
+          tone="info"
+          title="마지막 영상은 현재 이용할 수 없어요."
+          message="다른 추천 영상부터 보여 드려요."
+        />
       ) : null}
       {error ? (
-        <div className="sasu-page" role="alert">
-          <p>{error}</p>
-          <Button onClick={() => void advance()} disabled={busy}>
-            다시 확인
-          </Button>
-        </div>
+        <StateBlock
+          variant="toast"
+          title="복기 대상을 확인하지 못했어요."
+          error={error}
+          action={
+            <Button onClick={() => void advance()} disabled={busy}>
+              다시 확인
+            </Button>
+          }
+        />
       ) : null}
       <SwipeViewport items={scrollItems} activeKey={activeKey}>
         {state.pending ? (
@@ -355,6 +399,7 @@ function FeedFlow({
             playback={playback}
             identity={identity}
             item={items[index]}
+            returnTo={returnTo}
             onWatchReport={(result) => onWatchReport(currentId, result)}
             onNext={advance}
             prepareNext={prepareAdvance}
@@ -363,28 +408,13 @@ function FeedFlow({
           />
         ) : (
           <SwipeScene
-            media={<SwipeEndPreview />}
+            media={endScreen}
             onNavigate={async (direction) => {
               if (direction !== 'previous' || previousId === undefined) return false
               goPrevious()
               return true
             }}
-          >
-            <StateBlock
-              title={items.length ? '추천 영상을 모두 확인했어요.' : '아직 공개된 영상이 없어요.'}
-              action={
-                <>
-                  <Button onClick={reload}>추천 다시 불러오기</Button>
-                  {previousId !== undefined ? (
-                    <Button onClick={goPrevious}>이전 항목</Button>
-                  ) : null}
-                  <Link className="sasu-link" to="/learner/search">
-                    영상 검색하기
-                  </Link>
-                </>
-              }
-            />
-          </SwipeScene>
+          />
         )}
       </SwipeViewport>
     </>
@@ -395,6 +425,7 @@ function FeedVideo({
   playback,
   identity,
   item,
+  returnTo,
   onNext,
   onPrevious,
   onWatchReport,
@@ -402,7 +433,8 @@ function FeedVideo({
   prepareNext,
 }: {
   identity: LearningIdentity
-  item: FeedItem
+  item: FeedDisplayItem
+  returnTo: string
   playback: ViewerSession
   onNext: () => Promise<boolean>
   onPrevious?: () => void
@@ -430,17 +462,7 @@ function FeedVideo({
     save()
   }, [save])
 
-  if (detail.isPending)
-    return (
-      <SwipeScene
-        panelPending
-        media={
-          <div className="sasu-player">
-            <VideoLoading />
-          </div>
-        }
-      />
-    )
+  if (detail.isPending) return <SwipeScene panelPending media={<VideoLoading />} />
   if (
     !detail.data ||
     !detail.data.content.video_url ||
@@ -450,9 +472,18 @@ function FeedVideo({
     return (
       <SwipeScene
         media={
-          <div className="sasu-player swipe-preview__end">
-            <p>현재 영상을 불러올 수 없어요.</p>
-          </div>
+          <VideoUnavailable
+            title="현재 영상을 불러올 수 없어요."
+            error={detail.error}
+            action={
+              <>
+                <Button onClick={() => void detail.refetch()}>다시 시도</Button>
+                <Button disabled={busy} onClick={() => void onNext()}>
+                  다음 영상
+                </Button>
+              </>
+            }
+          />
         }
         onNavigate={async (direction) => {
           if (direction === 'next') return onNext()
@@ -460,34 +491,25 @@ function FeedVideo({
           onPrevious()
           return true
         }}
-      >
-        <StateBlock
-          title="현재 영상을 불러올 수 없어요."
-          text={detail.error?.message}
-          action={
-            <>
-              <Button onClick={() => void detail.refetch()}>다시 시도</Button>
-              <Button disabled={busy} onClick={() => void onNext()}>
-                다음 영상
-              </Button>
-            </>
-          }
-        />
-      </SwipeScene>
+      />
     )
   return (
     <>
       {position.isError ? (
-        <div className="sasu-page" role="alert">
-          <p>마지막 영상 위치를 저장하지 못했어요. {position.error.message}</p>
-          <Button onClick={() => save()}>위치 다시 저장</Button>
-        </div>
+        <StateBlock
+          variant="toast"
+          title="마지막 영상 위치를 저장하지 못했어요."
+          error={position.error}
+          action={<Button onClick={() => save()}>위치 다시 저장</Button>}
+        />
       ) : null}
       {detail.isError ? (
-        <div className="sasu-page" role="alert">
-          <p>영상 정보를 갱신하지 못했어요. {detail.error.message}</p>
-          <Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>
-        </div>
+        <StateBlock
+          variant="toast"
+          title="영상 정보를 갱신하지 못했어요."
+          error={detail.error}
+          action={<Button onClick={() => void detail.refetch()}>정보 다시 불러오기</Button>}
+        />
       ) : null}
       <ContentViewer
         playback={playback}
@@ -498,7 +520,7 @@ function FeedVideo({
         questionError={question.error}
         retryQuestion={() => void question.refetch()}
         context="FEED"
-        backTo="/learner/search"
+        backTo={returnTo}
         backLabel="영상 검색"
         recommendationLabel={item.recommendation_label}
         onNext={onNext}

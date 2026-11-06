@@ -1,0 +1,76 @@
+.content-viewer .feed-end {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  overflow-y: auto;
+  background: linear-gradient(165deg, #f0f5ff, #fbfcff 60%, #f5f8fd);
+  color: #3b506f;
+  text-align: center;
+}
+.feed-end__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 300px;
+}
+.feed-end__icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 24px;
+  border: 1px solid #d6e2f6;
+  border-radius: 24px;
+  background: #fff;
+  color: #7697cd;
+  box-shadow: 0 6px 24px #6080b40a;
+}
+.feed-end h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.55;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.feed-end p {
+  margin: 12px 0 0;
+  color: #7a8aa1;
+  font-size: 13px;
+  line-height: 1.8;
+  word-break: keep-all;
+}
+.feed-end__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 28px;
+}
+.feed-end__actions .sasu-btn {
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 11px;
+  font-size: 13px;
+  text-decoration: none;
+}
+.feed-end__actions .sasu-link {
+  padding: 8px;
+  color: #7185a5;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .content-viewer .feed-end {
+    padding: 20px;
+  }
+  .feed-end__icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 18px;
+    border-radius: 20px;
+  }
+  .feed-end h2 {
+    font-size: 19px;
+  }
+}

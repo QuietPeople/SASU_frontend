@@ -66,14 +66,15 @@
   place-items: center;
   pointer-events: none;
 }
-.content-viewer .content-viewer__loading-ring {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #ffffff40;
-  border-top-color: #fff;
-  border-radius: 50%;
-  filter: drop-shadow(0 1px 3px #0008);
-  animation: content-viewer-loading-spin 0.85s linear infinite;
+.content-viewer .content-viewer__unavailable {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #f7f9fd;
+}
+.content-viewer__unavailable .sasu-failure {
+  min-height: 0;
+  padding: 0;
 }
 .content-viewer .content-viewer__panel-loading {
   display: grid;
@@ -81,19 +82,9 @@
   min-height: 180px;
   place-items: center;
 }
-.content-viewer .content-viewer__panel-loading .content-viewer__loading-ring {
-  border-color: #dce4ef;
-  border-top-color: #486698;
-  filter: none;
-}
 @keyframes content-viewer-loading-spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .content-viewer .content-viewer__loading-ring {
-    animation: none;
   }
 }
 .content-viewer .content-viewer__controls {
@@ -754,15 +745,7 @@
   padding: 12px;
 }
 .content-viewer__series summary {
-  cursor: pointer;
   font-size: 13px;
-  font-weight: 650;
-  padding: 4px;
-}
-.content-viewer__series summary > span {
-  float: right;
-  font-size: 11px;
-  color: #64748b;
 }
 .content-viewer__series h3 {
   font-size: 13px;
@@ -1035,4 +1018,28 @@
 }
 .content-viewer__error .sasu-link {
   color: #b4ceff;
+}
+
+.content-viewer .content-viewer__panel-loading {
+  padding: 24px 20px;
+  align-items: start;
+}
+.content-viewer .content-viewer__error .sasu-failure {
+  min-height: 0;
+  padding: 0;
+}
+
+.content-viewer .content-viewer__loading-ring {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #ffffff40;
+  border-top-color: #fff;
+  border-radius: 50%;
+  filter: drop-shadow(0 1px 3px #0008);
+  animation: content-viewer-loading-spin 0.85s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .content-viewer .content-viewer__loading-ring {
+    animation: none;
+  }
 }

@@ -69,40 +69,27 @@
     opacity: 1;
   }
 }
-.content-viewer .swipe-preview__title {
+.swipe-preview__overlay {
   position: absolute;
-  inset: auto 0 0;
-  padding: 64px 24px 28px;
-  margin: 0;
-  background: linear-gradient(transparent, #000b);
-  color: #fff;
-  font-size: 20px;
-  line-height: 1.4;
-  font-weight: 700;
-  overflow-wrap: anywhere;
+  inset: 0;
+  pointer-events: none;
 }
-.swipe-preview__end {
-  display: grid;
-  place-content: center;
-  gap: 8px;
-  padding: 32px;
-  text-align: center;
-  color: #e2e8f0;
-}
-.swipe-preview__end p {
-  margin: 0;
+/* 재생 준비 이벤트가 아니라 실제 조작 UI가 붙는 시점에 표시를 넘긴다. */
+.content-viewer__video-player:has(> .swipe-viewport__media > .content-viewer__player-ui)
+  > .swipe-preview__overlay {
+  display: none;
 }
 @media (max-width: 760px) {
   .content-viewer .swipe-viewport {
     border-radius: 18px;
-  }
-  .content-viewer .swipe-preview__title {
-    font-size: 17px;
-    padding: 56px 18px 24px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .swipe-viewport__pending {
     animation: none;
   }
+}
+
+.swipe-viewport__pending > .sasu-skeleton {
+  width: min(220px, 60%);
 }
