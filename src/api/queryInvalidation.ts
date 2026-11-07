@@ -235,3 +235,26 @@ export async function invalidateRecordReset(
     (query) => adminStatistics(query) || adminResponses(query) || adminQuestionHistory(query),
   )
 }
+
+export async function invalidateContentDeletion(
+  cache: QueryClient,
+  { contentId }: { contentId: number },
+): Promise<void> {
+  const ownedContent: Predicate = (query) => {
+    const path = adminPath(query)?.pathname
+    return path === `/contents/${contentId}` || !!path?.startsWith(`/contents/${contentId}/`)
+  }
+  await cache.cancelQueries({ predicate: ownedContent })
+  cache.removeQueries({ predicate: ownedContent })
+  await Promise.all([
+    invalidateContentChange(cache, { contentId }),
+    invalidate(
+      cache,
+      (query) =>
+        adminResponses(query) ||
+        adminQuestionHistory(query) ||
+        learnerResource(query, ['feed', 'question'], contentId) ||
+        (query.queryKey[0] === 'session' && query.queryKey[1] === 'settings'),
+    ),
+  ])
+}

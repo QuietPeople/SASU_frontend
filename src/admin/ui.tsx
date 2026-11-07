@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode } from 'react'
+import { lockBodyScroll } from './scrollLock'
 
 // 관리자 UI는 학습자 디자인 작업과 독립적으로 관리한다. 통합 시 공통화 여부를 검토한다.
 
@@ -112,13 +113,12 @@ export function ConfirmDialog({
     if (!open) return undefined
     const dialog = ref.current!
     const prev = document.activeElement as HTMLElement | null
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlockScroll = lockBodyScroll()
     dialog.showModal()
     cancelRef.current?.focus({ preventScroll: true })
     return () => {
       dialog.close()
-      document.body.style.overflow = overflow
+      unlockScroll()
       if (prev?.isConnected) prev.focus({ preventScroll: true })
     }
   }, [open])

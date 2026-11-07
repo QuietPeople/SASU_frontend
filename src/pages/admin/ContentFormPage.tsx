@@ -259,6 +259,11 @@ function ContentEditor({
     setError('')
   }
 
+  const onTitleChange = embedded?.onTitleChange
+  const savedTitle = saved?.detail.content.title
+  useEffect(() => {
+    if (savedTitle !== undefined) onTitleChange?.(savedTitle)
+  }, [savedTitle, onTitleChange])
   const onDirtyChange = embedded?.onDirtyChange
   const onBusyChange = embedded?.onBusyChange
   useEffect(() => {
