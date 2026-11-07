@@ -1,5 +1,4 @@
-import { ContentLifecycleActions } from '../../admin/ContentLifecycleActions'
-import { contentStatusLabel, contentStatusTone } from '../../admin/contentStatus'
+import { ContentDeleteAction } from '../../admin/ContentDeleteAction'
 import { Skeleton } from '../../shared/Skeleton'
 import { ContentThumbnailInput } from '../../admin/ContentThumbnailInput'
 import { SegmentedControl } from '../../admin/SegmentedControl'
@@ -462,8 +461,12 @@ function ContentEditor({
           </button>
         )}
         <div className="admin-row">
-          <Badge tone={contentStatusTone(saved?.detail.content.status)}>
-            {saved ? contentStatusLabel(saved.detail.content.status) : '작성 중'}
+          <Badge tone={saved?.detail.content.status === 'PUBLISHED' ? 'green' : 'neutral'}>
+            {saved
+              ? saved.detail.content.status === 'PUBLISHED'
+                ? '공개'
+                : '임시저장'
+              : '작성 중'}
           </Badge>
           {dirty && <span className="admin-editor__unsaved">미저장 변경 있음</span>}
           {saved && !dirty && !busy && (
@@ -892,19 +895,10 @@ function ContentEditor({
                   <p className="admin-help">영상 교체 후에도 기존 학습 기록은 유지돼요.</p>
                 )}
                 {saved && (
-                  <ContentLifecycleActions
+                  <ContentDeleteAction
                     content={saved}
                     disabled={saveBusy !== null || videoUpload.recovery !== null || editConflict}
                     dirty={dirty || tagDraft.trim().length > 0}
-                    onUpdated={(latest) => {
-                      setSaved(latest)
-                      editorDrafts.delete(draftKey)
-                      show(
-                        latest.detail.content.status === 'PRIVATE'
-                          ? '비공개로 전환했어요.'
-                          : '다시 공개했어요.',
-                      )
-                    }}
                     onDeleted={(result) => {
                       editorDrafts.delete(draftKey)
                       if (embedded?.onDeleted) embedded.onDeleted(result.file_cleanup_pending)

@@ -20,7 +20,7 @@ export interface LearnerContent {
   saved: boolean | null
   watch_completed: boolean | null
   has_quiz: boolean
-  status: 'DRAFT' | 'PUBLISHED' | 'PRIVATE'
+  status: 'DRAFT' | 'PUBLISHED'
 }
 export interface SavedContent {
   content: LearnerContent

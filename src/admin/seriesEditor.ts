@@ -60,8 +60,7 @@ export function addSeriesStep(order: number[], id: number) {
 export function stepWarnings(content?: AdminContent | null, available?: boolean) {
   if (!content) return ['콘텐츠 확인 필요']
   const warnings: string[] = []
-  if (content.status === 'PRIVATE') warnings.push('비공개 · 학습자 조회·진도에서 제외')
-  else if (content.status !== 'PUBLISHED') warnings.push('임시저장 · 학습자에게 비공개')
+  if (content.status !== 'PUBLISHED') warnings.push('임시저장 · 학습자에게 비공개')
   else if (!content.video_url || available === false) warnings.push('영상 확인 필요 · 시청 불가')
   if (!content.has_quiz) warnings.push('퀴즈 없음 · 완료 불가')
   return warnings

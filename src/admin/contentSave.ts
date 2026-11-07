@@ -153,7 +153,7 @@ export async function persistContent(
       startStage('publish')
       current = await api<EditableContent>(
         `/contents/${current.detail.content.content_id}/publish`,
-        { method: 'POST', actorId, body: { expected_updated_at: current.updated_at } },
+        { method: 'POST', actorId },
       )
       onSaved(current)
     }

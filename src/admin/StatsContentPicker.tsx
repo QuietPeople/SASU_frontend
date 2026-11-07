@@ -1,4 +1,3 @@
-import { contentStatusLabel, contentStatusTone } from './contentStatus'
 import { ErrorFeedback } from '../shared/ErrorFeedback'
 import { Skeleton } from '../shared/Skeleton'
 import { ImeInput } from '../shared/ImeInput'
@@ -18,10 +17,9 @@ import { ContentFilter } from './ContentFilter'
 import { Icon } from './Icon'
 import { Badge, Button } from './ui'
 
-const STATUSES: { id: 'ALL' | 'PUBLISHED' | 'DRAFT' | 'PRIVATE'; label: string }[] = [
+const STATUSES: { id: 'ALL' | 'PUBLISHED' | 'DRAFT'; label: string }[] = [
   { id: 'ALL', label: '전체' },
   { id: 'PUBLISHED', label: '공개' },
-  { id: 'PRIVATE', label: '비공개' },
   { id: 'DRAFT', label: '임시저장' },
 ]
 
@@ -35,7 +33,7 @@ export function StatsContentPicker({ target }: { target?: string }) {
       owner: string
       search: string
       category: string
-      status: 'ALL' | 'PUBLISHED' | 'DRAFT' | 'PRIVATE'
+      status: 'ALL' | 'PUBLISHED' | 'DRAFT'
       page: number
     }
   } | null
@@ -45,9 +43,7 @@ export function StatsContentPicker({ target }: { target?: string }) {
   const [search, setSearch] = useState(initial?.search ?? '')
   const [term, setTerm] = useState(initial?.search.trim() ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
-  const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT' | 'PRIVATE'>(
-    initial?.status ?? 'ALL',
-  )
+  const [status, setStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>(initial?.status ?? 'ALL')
   const [page, setPage] = useState(initial?.page ?? 1)
   const { attach: paginationRef, preserve: preservePaginationScroll } =
     usePaginationScroll<HTMLDivElement>(`${owner}:${term}:${category}:${status}:${open}`)
@@ -282,8 +278,8 @@ export function StatsContentPicker({ target }: { target?: string }) {
                               : ''}
                           </small>
                         </span>
-                        <Badge tone={contentStatusTone(item.status)}>
-                          {contentStatusLabel(item.status)}
+                        <Badge tone={item.status === 'PUBLISHED' ? 'green' : 'neutral'}>
+                          {item.status === 'PUBLISHED' ? '공개' : '임시저장'}
                         </Badge>
                         {String(item.content_id) === target && (
                           <span className="admin-stats__picker-current">선택됨</span>

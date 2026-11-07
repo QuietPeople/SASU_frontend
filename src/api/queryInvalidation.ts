@@ -236,18 +236,16 @@ export async function invalidateRecordReset(
   )
 }
 
-export async function invalidateContentLifecycle(
+export async function invalidateContentDeletion(
   cache: QueryClient,
-  { contentId, deleted }: { contentId: number; deleted: boolean },
+  { contentId }: { contentId: number },
 ): Promise<void> {
   const ownedContent: Predicate = (query) => {
     const path = adminPath(query)?.pathname
     return path === `/contents/${contentId}` || !!path?.startsWith(`/contents/${contentId}/`)
   }
-  if (deleted) {
-    await cache.cancelQueries({ predicate: ownedContent })
-    cache.removeQueries({ predicate: ownedContent })
-  }
+  await cache.cancelQueries({ predicate: ownedContent })
+  cache.removeQueries({ predicate: ownedContent })
   await Promise.all([
     invalidateContentChange(cache, { contentId }),
     invalidate(

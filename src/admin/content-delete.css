@@ -1,0 +1,13 @@
+.admin-content-delete {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e9f1;
+}
+@media (max-width: 700px) {
+  .admin-content-delete > .admin-btn {
+    width: 100%;
+  }
+}

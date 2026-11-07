@@ -35,7 +35,7 @@
 }
 .admin-cl__summaries {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 .admin-cl__summary {
@@ -565,10 +565,4 @@
 
 .admin-cl__loading {
   padding: 20px 24px;
-}
-
-@media (max-width: 700px) {
-  .admin-cl__summaries {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
