@@ -8,8 +8,15 @@ export interface ContentDeleted {
 // 영구 삭제는 오프라인 대기나 자동 재시도 없이 사용자가 다시 확인하여 실행한다.
 export const contentDeleteMutationOptions = { networkMode: 'always', retry: false } as const
 
-export function deleteContent({ content, actorId }: { content: EditableContent; actorId: number }) {
-  return api<ContentDeleted>(`/contents/${content.detail.content.content_id}`, {
+export async function deleteContent({
+  contentId,
+  actorId,
+}: {
+  contentId: number
+  actorId: number
+}) {
+  const content = await api<EditableContent>(`/contents/${contentId}?view=editor`, { actorId })
+  return api<ContentDeleted>(`/contents/${contentId}`, {
     actorId,
     method: 'DELETE',
     body: { expected_updated_at: content.updated_at, confirm: true },

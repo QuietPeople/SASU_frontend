@@ -19,12 +19,10 @@ export function ContentDialog({
   content,
   initialView,
   onClose,
-  onDeleted,
 }: {
   content: AdminContent
   initialView: ContentSubviewKind
   onClose: () => void
-  onDeleted?: (pending: boolean) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -69,10 +67,6 @@ export function ContentDialog({
   const embedded: ContentSubview = {
     contentId: content.content_id,
     onClose: () => request('close'),
-    onDeleted: (pending) => {
-      if (onDeleted) onDeleted(pending)
-      else onClose()
-    },
     onOpenMaterials: () => request('materials'),
     onTitleChange: setEditorTitle,
     onDirtyChange: setDirty,

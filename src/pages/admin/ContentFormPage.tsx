@@ -1,4 +1,3 @@
-import { ContentDeleteAction } from '../../admin/ContentDeleteAction'
 import { Skeleton } from '../../shared/Skeleton'
 import { ContentThumbnailInput } from '../../admin/ContentThumbnailInput'
 import { SegmentedControl } from '../../admin/SegmentedControl'
@@ -202,9 +201,7 @@ function ContentEditor({
         navigate(`/admin/contents/${current.detail.content.content_id}`, { replace: true })
     },
   })
-  const { savingRef, busy: saveBusy, stage, error: requestError } = contentSave
-  const [controlBusy, setControlBusy] = useState(false)
-  const busy = saveBusy ?? (controlBusy ? 'control' : null)
+  const { savingRef, busy, stage, error: requestError } = contentSave
   const editConflict = isEditConflict(requestError)
   const tagOptions = useAdminQuery<ApiPage<AdminTag>>(tagSearchPath(tagDraft))
   const pendingTag = resolveContentTag(tagSelection ?? tagDraft, [
@@ -893,24 +890,6 @@ function ContentEditor({
                 )}
                 {saved?.detail.content.media_revision && (
                   <p className="admin-help">영상 교체 후에도 기존 학습 기록은 유지돼요.</p>
-                )}
-                {saved && (
-                  <ContentDeleteAction
-                    content={saved}
-                    disabled={saveBusy !== null || videoUpload.recovery !== null || editConflict}
-                    dirty={dirty || tagDraft.trim().length > 0}
-                    onDeleted={(result) => {
-                      editorDrafts.delete(draftKey)
-                      if (embedded?.onDeleted) embedded.onDeleted(result.file_cleanup_pending)
-                      else
-                        navigate('/admin/contents', {
-                          replace: true,
-                          state: { contentDeleted: { pending: result.file_cleanup_pending } },
-                        })
-                    }}
-                    onBusyChange={setControlBusy}
-                    onReload={reloadAfterConflict}
-                  />
                 )}
               </div>
               <div hidden={mediaTab !== 'thumbnail'} role="region" aria-label="썸네일 이미지">

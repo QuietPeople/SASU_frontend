@@ -3,13 +3,14 @@ import { ImeInput } from '../../shared/ImeInput'
 import { Thumbnail } from '../../shared/Thumbnail'
 import { usePaginationScroll } from '../../shared/usePaginationScroll'
 import { ContentDialog } from '../../admin/ContentDialog'
+import { ContentDeleteAction } from '../../admin/ContentDeleteAction'
 import { ContentFilter } from '../../admin/ContentFilter'
 import type { ContentSubviewKind } from '../../admin/contentSubview'
 import { RequestError } from '../../admin/RequestFeedback'
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useToast } from '../../admin/useToast'
-import { contentDeletedMessage } from '../../admin/contentDelete'
+import { contentDeletedMessage, type ContentDeleted } from '../../admin/contentDelete'
 import { type ApiPage } from '../../api/client'
 import { type AdminContent, type AdminCategory, useAdminQuery } from '../../api/admin'
 import { Badge, Button, StateBlock } from '../../admin/ui'
@@ -30,9 +31,11 @@ import {
 function ContentActions({
   content,
   onOpen,
+  onDeleted,
 }: {
   content: AdminContent
   onOpen: (content: AdminContent, view: ContentSubviewKind) => void
+  onDeleted: (result: ContentDeleted) => void
 }) {
   return (
     <div
@@ -49,6 +52,7 @@ function ContentActions({
       <Button size="sm" variant="ghost" onClick={() => onOpen(content, 'stats')}>
         통계
       </Button>
+      <ContentDeleteAction content={content} onDeleted={onDeleted} />
     </div>
   )
 }
@@ -57,18 +61,12 @@ const PAGE_SIZE = 5
 
 export function ContentListPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { show, node } = useToast()
-  useEffect(() => {
-    const notice = location.state as { contentDeleted?: { pending: boolean } } | null
-    if (notice?.contentDeleted) {
-      show(
-        contentDeletedMessage(notice.contentDeleted.pending),
-        notice.contentDeleted.pending ? 'error' : 'ok',
-      )
-      navigate(location.pathname + location.search, { replace: true, state: null })
-    }
-  }, [location, navigate, show])
+  const onDeleted = (result: ContentDeleted) =>
+    show(
+      contentDeletedMessage(result.file_cleanup_pending),
+      result.file_cleanup_pending ? 'error' : 'ok',
+    )
   const [params, setParams] = useAdminView('contents')
   const query = params.get('q') ?? '',
     status = adminStatus(params.get('status')),
@@ -297,7 +295,7 @@ export function ContentListPage() {
                           </Badge>
                         </td>
                         <td className="admin-table__right">
-                          <ContentActions content={c} onOpen={openPanel} />
+                          <ContentActions content={c} onOpen={openPanel} onDeleted={onDeleted} />
                         </td>
                       </tr>
                     ))}
@@ -324,7 +322,7 @@ export function ContentListPage() {
                         {content.tags.map((tag) => `#${tag.name}`).join(' ')}
                       </p>
                     )}
-                    <ContentActions content={content} onOpen={openPanel} />
+                    <ContentActions content={content} onOpen={openPanel} onDeleted={onDeleted} />
                   </li>
                 ))}
               </ul>
@@ -386,10 +384,6 @@ export function ContentListPage() {
           }
           initialView={panel.view}
           onClose={() => setPanel(null)}
-          onDeleted={(pending) => {
-            setPanel(null)
-            show(contentDeletedMessage(pending), pending ? 'error' : 'ok')
-          }}
         />
       )}
       {node}

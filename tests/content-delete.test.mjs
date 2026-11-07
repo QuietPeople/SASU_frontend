@@ -17,27 +17,55 @@ const content = {
   detail: { content: { content_id: 7 } },
 }
 
-test('영구 삭제에 관리자 ID·편집 시각·명시적 확인을 전달한다', async () => {
+test('목록에서 삭제할 때 최신 편집 시각을 조회하여 관리자 ID·명시적 확인과 전달한다', async () => {
+  const methods = []
   globalThis.fetch = async (url, options) => {
+    methods.push(options.method)
+    assert.equal(options.headers.get('X-Actor-Id'), '1')
+    if (options.method === 'GET') {
+      assert.equal(url, '/api/contents/7?view=editor')
+      return Response.json(content)
+    }
     assert.equal(url, '/api/contents/7')
     assert.equal(options.method, 'DELETE')
-    assert.equal(options.headers.get('X-Actor-Id'), '1')
     assert.deepEqual(JSON.parse(options.body), {
       expected_updated_at: content.updated_at,
       confirm: true,
     })
     return Response.json({ content_id: 7, file_cleanup_pending: false })
   }
-  assert.deepEqual(await deleteContent({ content, actorId: 1 }), {
+  assert.deepEqual(await deleteContent({ contentId: 7, actorId: 1 }), {
     content_id: 7,
     file_cleanup_pending: false,
   })
+  assert.deepEqual(methods, ['GET', 'DELETE'])
 })
 
-test('편집 충돌은 서버 오류를 유지하고 삭제 성공으로 처리하지 않는다', async () => {
-  globalThis.fetch = async () =>
-    Response.json({ detail: { code: 'EDIT_CONFLICT', message: '다시 확인' } }, { status: 409 })
-  await assert.rejects(deleteContent({ content, actorId: 1 }), { code: 'EDIT_CONFLICT' })
+test('삭제 실패는 서버 오류를 유지하고 성공으로 처리하거나 자동 재시도하지 않는다', async () => {
+  let deletes = 0
+  globalThis.fetch = async (_url, options) => {
+    if (options.method === 'GET') return Response.json(content)
+    deletes += 1
+    return Response.json(
+      { detail: { code: 'CONTENT_IN_USE', message: '잠시 후 다시 시도해 주세요.' } },
+      { status: 409 },
+    )
+  }
+  await assert.rejects(deleteContent({ contentId: 7, actorId: 1 }), { code: 'CONTENT_IN_USE' })
+  assert.equal(deletes, 1)
+})
+
+test('최신 정보 조회에 실패하면 삭제 요청을 보내지 않는다', async () => {
+  const methods = []
+  globalThis.fetch = async (_url, options) => {
+    methods.push(options.method)
+    return Response.json(
+      { detail: { code: 'CONTENT_NOT_FOUND', message: '존재하지 않는 콘텐츠입니다.' } },
+      { status: 404 },
+    )
+  }
+  await assert.rejects(deleteContent({ contentId: 7, actorId: 1 }), { code: 'CONTENT_NOT_FOUND' })
+  assert.deepEqual(methods, ['GET'])
 })
 
 test('파일 정리 실패 응답은 삭제 성공과 남은 파일 안내를 구분한다', () => {
@@ -83,7 +111,7 @@ test('오프라인 삭제는 즉시 실패하고 온라인 복구 후 자동 실
   }
   const observer = new MutationObserver(cache, {
     ...contentDeleteMutationOptions,
-    mutationFn: () => deleteContent({ content, actorId: 1 }),
+    mutationFn: () => deleteContent({ contentId: 7, actorId: 1 }),
   })
   const unsubscribe = observer.subscribe(() => {})
   try {

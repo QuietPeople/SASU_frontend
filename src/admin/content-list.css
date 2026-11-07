@@ -316,21 +316,34 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.admin-cl__actions .admin-btn {
+.admin-cl__actions > .admin-btn {
   justify-content: center;
   border-radius: 8px;
   min-height: 36px;
   padding: 7px 12px;
   font-size: 13px;
 }
-.admin-cl__actions .admin-btn--ghost {
+.admin-cl__actions > .admin-btn--ghost {
   padding-inline: 8px;
   color: #586b86;
   font-weight: 500;
 }
-.admin-cl__actions .admin-btn--ghost:hover {
+.admin-cl__actions > .admin-btn--ghost:hover {
   background: #f0f4fc;
   color: #2859d8;
+}
+.admin-cl__actions > .admin-btn--danger {
+  padding-inline: 8px;
+  color: var(--admin-red);
+  background: transparent;
+  border-color: transparent;
+  font-weight: 500;
+}
+.admin-cl__actions > .admin-btn--danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+.admin-cl__actions .admin-confirm-dialog {
+  text-align: left;
 }
 .admin-cl__mobile-list {
   display: none;
@@ -484,11 +497,11 @@
   .admin-cl__content-card .admin-cl__actions {
     margin-top: 14px;
   }
-  .admin-cl__content-card .admin-btn {
+  .admin-cl__content-card .admin-cl__actions > .admin-btn {
     min-height: 44px;
     padding-inline: 14px;
   }
-  .admin-cl__content-card .admin-btn--primary {
+  .admin-cl__content-card .admin-cl__actions > .admin-btn--primary {
     flex: 1;
     margin-right: 6px;
   }
